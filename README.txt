@@ -1,9 +1,19 @@
-EA360 ChatGPT Replica
-======================
+EA360 Capability Accelerator
+============================
 
-Open index.html in any modern browser.
+React + Vite front-end prototype.
 
-Includes:
+## Scripts
+
+```bash
+npm install
+npm run dev      # local development
+npm run build    # production build to dist/
+npm run preview  # preview production build
+```
+
+## Includes
+
 - Responsive desktop/mobile navigation
 - All EA360 sidebar menu items
 - Executive dashboard
@@ -17,4 +27,4 @@ Includes:
 - Demo organisation selector
 - Illustrative/demo data only
 
-This is a self-contained front-end prototype with no external dependencies.
+This is a self-contained front-end prototype with no backend dependencies.
