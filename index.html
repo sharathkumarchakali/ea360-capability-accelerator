@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>EA360 — Enterprise Architecture Capability Accelerator</title>
+<meta name="description" content="Enterprise Architecture Capability Accelerator for assessment, governance, roadmaps, capability development, KPIs and executive reporting."/>
+<style>
+:root{
+  --canvas:#f4f6fb;
+  --panel:#ffffff;
+  --chrome:#dfe7ff;
+  --ink:#10131b;
+  --muted:#697386;
+  --line:#d9dfeb;
+  --accent:#2f5cff;
+  --accent-soft:#edf2ff;
+  --risk:#eb4d4d;
+  --risk-soft:#fee8e6;
+  --warn:#c98500;
+  --warn-soft:#fff0cc;
+  --good:#159a55;
+  --good-soft:#d9f5e4;
+  --navy:#151b2b;
+  --shadow:0 10px 30px rgba(26,34,55,.08);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--canvas)}
+button,input,select{font:inherit}
+body{overflow:hidden}
+.app{height:100vh;display:flex;flex-direction:column}
+.topbar{
+  min-height:58px;background:var(--chrome);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;padding:9px 16px;z-index:20
+}
+.brand{display:flex;align-items:center;gap:9px;min-width:160px}
+.brandmark{width:28px;height:28px;border-radius:7px;background:var(--navy);color:white;display:grid;place-items:center;font-weight:800;font-size:12px}
+.brandtext strong{display:block;font-size:13px;line-height:1}
+.brandtext span{display:block;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.orgselect{border:1px solid var(--line);background:rgba(255,255,255,.66);border-radius:18px;padding:7px 12px;min-width:250px;color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:8px;position:relative}
+.pill,.iconbtn{
+  border:1px solid var(--line);background:white;color:#60697a;cursor:pointer;transition:.18s
+}
+.pill:hover,.iconbtn:hover{border-color:#9eb1ff;box-shadow:0 0 0 3px rgba(47,92,255,.08)}
+.pill{border-radius:18px;padding:7px 12px;font-size:12px}
+.iconbtn{width:32px;height:32px;border-radius:50%;display:grid;place-items:center}
+.iconbtn.dark{background:var(--navy);color:white;border-color:var(--navy)}
+.iconbtn.blue{background:#5b79ff;color:white;border-color:#5b79ff}
+.shell{flex:1;display:flex;min-height:0}
+.sidebar{width:192px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
+.nav{padding:10px 9px;overflow-y:auto;flex:1}
+.group{margin-bottom:12px}
+.group-title{font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:#7b8493;padding:0 7px 5px}
+.navitem{
+  width:100%;border:0;background:transparent;text-align:left;border-radius:7px;padding:7px 8px;
+  display:flex;align-items:center;justify-content:space-between;color:#5f6672;font-size:11px;cursor:pointer;margin:1px 0
+}
+.navitem:hover{background:var(--accent-soft);color:var(--accent)}
+.navitem.active{background:#dbe4ff;color:var(--accent);font-weight:700}
+.navitem .left{display:flex;align-items:center;gap:8px;min-width:0}
+.navitem .ico{width:14px;text-align:center}
+.badge{font-size:9px;border-radius:5px;padding:1px 4px;background:#ffe5e2;color:#d73d3d}
+.sidefoot{border-top:1px solid var(--line);padding:10px}
+.cap-card{border:1px solid var(--line);background:#fafbfe;border-radius:9px;padding:10px}
+.cap-label{font-size:8px;letter-spacing:.16em;text-transform:uppercase;color:#7a8493}
+.cap-score{font-size:22px;font-weight:800;margin-top:6px}
+.cap-score span{font-size:9px;color:var(--muted);font-weight:500}
+.progress{height:5px;border-radius:99px;background:#e4e8ef;overflow:hidden}
+.progress > div{height:100%;background:var(--accent);border-radius:99px}
+.sidefoot p{font-size:9px;line-height:1.4;color:var(--muted);margin:7px 0}
+.version{font-size:8px;color:#7b8493;letter-spacing:.12em;text-transform:uppercase;margin-top:8px}
+.main{flex:1;min-width:0;overflow:auto;background:var(--canvas)}
+.view{display:none}
+.view.active{display:block}
+.hero{background:white;border-bottom:1px solid var(--line);padding:18px 20px 16px}
+.kicker{font-size:8px;letter-spacing:.22em;text-transform:uppercase;color:#737d8d;margin-bottom:8px}
+.hero-row{display:flex;gap:18px;align-items:flex-start}
+.hero-title{font-size:18px;line-height:1.35;font-weight:800;max-width:760px}
+.scorebox{margin-left:auto;display:flex;align-items:flex-start;gap:16px}
+.bigscore{font-size:42px;font-weight:900;line-height:.9}
+.bigscore small{font-size:15px;color:#60697a}
+.target{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#7a8493;text-align:center;margin-top:4px}
+.mini-stats{border-left:1px solid var(--line);padding-left:14px;font-size:10px;line-height:1.8}
+.dot{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:6px}
+.grid12{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 16px;margin-top:15px}
+.domain{font-size:10px}
+.domain-top{display:flex;justify-content:space-between;margin-bottom:5px}
+.dbar{height:5px;background:#e3e7ee;border-radius:99px;overflow:hidden}
+.dbar > div{height:100%;border-radius:99px}
+.section{padding:16px 20px}
+.two{display:grid;grid-template-columns:1.5fr 1fr;gap:14px}
+.card{background:white;border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 1px 1px rgba(0,0,0,.01)}
+.card h3{margin:0;font-size:13px}
+.sub{font-size:9px;color:var(--muted);margin-top:3px}
+.riskcols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.coltitle{font-size:8px;text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px}
+.riskitem{font-size:10px;line-height:1.35;padding:9px;border-radius:8px;margin-bottom:7px;border:1px solid rgba(0,0,0,.04)}
+.critical{background:var(--risk-soft)} .attention{background:var(--warn-soft)} .healthy{background:var(--good-soft)}
+.actions{margin-top:10px}
+.action{display:grid;grid-template-columns:1fr 40px 75px 16px;gap:8px;padding:9px 6px;border-bottom:1px solid #edf0f5;font-size:10px;align-items:center}
+.action:last-child{border-bottom:0}
+.p1{color:var(--risk)} .p2{color:var(--warn)}
+.journey-wrap{background:white;border-top:1px solid var(--line);padding:16px 20px 18px}
+.journey-head{display:flex;justify-content:space-between;align-items:flex-start}
+.journey{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.jstep{border:1px solid var(--line);background:#fafbfe;border-radius:12px;padding:12px}
+.jstep.current{background:#dce5ff;border-color:#97abff}
+.jlabel{font-size:8px;text-transform:uppercase;letter-spacing:.12em;color:#737d8d}
+.jscore{font-size:26px;font-weight:800;margin:8px 0}
+.module{padding:20px}
+.module-header{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;margin-bottom:14px}
+.module h1{font-size:23px;margin:0}
+.module p{font-size:11px;color:var(--muted);margin:4px 0 0}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:white;border-radius:8px;padding:8px 10px;font-size:11px;cursor:pointer}
+.btn.primary{background:var(--accent);color:white;border-color:var(--accent)}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0 16px}
+.metric{background:white;border:1px solid var(--line);border-radius:11px;padding:12px}
+.metric .m-label{font-size:9px;color:var(--muted)}
+.metric .m-value{font-size:23px;font-weight:800;margin-top:4px}
+.tablewrap{background:white;border:1px solid var(--line);border-radius:12px;overflow:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #edf0f5;font-size:10px}
+th{font-size:8px;text-transform:uppercase;letter-spacing:.08em;color:#727c8c;background:#fafbfe}
+.tag{display:inline-block;border-radius:999px;padding:3px 7px;font-size:9px;background:#eef2f7}
+.tag.red{background:#fde7e5;color:#c63c3c}.tag.amber{background:#fff0cc;color:#9d6700}.tag.green{background:#dcf4e5;color:#0d7e44}.tag.blue{background:#e7edff;color:#2f5cff}
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.itemcard{background:white;border:1px solid var(--line);border-radius:12px;padding:14px}
+.itemcard h4{margin:0 0 7px;font-size:12px}.itemcard p{font-size:10px;line-height:1.5;color:var(--muted)}
+.popover{
+  position:absolute;right:0;top:42px;width:280px;background:white;border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:12px;display:none;z-index:50
+}
+.popover.show{display:block}
+.popover h4{margin:0 0 8px;font-size:12px}
+.popover p{font-size:10px;color:var(--muted)}
+.search-overlay{position:fixed;inset:0;background:rgba(16,19,27,.18);display:none;place-items:start center;padding-top:80px;z-index:100}
+.search-overlay.show{display:grid}
+.searchbox{width:min(680px,90vw);background:white;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:14px}
+.searchbox input{width:100%;border:1px solid var(--line);border-radius:9px;padding:11px 12px;outline:none}
+.search-results{margin-top:10px;max-height:330px;overflow:auto}
+.sres{padding:9px;border-radius:8px;font-size:11px;cursor:pointer}.sres:hover{background:var(--accent-soft)}
+.toast{position:fixed;right:18px;bottom:18px;max-width:min(360px,calc(100vw - 36px));background:var(--navy);color:white;border-radius:10px;padding:11px 14px;font-size:11px;line-height:1.45;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s;z-index:120}
+.toast.show{opacity:1;transform:translateY(0)}
+.mobile-menu{display:none}
+.overlay{display:none}
+@media(max-width:980px){
+  .grid12{grid-template-columns:repeat(3,1fr)}
+  .two{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:760px){
+  body{overflow:auto}.app{height:auto;min-height:100vh}
+  .mobile-menu{display:grid}
+  .brand{min-width:auto}.brandtext span{display:none}.orgselect{display:none}.topbar .pill.period{display:none}
+  .sidebar{position:fixed;left:-210px;top:58px;bottom:0;z-index:80;box-shadow:var(--shadow);transition:left .2s}
+  .sidebar.open{left:0}
+  .overlay.show{display:block;position:fixed;inset:58px 0 0;background:rgba(16,19,27,.22);z-index:70}
+  .shell{min-height:calc(100vh - 58px)}
+  .hero-row{display:block}.scorebox{margin:15px 0 0}.grid12{grid-template-columns:repeat(2,1fr)}
+  .riskcols,.journey,.cards3{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}
+  .section,.hero,.journey-wrap,.module{padding-left:12px;padding-right:12px}
+}
+
+/* EA360 executive command-centre refresh */
+:root{
+  --canvas:#f5f7fb;--panel:#fff;--chrome:#fff;--ink:#101828;--muted:#667085;
+  --line:#e6eaf0;--accent:#3157d5;--accent-soft:#eef2ff;--risk:#d92d20;
+  --risk-soft:#fff1f0;--warn:#dc6803;--warn-soft:#fff7ed;--good:#039855;
+  --good-soft:#ecfdf3;--navy:#101828;--teal:#0e9384;--violet:#6938ef;
+  --shadow:0 10px 30px rgba(16,24,40,.06)
+}
+html{font-size:16px}body{background:var(--canvas)}
+.topbar{min-height:68px;padding:10px 22px;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);box-shadow:0 1px 0 var(--line)}
+.brand{min-width:215px}.brandmark{width:38px;height:38px;border-radius:11px;background:linear-gradient(145deg,#1d2d63,#3157d5);font-size:.78rem;box-shadow:0 8px 18px rgba(49,87,213,.24)}
+.brandtext strong{font-size:.95rem}.brandtext span{font-size:.62rem;letter-spacing:.13em;margin-top:4px}
+.orgselect{min-width:300px;border-radius:10px;padding:9px 13px;background:#f8fafc;color:#344054;font-size:.8rem}
+.pill{border-radius:9px;padding:9px 12px;font-size:.78rem}.iconbtn{width:38px;height:38px}
+.sidebar{width:246px;background:#101828;border:0;color:#fff}.nav{padding:18px 12px}.group{margin-bottom:20px}
+.group-title{font-size:.65rem;color:#667085;padding:0 11px 7px;letter-spacing:.14em}
+.navitem{padding:10px 11px;border-radius:9px;color:#98a2b3;font-size:.83rem;margin:2px 0}
+.navitem:hover{background:#1d2939;color:#f2f4f7}.navitem.active{background:linear-gradient(100deg,#3157d5,#444ce7);color:#fff;box-shadow:0 7px 18px rgba(49,87,213,.28)}
+.navitem .left{gap:11px}.navitem .ico{width:18px;font-size:.9rem}.sidefoot{border-color:#344054;padding:14px}
+.cap-card{border-color:#344054;background:#1d2939;padding:14px;border-radius:12px}.cap-label,.version{font-size:.62rem;color:#98a2b3}.cap-score{font-size:1.6rem}.cap-score span,.sidefoot p{font-size:.7rem;color:#98a2b3}.sidefoot .progress{background:#344054}
+.main{background:radial-gradient(circle at 84% 0,rgba(49,87,213,.07),transparent 28%),var(--canvas)}
+.hero{background:transparent;border:0;padding:28px 30px 12px}.section{padding:14px 30px 26px}.journey-wrap{margin:0 30px 30px;border:1px solid var(--line);border-radius:16px;padding:20px;background:#fff;box-shadow:var(--shadow)}
+.kicker{font-size:.7rem;letter-spacing:.13em;margin-bottom:9px}.hero-title{font-size:1.85rem;line-height:1.2;letter-spacing:-.025em;max-width:720px}.hero-row{align-items:center}
+.scorebox{background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px 18px;box-shadow:var(--shadow)}.bigscore{font-size:2.6rem}.target{font-size:.65rem}.mini-stats{font-size:.74rem;line-height:2}
+.grid12{grid-template-columns:repeat(6,1fr);gap:10px;margin-top:22px}.domain{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;min-width:0}.domain-top{font-size:.73rem;font-weight:600}.dbar{height:6px;margin-top:8px}
+.card{border-radius:16px;padding:18px;box-shadow:var(--shadow)}.card h3{font-size:1rem}.sub{font-size:.75rem;line-height:1.45}.two{grid-template-columns:1.35fr .85fr;gap:16px}
+.riskcols{gap:10px}.coltitle{font-size:.66rem}.riskitem{font-size:.75rem;padding:10px;line-height:1.4}.action{grid-template-columns:1fr 38px 72px 16px;font-size:.75rem;padding:11px 6px}
+.journey-head h3{font-size:1rem!important}.jstep{padding:15px;border-radius:13px}.jlabel{font-size:.65rem}.jscore{font-size:1.65rem}
+.module{padding:28px 30px}.module-header{margin-bottom:20px}.module h1{font-size:1.7rem;letter-spacing:-.02em}.module p{font-size:.82rem;line-height:1.5;max-width:720px}.btn{border-radius:9px;padding:9px 12px;font-size:.78rem}.metrics{gap:14px;margin:14px 0 18px}.metric{border-radius:14px;padding:16px;box-shadow:0 4px 14px rgba(16,24,40,.035)}.metric .m-label{font-size:.72rem}.metric .m-value{font-size:1.65rem}
+.tablewrap{border-radius:15px;box-shadow:var(--shadow)}th,td{padding:13px 14px;font-size:.76rem}th{font-size:.65rem}.tag{font-size:.67rem;padding:4px 8px}.cards3{gap:14px}.itemcard{border-radius:15px;padding:18px;box-shadow:var(--shadow)}.itemcard h4{font-size:.86rem}.itemcard p{font-size:.76rem;line-height:1.55}
+.executive-band{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(330px,.7fr);gap:16px;margin-top:20px}.executive-message{background:linear-gradient(135deg,#101828 0%,#1d2d63 58%,#3157d5 100%);color:#fff;border-radius:20px;padding:24px;min-height:205px;position:relative;overflow:hidden;box-shadow:0 18px 38px rgba(16,24,40,.18)}
+.executive-message:after{content:"";position:absolute;width:220px;height:220px;border:45px solid rgba(255,255,255,.055);border-radius:50%;right:-70px;top:-86px}.executive-message .kicker{color:#a9b9ff}.executive-message h1{font-size:1.9rem;line-height:1.16;letter-spacing:-.035em;margin:0;max-width:650px}.executive-message p{font-size:.82rem;line-height:1.55;color:#d0d5dd;max-width:620px;margin:13px 0 0}.hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}.hero-chip{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.08);border-radius:999px;padding:6px 10px;font-size:.7rem;color:#eaecf0}
+.maturity-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;align-items:center;gap:18px;box-shadow:var(--shadow)}.maturity-ring{--value:46;width:132px;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--accent) calc(var(--value)*1%),#e9edfb 0);position:relative;flex:0 0 auto}.maturity-ring:after{content:"";position:absolute;inset:12px;border-radius:50%;background:#fff}.ring-value{position:relative;z-index:1;text-align:center;font-size:2rem;font-weight:800;letter-spacing:-.05em}.ring-value small{display:block;font-size:.65rem;color:var(--muted);letter-spacing:.02em;font-weight:600}.maturity-copy h3{font-size:.95rem;margin:0}.maturity-copy p{font-size:.73rem;color:var(--muted);line-height:1.5}.target-pill{display:inline-flex;background:var(--good-soft);color:#027a48;border-radius:999px;padding:5px 8px;font-size:.68rem;font-weight:700}
+.signal-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.signal-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:15px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(16,24,40,.035)}.signal-icon{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-weight:800}.signal-card strong{display:block;font-size:1.2rem}.signal-card span{font-size:.7rem;color:var(--muted)}
+.overview-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(330px,.7fr);gap:16px}.viz-card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:19px;box-shadow:var(--shadow)}.viz-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:16px}.viz-head h3{font-size:.95rem;margin:0}.viz-head p{font-size:.72rem;color:var(--muted);margin:4px 0 0}.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:.66rem;color:var(--muted)}.legend i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:4px}
+.domain-visual{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.domain-tile{border:1px solid var(--line);border-radius:12px;padding:11px;background:#fbfcfe}.domain-tile-head{display:flex;justify-content:space-between;gap:8px;font-size:.7rem;font-weight:600}.domain-score{font-weight:800}.domain-track{height:7px;border-radius:99px;background:#eaecf0;overflow:hidden;margin-top:9px}.domain-track span{display:block;height:100%;border-radius:99px}
+.risk-viz{display:grid;grid-template-columns:126px 1fr;gap:18px;align-items:center}.risk-donut{width:126px;aspect-ratio:1;border-radius:50%;background:conic-gradient(var(--risk) 0 29.4%,var(--warn) 29.4% 76.5%,var(--good) 76.5% 100%);position:relative}.risk-donut:after{content:"17\A signals";white-space:pre;position:absolute;inset:20px;background:#fff;border-radius:50%;display:grid;place-items:center;text-align:center;font-size:.72rem;font-weight:800;line-height:1.2}.risk-key{display:grid;gap:11px}.risk-key-row{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;font-size:.72rem}.risk-key-row i{width:9px;height:9px;border-radius:3px}.risk-key-row strong{font-size:.9rem}
+.priority-flow{margin-top:16px;display:grid;gap:9px}.priority-row{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:10px}.priority-rank{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:.7rem;font-weight:800}.priority-row b{font-size:.74rem}.priority-row small{display:block;font-size:.65rem;color:var(--muted);margin-top:2px}
+.journey-line{display:grid;grid-template-columns:repeat(4,1fr);position:relative;margin-top:22px}.journey-line:before{content:"";position:absolute;height:3px;background:linear-gradient(90deg,#3157d5 0 70%,#e4e7ec 70%);left:8%;right:8%;top:12px}.journey-node{position:relative;text-align:center}.journey-dot{width:26px;height:26px;border:6px solid #fff;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px #98a2ff;margin:0 auto 11px;position:relative;z-index:1}.journey-node:last-child .journey-dot{background:#fff}.journey-node b{display:block;font-size:1.05rem}.journey-node span{font-size:.68rem;color:var(--muted)}
+.module-viz{background:linear-gradient(135deg,#f8f9ff,#fff);border:1px solid #dfe4ff;border-radius:16px;padding:18px;margin:0 0 18px}.mini-bars{display:grid;gap:10px}.mini-bar{display:grid;grid-template-columns:minmax(110px,180px) 1fr 45px;gap:10px;align-items:center;font-size:.72rem}.mini-bar-track{height:9px;background:#e9edfb;border-radius:99px;overflow:hidden}.mini-bar-track span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#3157d5,#7f56d9)}
+@media(max-width:1180px){.grid12{grid-template-columns:repeat(4,1fr)}.executive-band,.overview-grid{grid-template-columns:1fr}.maturity-card{justify-content:center}.domain-visual{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:760px){
+ body{overflow:hidden}.app{height:100dvh;min-height:0}.topbar{min-height:62px;padding:9px 12px;gap:8px}.brand{min-width:0}.brandmark{width:36px;height:36px}.brandtext strong{font-size:.85rem}.brandtext span,.top-actions .pill:not(#searchBtn){display:none}.top-actions{gap:6px}.pill{padding:8px 10px}.iconbtn{width:34px;height:34px}.sidebar{top:62px;bottom:0;width:min(292px,86vw);left:-90vw}.shell{min-height:0}.main{height:calc(100dvh - 62px)}
+ .hero,.section,.module{padding-left:14px;padding-right:14px}.hero{padding-top:16px}.executive-band{margin-top:0}.executive-message{padding:20px;min-height:0;border-radius:17px}.executive-message h1{font-size:1.55rem}.executive-message p{font-size:.78rem}.maturity-card{padding:16px;justify-content:flex-start}.maturity-ring{width:105px}.signal-strip{grid-template-columns:1fr}.signal-card{padding:12px}.overview-grid{grid-template-columns:1fr}.domain-visual{grid-template-columns:repeat(2,minmax(0,1fr))}.risk-viz{grid-template-columns:108px 1fr}.risk-donut{width:108px}.priority-row{grid-template-columns:28px minmax(0,1fr)}.priority-row .tag{grid-column:2}.journey-wrap{margin:0 14px 20px;padding:16px}.journey-line{grid-template-columns:repeat(4,minmax(68px,1fr));overflow-x:auto;padding-bottom:5px}.journey-line:before{left:35px;right:35px}.metrics{grid-template-columns:1fr 1fr}.metric{padding:13px}.metric .m-value{font-size:1.35rem}.module-header{display:block}.toolbar{margin-top:12px}.cards3{grid-template-columns:1fr}.tablewrap{margin-right:-14px;border-radius:14px 0 0 14px}.mini-bar{grid-template-columns:95px 1fr 36px}.grid12{display:none}
+}
+@media(max-width:420px){.brandtext{display:none}.top-actions{margin-left:auto}.maturity-card{align-items:flex-start}.maturity-copy p{margin-bottom:8px}.domain-visual{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr}.risk-viz{grid-template-columns:1fr}.risk-donut{margin:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <button id="mobileMenu" class="iconbtn mobile-menu" aria-label="Open navigation">☰</button>
+    <div class="brand">
+      <div class="brandmark">EA</div>
+      <div class="brandtext"><strong>EA360</strong><span>Capability Accelerator</span></div>
+    </div>
+    <select class="orgselect" id="orgSelect" aria-label="Organisation">
+      <option>National Digital Bank — Demo Organisation</option>
+      <option>Ghana Revenue Authority — Demo</option>
+      <option>Bank of Ghana — Demo</option>
+      <option>Development Bank Ghana — Demo</option>
+      <option>Consolidated Bank Ghana — Demo</option>
+      <option>Fidelity Bank Ghana — Demo</option>
+    </select>
+    <div class="top-actions">
+      <button class="pill" id="searchBtn">⌕&nbsp; Search</button>
+      <span class="pill period">FY2026 · Q2</span>
+      <button class="iconbtn blue" id="notifBtn" aria-label="Notifications" aria-expanded="false">♢</button>
+      <button class="iconbtn dark" id="profileBtn" aria-label="Profile" aria-expanded="false">SK</button>
+      <div class="popover" id="notifPop"><h4>Notifications</h4><p>No operational alerts. Demo notifications are intentionally limited in this prototype.</p></div>
+      <div class="popover" id="profilePop"><h4>Sharath Kumar</h4><p>EA360 Prototype</p><button class="btn" style="width:100%">Profile settings</button></div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <div class="overlay" id="overlay"></div>
+    <aside class="sidebar" id="sidebar">
+      <nav class="nav" id="nav"></nav>
+      <div class="sidefoot">
+        <div class="cap-card">
+          <div class="cap-label">EA Capability</div>
+          <div class="cap-score">2.6 <span>/ 5</span></div>
+          <div class="progress"><div style="width:52%"></div></div>
+          <p>Capability visibility is the first step to improving it.</p>
+        </div>
+        <div class="version">v0.1 · Illustrative Data</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="view active" data-view="overview">
+        <div class="hero">
+          <div class="executive-band">
+            <div class="executive-message">
+              <div class="kicker">Enterprise Architecture Control Tower · National Digital Bank</div>
+              <h1>Transformation is moving faster than architecture control.</h1>
+              <p>Governance, Integration &amp; APIs and AI Governance are the binding constraints. Closing these gaps first will reduce execution risk and accelerate reuse.</p>
+              <div class="hero-chips"><span class="hero-chip">12 domains assessed</span><span class="hero-chip">126 evidence items</span><span class="hero-chip">Updated 04 Sep 2026</span></div>
+            </div>
+            <div class="maturity-card">
+              <div class="maturity-ring" style="--value:46"><div class="ring-value">2.3<small>OF 5 · EMERGING</small></div></div>
+              <div class="maturity-copy"><h3>Enterprise maturity</h3><p>Current capability is 1.2 points below the 12-month ambition.</p><span class="target-pill">Target 3.5 ↑</span></div>
+            </div>
+          </div>
+          <div class="signal-strip">
+            <div class="signal-card"><div class="signal-icon" style="background:var(--risk-soft);color:var(--risk)">!</div><div><strong>5</strong><span>Critical risks requiring executive ownership</span></div></div>
+            <div class="signal-card"><div class="signal-icon" style="background:var(--warn-soft);color:var(--warn)">↗</div><div><strong>12</strong><span>Priority actions across the next 90 days</span></div></div>
+            <div class="signal-card"><div class="signal-icon" style="background:var(--good-soft);color:var(--good)">✓</div><div><strong>78%</strong><span>Assessment completion and confidence</span></div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="overview-grid">
+            <div class="viz-card">
+              <div class="viz-head"><div><h3>Capability maturity by domain</h3><p>Current maturity against the five-level EA360 model.</p></div><div class="legend"><span><i style="background:var(--risk)"></i>Critical</span><span><i style="background:var(--warn)"></i>Emerging</span><span><i style="background:var(--accent)"></i>Progressing</span></div></div>
+              <div class="domain-visual" id="domainGrid"></div>
+            </div>
+            <div class="viz-card">
+              <div class="viz-head"><div><h3>Transformation risk</h3><p>Architecture signals by severity.</p></div><span class="tag red">5 critical</span></div>
+              <div class="risk-viz">
+                <div class="risk-donut" aria-label="17 architecture signals: 5 critical, 8 need attention and 4 healthy"></div>
+                <div class="risk-key">
+                  <div class="risk-key-row"><i style="background:var(--risk)"></i><span>Critical</span><strong>5</strong></div>
+                  <div class="risk-key-row"><i style="background:var(--warn)"></i><span>Needs attention</span><strong>8</strong></div>
+                  <div class="risk-key-row"><i style="background:var(--good)"></i><span>Healthy</span><strong>4</strong></div>
+                </div>
+              </div>
+              <div class="priority-flow">
+                <div class="priority-row"><span class="priority-rank">01</span><div><b>Establish Architecture Review Board</b><small>Decision rights and mandatory review gates</small></div><span class="tag red">P1</span></div>
+                <div class="priority-row"><span class="priority-rank">02</span><div><b>Establish enterprise API standards</b><small>Ownership, lifecycle, security and reuse</small></div><span class="tag red">P1</span></div>
+                <div class="priority-row"><span class="priority-rank">03</span><div><b>Govern AI agents and models</b><small>Inventory, controls and lifecycle assurance</small></div><span class="tag amber">P1</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="journey-wrap">
+          <div class="journey-head">
+            <div><h3 style="margin:0">12-month capability trajectory</h3><div class="sub">Target progression from control establishment to measurable business value.</div></div>
+            <div class="kicker" style="margin:0">Transformation path</div>
+          </div>
+          <div class="journey-line">
+            <div class="journey-node"><div class="journey-dot"></div><b>2.3</b><span>Today · Emerging</span></div>
+            <div class="journey-node"><div class="journey-dot"></div><b>2.7</b><span>90 days · Controls</span></div>
+            <div class="journey-node"><div class="journey-dot"></div><b>3.1</b><span>6 months · Adoption</span></div>
+            <div class="journey-node"><div class="journey-dot"></div><b>3.5</b><span>12 months · Managed</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" data-view="assessment"></section>
+      <section class="view" data-view="findings"></section>
+      <section class="view" data-view="evidence"></section>
+      <section class="view" data-view="recommendations"></section>
+      <section class="view" data-view="roadmap"></section>
+      <section class="view" data-view="reviews"></section>
+      <section class="view" data-view="decisions"></section>
+      <section class="view" data-view="exceptions"></section>
+      <section class="view" data-view="standards"></section>
+      <section class="view" data-view="people"></section>
+      <section class="view" data-view="kpis"></section>
+      <section class="view" data-view="report"></section>
+      <section class="view" data-view="organisation"></section>
+      <section class="view" data-view="assessment-model"></section>
+      <section class="view" data-view="settings"></section>
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="search-overlay" id="searchOverlay">
+  <div class="searchbox">
+    <input id="searchInput" placeholder="Search EA360 modules, findings, standards, actions…"/>
+    <div class="search-results" id="searchResults"></div>
+  </div>
+</div>
+
+<script>
+const domains = [
+["Strategy","3.0","#2f5cff"],["Governance","1.8","#eb4d4d"],["Business","2.1","#c98500"],["Data","2.5","#2f5cff"],
+["Applications","2.8","#2f5cff"],["Integration & APIs","2.0","#c98500"],["Security","2.2","#c98500"],["Infrastructure & Cloud","2.7","#2f5cff"],
+["Resilience","2.4","#2f5cff"],["Technology Standards","1.9","#eb4d4d"],["AI Governance","1.2","#eb4d4d"],["People & Capability","2.0","#c98500"]
+];
+document.getElementById("domainGrid").innerHTML = domains.map(([n,s,c])=>`
+<div class="domain-tile"><div class="domain-tile-head"><span>${n}</span><span class="domain-score" style="color:${c}">${s}</span></div>
+<div class="domain-track"><span style="width:${parseFloat(s)*20}%;background:${c}"></span></div></div>`).join("");
+
+const navGroups = [
+["Workspace",[["Overview","overview","⌘"]]],
+["Assess",[["Assessment","assessment","▣"],["Findings","findings","⚑","9"],["Evidence","evidence","▤"]]],
+["Improve",[["Recommendations","recommendations","✓"],["Roadmap","roadmap","⌁"]]],
+["Govern",[["Architecture Reviews","reviews","⚖"],["Decisions","decisions","▧"],["Exceptions","exceptions","◈"],["Standards","standards","⌁"]]],
+["Capability",[["People & Skills","people","♙"]]],
+["Measure",[["KPIs","kpis","▥"],["Executive Report","report","▤"]]],
+["Admin",[["Organisation","organisation","▦"],["Assessment Model","assessment-model","◔"],["Settings","settings","⌘"]]]
+];
+
+const nav = document.getElementById("nav");
+nav.innerHTML = navGroups.map(([g,items])=>`<div class="group"><div class="group-title">${g}</div>${
+  items.map(([label,id,ico,badge])=>`<button class="navitem ${id==="overview"?"active":""}" data-target="${id}">
+  <span class="left"><span class="ico">${ico}</span><span>${label}</span></span>${badge?`<span class="badge">${badge}</span>`:""}</button>`).join("")
+}</div>`).join("");
+
+const moduleData = {
+assessment:{
+ title:"Assessment Workspace", desc:"Assess all 12 enterprise architecture domains, capture evidence, score maturity and identify gaps.",
+ metrics:[["Overall maturity","2.3 / 5"],["Target","3.5 / 5"],["Assessment complete","78%"],["Evidence completeness","64%"]],
+ content:`<div class="cards3">${domains.map(([n,s])=>`<div class="itemcard"><h4>${n}</h4><div style="font-size:24px;font-weight:800">${s}<span style="font-size:10px;color:var(--muted)"> / 5</span></div><div class="progress" style="margin:9px 0"><div style="width:${parseFloat(s)*20}%"></div></div><p>Review maturity, target, evidence completeness, findings and next actions for this domain.</p></div>`).join("")}</div>`
+},
+findings:{
+ title:"Findings & Risk Register", desc:"One view of architecture gaps, business impact, risk, ownership and remediation.",
+ metrics:[["Open findings","29"],["Critical","5"],["High","8"],["Overdue","4"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Finding</th><th>Domain</th><th>Risk</th><th>Business Impact</th><th>Owner</th><th>Status</th></tr></thead><tbody>
+<tr><td>Architecture Review Board lacks decision authority</td><td>Governance</td><td><span class="tag red">Critical</span></td><td>Transformation decisions can bypass EA controls</td><td>Chief Architect</td><td>Open</td></tr>
+<tr><td>22% of APIs lack documented ownership</td><td>Integration & APIs</td><td><span class="tag red">Critical</span></td><td>Higher operational and security exposure</td><td>Head of Integration</td><td>Open</td></tr>
+<tr><td>Cloud landing-zone controls vary by workload</td><td>Infrastructure & Cloud</td><td><span class="tag amber">High</span></td><td>Inconsistent security and resilience posture</td><td>Cloud Lead</td><td>In progress</td></tr>
+<tr><td>Technology standards catalogue is incomplete</td><td>Technology Standards</td><td><span class="tag amber">High</span></td><td>Duplicate technologies and lifecycle risk</td><td>EA Office</td><td>Open</td></tr>
+</tbody></table></div>`
+},
+evidence:{
+ title:"Evidence", desc:"Evidence supporting maturity scores, findings and architecture decisions.",
+ metrics:[["Evidence items","126"],["Verified","81"],["Needs review","29"],["Missing","16"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Evidence</th><th>Domain</th><th>Type</th><th>Confidence</th><th>Owner</th></tr></thead><tbody>
+<tr><td>EA Charter FY2026</td><td>Governance</td><td>Document</td><td><span class="tag green">High</span></td><td>EA Office</td></tr>
+<tr><td>API Inventory Export</td><td>Integration & APIs</td><td>System extract</td><td><span class="tag amber">Medium</span></td><td>Integration Team</td></tr>
+<tr><td>Cloud Platform Standards</td><td>Infrastructure & Cloud</td><td>Policy</td><td><span class="tag green">High</span></td><td>Cloud Team</td></tr>
+</tbody></table></div>`
+},
+recommendations:{
+ title:"Recommendations", desc:"Prioritised actions that convert architecture gaps into business outcomes.",
+ metrics:[["Recommendations","24"],["P1","7"],["In progress","9"],["Completed","5"]],
+ content:`<div class="cards3">
+<div class="itemcard"><span class="tag red">0–30 days · P1</span><h4 style="margin-top:9px">Establish Architecture Review Board</h4><p>Define decision rights, mandatory review gates and evidence-based approval criteria.</p></div>
+<div class="itemcard"><span class="tag red">31–90 days · P1</span><h4 style="margin-top:9px">Establish enterprise API standards</h4><p>Create ownership, lifecycle, security, observability and reuse standards for APIs.</p></div>
+<div class="itemcard"><span class="tag amber">3–6 months · P2</span><h4 style="margin-top:9px">Standardise cloud landing zones</h4><p>Define approved platform controls, resilience patterns and security baselines.</p></div>
+</div>`
+},
+roadmap:{
+ title:"EA Roadmap", desc:"A sequenced improvement journey across governance, platforms, standards and capability.",
+ metrics:[["0–90 day actions","12"],["3–6 month actions","18"],["6–12 month actions","14"],["Dependencies","9"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Workstream</th><th>0–90 Days</th><th>3–6 Months</th><th>6–12 Months</th></tr></thead><tbody>
+<tr><td>Governance</td><td>Review Board + project gates</td><td>Compliance KPIs</td><td>Continuous governance</td></tr>
+<tr><td>Integration</td><td>API standards</td><td>API catalogue + observability</td><td>Reuse metrics</td></tr>
+<tr><td>Cloud</td><td>Landing-zone controls</td><td>Lifecycle + FinOps</td><td>Policy automation</td></tr>
+<tr><td>AI Governance</td><td>AI use-case inventory</td><td>Architecture standards</td><td>Model/agent governance</td></tr>
+</tbody></table></div>`
+},
+reviews:{
+ title:"Architecture Reviews", desc:"Operational governance for programmes, projects and material architecture changes.",
+ metrics:[["Open reviews","14"],["Approved","36"],["Conditional","9"],["Rework required","4"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Project</th><th>Review Type</th><th>Domain</th><th>Architect</th><th>Decision</th><th>Status</th></tr></thead><tbody>
+<tr><td>Digital Banking Modernisation</td><td>Solution Review</td><td>Applications</td><td>A. Mensah</td><td><span class="tag amber">Approved with Conditions</span></td><td>Open</td></tr>
+<tr><td>API Partner Gateway</td><td>Architecture Gate</td><td>Integration & APIs</td><td>K. Owusu</td><td><span class="tag green">Approved</span></td><td>Closed</td></tr>
+</tbody></table></div>`
+},
+decisions:{
+ title:"Architecture Decisions", desc:"Evidence-backed decisions with rationale, options and impacted systems.",
+ metrics:[["Decisions","67"],["This quarter","11"],["Superseded","5"],["Pending","4"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Decision</th><th>Context</th><th>Owner</th><th>Date</th><th>Status</th></tr></thead><tbody>
+<tr><td>Adopt API-first integration standard</td><td>Reduce point-to-point integrations</td><td>Chief Architect</td><td>12 Aug 2026</td><td><span class="tag green">Approved</span></td></tr>
+<tr><td>Standard Kubernetes platform baseline</td><td>Platform consistency</td><td>Cloud Architect</td><td>03 Aug 2026</td><td><span class="tag blue">Active</span></td></tr>
+</tbody></table></div>`
+},
+exceptions:{
+ title:"Architecture Exceptions", desc:"Track deviations from standards, risk acceptance, expiry and remediation.",
+ metrics:[["Active exceptions","11"],["Expiring soon","3"],["High risk","2"],["Remediated","18"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Standard</th><th>Exception</th><th>Risk</th><th>Expiry</th><th>Remediation</th></tr></thead><tbody>
+<tr><td>Approved Integration Pattern</td><td>Legacy batch point-to-point</td><td><span class="tag amber">High</span></td><td>30 Nov 2026</td><td>Migrate to managed integration layer</td></tr>
+<tr><td>Cloud Landing Zone</td><td>Legacy workload exception</td><td><span class="tag">Medium</span></td><td>31 Dec 2026</td><td>Replatform during Q4</td></tr>
+</tbody></table></div>`
+},
+standards:{
+ title:"Technology Standards", desc:"Lifecycle-aware standards for approved, tolerated, deprecated and retiring technologies.",
+ metrics:[["Standards","143"],["Strategic","18"],["Deprecated","21"],["Retire","7"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Technology</th><th>Category</th><th>Status</th><th>Owner</th><th>Approved Use</th></tr></thead><tbody>
+<tr><td>Kubernetes</td><td>Platform</td><td><span class="tag green">Strategic</span></td><td>Cloud Platform</td><td>Container workloads</td></tr>
+<tr><td>WSO2 API Manager</td><td>Integration & APIs</td><td><span class="tag green">Approved</span></td><td>Integration Architecture</td><td>Enterprise API management</td></tr>
+<tr><td>Legacy ESB v1</td><td>Integration</td><td><span class="tag amber">Deprecated</span></td><td>Integration Team</td><td>Existing workloads only</td></tr>
+</tbody></table></div>`
+},
+people:{
+ title:"People & Skills", desc:"EA capability visibility across roles, domains, competency and development priorities.",
+ metrics:[["Architects","18"],["Enterprise Architects","3"],["Critical skill gaps","2"],["Avg competency","2.6 / 5"]],
+ content:`<div class="cards3">
+<div class="itemcard"><h4>Business Architecture</h4><span class="tag red">HIGH GAP</span><p>Increase capability mapping, value-stream and operating-model expertise.</p></div>
+<div class="itemcard"><h4>Security Architecture</h4><span class="tag red">HIGH GAP</span><p>Strengthen security design governance and review capability.</p></div>
+<div class="itemcard"><h4>AI Architecture</h4><span class="tag red">CRITICAL GAP</span><p>Build governance, model-risk, agent-security and lifecycle skills.</p></div>
+</div>`
+},
+kpis:{
+ title:"Business Value KPIs", desc:"Measure whether Enterprise Architecture is improving transformation outcomes, not just producing artefacts.",
+ metrics:[["Projects reviewed","83%"],["Standards compliance","68%"],["Applications catalogued","81%"],["Recommendations completed","48%"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>KPI</th><th>Current</th><th>Target</th><th>Trend</th></tr></thead><tbody>
+<tr><td>Applications with identified owners</td><td>72%</td><td>90%</td><td><span class="tag green">↑ Improving</span></td></tr>
+<tr><td>Critical technologies mapped</td><td>74%</td><td>95%</td><td><span class="tag green">↑ Improving</span></td></tr>
+<tr><td>Target roadmaps documented</td><td>62%</td><td>85%</td><td><span class="tag amber">→ Stable</span></td></tr>
+<tr><td>Internal EA competency</td><td>2.6 / 5</td><td>3.5 / 5</td><td><span class="tag green">↑ Improving</span></td></tr>
+</tbody></table></div>`
+},
+report:{
+ title:"Executive Report", desc:"Board-ready view of architecture health, risks, priorities, roadmap and expected outcomes.",
+ metrics:[["Report pages","7"],["Critical risks","5"],["Strategic recommendations","8"],["90-day priorities","12"]],
+ content:`<div class="cards3">
+<div class="itemcard"><span class="tag blue">Page 1</span><h4 style="margin-top:8px">Overall Architecture Health</h4><p>2.3 / 5 — Emerging. Governance, Integration & APIs and AI Governance constrain transformation control.</p></div>
+<div class="itemcard"><span class="tag blue">Page 2</span><h4 style="margin-top:8px">Domain Maturity Heatmap</h4><p>12-domain current and target maturity with risk interpretation.</p></div>
+<div class="itemcard"><span class="tag blue">Page 3</span><h4 style="margin-top:8px">Top Risks</h4><p>Executive summary of the most material transformation risks and owners.</p></div>
+<div class="itemcard"><span class="tag blue">Page 4</span><h4 style="margin-top:8px">Strategic Recommendations</h4><p>Prioritised interventions linked to business outcomes.</p></div>
+<div class="itemcard"><span class="tag blue">Page 5</span><h4 style="margin-top:8px">90-Day Priorities</h4><p>Immediate actions to establish control and visible momentum.</p></div>
+<div class="itemcard"><span class="tag blue">Page 6–7</span><h4 style="margin-top:8px">12-Month Roadmap & Outcomes</h4><p>Target maturity progression and measurable expected outcomes.</p></div>
+</div>`
+},
+organisation:{
+ title:"Organisation", desc:"Manage organisation context used by assessments, governance and reporting.",
+ metrics:[["Employees","2,500"],["Applications","65"],["APIs","180"],["Data centres","2"]],
+ content:`<div class="cards3">
+<div class="itemcard"><h4>National Digital Bank — Demo Organisation</h4><p>Hybrid infrastructure, growing cloud adoption, digital banking programme and AI initiatives underway.</p></div>
+<div class="itemcard"><h4>Business Context</h4><p>Regulated financial institution with mission-critical digital services and multi-vendor technology estate.</p></div>
+<div class="itemcard"><h4>Data Classification</h4><p><span class="tag blue">Illustrative Data</span> This prototype does not claim live customer data.</p></div>
+</div>`
+},
+"assessment-model":{
+ title:"Assessment Model", desc:"Configure EA360’s maturity model, domains, capabilities and assessment criteria.",
+ metrics:[["Domains","12"],["Maturity levels","5"],["Criteria","118"],["Active version","v0.1"]],
+ content:`<div class="tablewrap"><table><thead><tr><th>Level</th><th>Name</th><th>Description</th></tr></thead><tbody>
+<tr><td>1</td><td>Initial</td><td>Ad hoc, reactive and dependent on individuals.</td></tr>
+<tr><td>2</td><td>Emerging</td><td>Some repeatable practices exist but adoption is inconsistent.</td></tr>
+<tr><td>3</td><td>Defined</td><td>Documented processes, standards and governance are broadly adopted.</td></tr>
+<tr><td>4</td><td>Managed</td><td>Practices are measured, governed and connected to business outcomes.</td></tr>
+<tr><td>5</td><td>Optimised</td><td>Continuous improvement and architecture-driven strategic planning.</td></tr>
+</tbody></table></div>`
+},
+settings:{
+ title:"Settings", desc:"Prototype-level application preferences and future enterprise configuration.",
+ metrics:[["Deployment","Prototype"],["Authentication","Demo"],["RBAC","Planned"],["Audit logs","Planned"]],
+ content:`<div class="cards3">
+<div class="itemcard"><h4>Security & Access</h4><p>SSO/OIDC, RBAC, audit logs, data residency and retention are future enterprise controls.</p><span class="tag">Coming Soon</span></div>
+<div class="itemcard"><h4>Integrations</h4><p>Future connections to architecture repositories, ITSM, CMDB and evidence sources.</p><span class="tag">Coming Soon</span></div>
+<div class="itemcard"><h4>AI Assistance</h4><p>Future evidence summarisation, maturity suggestions and recommendation drafting.</p><span class="tag">Coming Soon</span></div>
+</div>`
+}
+};
+
+function moduleVisual(id){
+ const visuals={
+  assessment:`<div class="module-viz"><div class="viz-head"><div><h3>Domain maturity profile</h3><p>Current scores reveal where targeted intervention creates the most leverage.</p></div><span class="tag blue">12 domains</span></div><div class="mini-bars">${domains.map(([n,s,c])=>`<div class="mini-bar"><span>${n}</span><div class="mini-bar-track"><span style="width:${parseFloat(s)*20}%;background:${c}"></span></div><strong>${s}</strong></div>`).join("")}</div></div>`,
+  findings:`<div class="module-viz"><div class="viz-head"><div><h3>Risk concentration</h3><p>Critical and high-severity findings represent 45% of the open register.</p></div><span class="tag red">Action required</span></div><div class="risk-viz"><div class="risk-donut" aria-label="Risk distribution"></div><div class="risk-key"><div class="risk-key-row"><i style="background:var(--risk)"></i><span>Critical</span><strong>5</strong></div><div class="risk-key-row"><i style="background:var(--warn)"></i><span>High</span><strong>8</strong></div><div class="risk-key-row"><i style="background:var(--accent)"></i><span>Other open</span><strong>16</strong></div></div></div></div>`,
+  roadmap:`<div class="module-viz"><div class="viz-head"><div><h3>Delivery horizon</h3><p>Control first, institutionalise second, then automate and optimise.</p></div><span class="tag blue">44 actions</span></div><div class="journey-line"><div class="journey-node"><div class="journey-dot"></div><b>12</b><span>0–90 days</span></div><div class="journey-node"><div class="journey-dot"></div><b>18</b><span>3–6 months</span></div><div class="journey-node"><div class="journey-dot"></div><b>14</b><span>6–12 months</span></div><div class="journey-node"><div class="journey-dot"></div><b>3.5</b><span>Target maturity</span></div></div></div>`,
+  people:`<div class="module-viz"><div class="viz-head"><div><h3>Capability gap profile</h3><p>Focused development plan for the skills constraining delivery confidence.</p></div><span class="tag red">3 priority gaps</span></div><div class="mini-bars"><div class="mini-bar"><span>Business Architecture</span><div class="mini-bar-track"><span style="width:38%"></span></div><strong>1.9</strong></div><div class="mini-bar"><span>Security Architecture</span><div class="mini-bar-track"><span style="width:44%"></span></div><strong>2.2</strong></div><div class="mini-bar"><span>AI Architecture</span><div class="mini-bar-track"><span style="width:24%;background:var(--risk)"></span></div><strong>1.2</strong></div><div class="mini-bar"><span>Integration Architecture</span><div class="mini-bar-track"><span style="width:62%;background:var(--good)"></span></div><strong>3.1</strong></div></div></div>`,
+  kpis:`<div class="module-viz"><div class="viz-head"><div><h3>Outcome performance</h3><p>Progress against the measures that demonstrate architecture value.</p></div><span class="tag green">Improving</span></div><div class="mini-bars"><div class="mini-bar"><span>Project coverage</span><div class="mini-bar-track"><span style="width:83%"></span></div><strong>83%</strong></div><div class="mini-bar"><span>Standards compliance</span><div class="mini-bar-track"><span style="width:68%;background:var(--warn)"></span></div><strong>68%</strong></div><div class="mini-bar"><span>Portfolio ownership</span><div class="mini-bar-track"><span style="width:72%"></span></div><strong>72%</strong></div><div class="mini-bar"><span>Actions completed</span><div class="mini-bar-track"><span style="width:48%;background:var(--risk)"></span></div><strong>48%</strong></div></div></div>`
+ };
+ return visuals[id]||"";
+}
+
+function renderModule(id){
+  if(id==="overview") return;
+  const el=document.querySelector(`[data-view="${id}"]`);
+  if(!el || el.dataset.rendered) return;
+  const d=moduleData[id];
+  el.innerHTML=`<div class="module">
+    <div class="module-header"><div><div class="kicker">EA360 · ${id.replaceAll("-"," ")}</div><h1>${d.title}</h1><p>${d.desc}</p></div>
+    <div class="toolbar"><button class="btn">Export</button><button class="btn primary">Create / Add</button></div></div>
+    <div class="metrics">${d.metrics.map(([a,b])=>`<div class="metric"><div class="m-label">${a}</div><div class="m-value">${b}</div></div>`).join("")}</div>
+    ${moduleVisual(id)}
+    ${d.content}
+  </div>`;
+  el.dataset.rendered="1";
+}
+
+function go(id){
+  document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.dataset.view===id));
+  document.querySelectorAll(".navitem").forEach(n=>n.classList.toggle("active",n.dataset.target===id));
+  renderModule(id);
+  location.hash=id==="overview"?"":id;
+  closeMobile();
+}
+document.querySelectorAll(".navitem").forEach(n=>n.addEventListener("click",()=>go(n.dataset.target)));
+const hash=location.hash.replace("#","");
+if(hash && document.querySelector(`[data-view="${hash}"]`)) go(hash);
+
+const sidebar=document.getElementById("sidebar"), overlay=document.getElementById("overlay");
+function closeMobile(){sidebar.classList.remove("open");overlay.classList.remove("show")}
+document.getElementById("mobileMenu").onclick=()=>{sidebar.classList.add("open");overlay.classList.add("show")};
+overlay.onclick=closeMobile;
+
+function togglePopover(id){
+ ["notifPop","profilePop"].forEach(x=>{
+   const pop=document.getElementById(x), shouldShow=x===id && !pop.classList.contains("show");
+   pop.classList.toggle("show",shouldShow);
+   document.getElementById(x==="notifPop"?"notifBtn":"profileBtn").setAttribute("aria-expanded",String(shouldShow));
+ });
+}
+document.getElementById("notifBtn").onclick=()=>togglePopover("notifPop");
+document.getElementById("profileBtn").onclick=()=>togglePopover("profilePop");
+document.querySelector("#profilePop .btn").onclick=()=>{document.getElementById("profilePop").classList.remove("show");document.getElementById("profileBtn").setAttribute("aria-expanded","false");go("settings")};
+
+const toast=document.getElementById("toast");
+let toastTimer;
+function showToast(message){
+ toast.textContent=message;toast.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove("show"),2600);
+}
+document.addEventListener("click",e=>{
+ const button=e.target.closest(".toolbar .btn");
+ if(!button) return;
+ if(button.classList.contains("primary")) showToast("Prototype workspace: record creation is ready for the next product phase.");
+ else showToast("Export is available in the enterprise-enabled product phase.");
+});
+
+const searchOverlay=document.getElementById("searchOverlay"), searchInput=document.getElementById("searchInput"), searchResults=document.getElementById("searchResults");
+const searchable=[];
+navGroups.flatMap(g=>g[1]).forEach(([label,id])=>searchable.push({label,id,type:"Module"}));
+[
+ ["AI agents deployed without architecture governance","findings","Finding"],
+ ["22% of APIs lack documented ownership","findings","Finding"],
+ ["Establish Architecture Review Board","recommendations","Recommendation"],
+ ["Enterprise API standards","standards","Standard"],
+ ["WSO2 API Manager","standards","Technology"]
+].forEach(x=>searchable.push({label:x[0],id:x[1],type:x[2]}));
+
+function runSearch(q){
+ const s=q.trim().toLowerCase();
+ const rows=searchable.filter(x=>!s || x.label.toLowerCase().includes(s)).slice(0,12);
+ searchResults.innerHTML=rows.map(r=>`<div class="sres" data-go="${r.id}"><strong>${r.label}</strong><div style="font-size:9px;color:var(--muted);margin-top:2px">${r.type}</div></div>`).join("");
+ searchResults.querySelectorAll(".sres").forEach(x=>x.onclick=()=>{searchOverlay.classList.remove("show");go(x.dataset.go)});
+}
+document.getElementById("searchBtn").onclick=()=>{searchOverlay.classList.add("show");runSearch("");setTimeout(()=>searchInput.focus(),50)};
+searchInput.oninput=e=>runSearch(e.target.value);
+searchOverlay.onclick=e=>{if(e.target===searchOverlay)searchOverlay.classList.remove("show")};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){searchOverlay.classList.remove("show");closeMobile();document.querySelectorAll(".popover").forEach(p=>p.classList.remove("show"));document.querySelectorAll("#notifBtn,#profileBtn").forEach(b=>b.setAttribute("aria-expanded","false"))}});
+
+document.getElementById("orgSelect").onchange=e=>{
+  const chosen=e.target.value;
+  document.querySelector(".executive-message .kicker").textContent=`Enterprise Architecture Control Tower · ${chosen.replace(" — Demo Organisation","").replace(" — Demo","")}`;
+};
+</script>
+</body>
+</html>
