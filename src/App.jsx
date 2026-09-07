@@ -1,61 +1,86 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  moduleData,
-  organisations,
-} from './data'
-import Overview from './components/Overview'
-import ModuleView from './components/ModuleView'
-import Topbar from './components/Topbar'
-import Sidebar from './components/Sidebar'
+import { useCallback, useEffect, useState } from 'react'
+import Topbar from './components/shell/Topbar'
+import Sidebar from './components/shell/Sidebar'
+import SyntheticBanner from './components/shell/SyntheticBanner'
+import EntityDrawer from './components/enterprise/EntityDrawer'
 import SearchOverlay from './components/SearchOverlay'
+import AskEA360Panel from './features/ai-assist/AskEA360Panel'
+import ExecutiveCockpit from './features/executive/ExecutiveCockpit'
+import CapabilitiesView from './features/capabilities/CapabilitiesView'
+import ApplicationsView from './features/applications/ApplicationsView'
+import IntegrationsView from './features/integrations/IntegrationsView'
+import RelationshipExplorer from './features/explorer/RelationshipExplorer'
+import FindingsView from './features/findings/FindingsView'
+import EvidenceView from './features/evidence/EvidenceView'
+import RecommendationsView from './features/recommendations/RecommendationsView'
+import GovernanceView from './features/governance/GovernanceView'
+import RoadmapView from './features/roadmap/RoadmapView'
+import { usePrototypeStore } from './state/prototypeStore'
+import { getTenantConfig, loadTenantPack } from './data/repositories/tenantRepository'
 
-const VALID_VIEWS = new Set(['overview', ...Object.keys(moduleData)])
+const VALID_VIEWS = new Set([
+  'executive',
+  'capabilities',
+  'applications',
+  'integrations',
+  'explorer',
+  'findings',
+  'evidence',
+  'recommendations',
+  'governance',
+  'roadmap',
+])
 
-function orgShortName(org) {
-  return org.replace(' — Demo Organisation', '').replace(' — Demo', '')
-}
-
-function initialView() {
+function viewFromHash() {
   const hash = window.location.hash.replace('#', '')
-  return VALID_VIEWS.has(hash) ? hash : 'overview'
+  if (hash === '' || hash === 'overview') return 'executive'
+  return VALID_VIEWS.has(hash) ? hash : 'executive'
 }
+
+loadTenantPack('GRA')
 
 export default function App() {
-  const [view, setView] = useState(initialView)
-  const [organisation, setOrganisation] = useState(organisations[0])
+  const view = usePrototypeStore((s) => s.view)
+  const setView = usePrototypeStore((s) => s.setView)
+  const clearSelection = usePrototypeStore((s) => s.clearSelection)
+  const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
+  const tenantCode = usePrototypeStore((s) => s.tenantCode)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [toast, setToast] = useState({ message: '', show: false })
 
-  const orgLabel = useMemo(() => orgShortName(organisation), [organisation])
+  useEffect(() => {
+    const accent = getTenantConfig(tenantCode).accentColor
+    if (accent) {
+      document.documentElement.style.setProperty('--tenant-accent', accent)
+      document.documentElement.setAttribute('data-tenant', tenantCode)
+    }
+  }, [tenantCode])
 
-  const closeMobile = useCallback(() => {
-    setSidebarOpen(false)
-  }, [])
+  const closeMobile = useCallback(() => setSidebarOpen(false), [])
 
   const navigate = useCallback(
-    (id) => {
-      if (!VALID_VIEWS.has(id)) return
-      setView(id)
-      window.location.hash = id === 'overview' ? '' : id
+    (id, { keepSelection = false } = {}) => {
+      const next = id === 'overview' ? 'executive' : id
+      if (!VALID_VIEWS.has(next)) return
+      setView(next)
+      window.location.hash = next === 'executive' ? '' : next
       closeMobile()
       setNotifOpen(false)
       setProfileOpen(false)
+      if (!keepSelection) clearSelection()
     },
-    [closeMobile],
+    [closeMobile, setView, clearSelection],
   )
 
   useEffect(() => {
-    const onHash = () => {
-      const hash = window.location.hash.replace('#', '')
-      if (VALID_VIEWS.has(hash)) setView(hash)
-      else if (!hash) setView('overview')
-    }
+    setView(viewFromHash())
+    const onHash = () => setView(viewFromHash())
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [])
+  }, [setView])
 
   useEffect(() => {
     const onKey = (e) => {
@@ -64,10 +89,12 @@ export default function App() {
       closeMobile()
       setNotifOpen(false)
       setProfileOpen(false)
+      setAskOpen(false)
+      clearSelection()
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [closeMobile])
+  }, [closeMobile, clearSelection, setAskOpen])
 
   useEffect(() => {
     if (!toast.show) return
@@ -75,26 +102,22 @@ export default function App() {
     return () => clearTimeout(t)
   }, [toast])
 
-  function showToast(message) {
-    setToast({ message, show: true })
-  }
-
-  function handleAction(kind) {
-    if (kind === 'create') {
-      showToast(
-        'Prototype workspace: record creation is ready for the next product phase.',
-      )
-    } else {
-      showToast('Export is available in the enterprise-enabled product phase.')
-    }
-  }
+  let content = <ExecutiveCockpit onNavigate={navigate} />
+  if (view === 'capabilities') content = <CapabilitiesView />
+  if (view === 'applications') content = <ApplicationsView />
+  if (view === 'integrations') content = <IntegrationsView />
+  if (view === 'explorer') content = <RelationshipExplorer />
+  if (view === 'findings') content = <FindingsView />
+  if (view === 'evidence') content = <EvidenceView />
+  if (view === 'recommendations') content = <RecommendationsView />
+  if (view === 'governance') content = <GovernanceView />
+  if (view === 'roadmap') content = <RoadmapView />
 
   return (
     <>
       <div className="app">
+        <SyntheticBanner />
         <Topbar
-          organisation={organisation}
-          onOrganisationChange={setOrganisation}
           onMobileMenu={() => setSidebarOpen(true)}
           onSearch={() => setSearchOpen(true)}
           notifOpen={notifOpen}
@@ -107,10 +130,6 @@ export default function App() {
             setProfileOpen((v) => !v)
             setNotifOpen(false)
           }}
-          onProfileSettings={() => {
-            setProfileOpen(false)
-            navigate('settings')
-          }}
         />
 
         <div className="shell">
@@ -118,30 +137,14 @@ export default function App() {
             className={`overlay${sidebarOpen ? ' show' : ''}`}
             onClick={closeMobile}
           />
-          <Sidebar
-            activeView={view}
-            onNavigate={navigate}
-            open={sidebarOpen}
-          />
-          <main className="main">
-            {view === 'overview' ? (
-              <Overview orgLabel={orgLabel} />
-            ) : (
-              <ModuleView
-                id={view}
-                data={moduleData[view]}
-                onAction={handleAction}
-              />
-            )}
-          </main>
+          <Sidebar open={sidebarOpen} onNavigate={navigate} />
+          <main className="main">{content}</main>
         </div>
       </div>
 
-      <div
-        className={`toast${toast.show ? ' show' : ''}`}
-        role="status"
-        aria-live="polite"
-      >
+      <EntityDrawer />
+
+      <div className={`toast${toast.show ? ' show' : ''}`} role="status" aria-live="polite">
         {toast.message}
       </div>
 
@@ -150,6 +153,8 @@ export default function App() {
         onClose={() => setSearchOpen(false)}
         onNavigate={navigate}
       />
+
+      <AskEA360Panel />
     </>
   )
 }

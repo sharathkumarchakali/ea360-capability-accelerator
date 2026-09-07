@@ -1,0 +1,460 @@
+import type { TenantPack } from '@/domain/schemas'
+import { entityBase } from '../_shared/seedHelpers'
+
+const T = 'tenant-bog'
+
+type IntFields = {
+  pattern: TenantPack['integrations'][number]['pattern']
+  integrationType: TenantPack['integrations'][number]['integrationType']
+  sourceApplicationId: string
+  targetApplicationId: string
+  direction?: TenantPack['integrations'][number]['direction']
+  businessOwnerId: string
+  technologyOwnerId: string
+  supportedCapabilityIds?: string[]
+  supportedProcessIds?: string[]
+  apiOrInterfaceName: string
+  protocol: string
+  dataFormat?: string
+  authenticationMethod?: string
+  environment?: TenantPack['integrations'][number]['environment']
+  lifecycleStatus: TenantPack['integrations'][number]['lifecycleStatus']
+  criticality: TenantPack['integrations'][number]['criticality']
+  reusabilityStatus: TenantPack['integrations'][number]['reusabilityStatus']
+  consumerCount?: number
+  transactionVolumeBand?: TenantPack['integrations'][number]['transactionVolumeBand']
+  availabilityTarget?: string
+  dataSensitivity?: TenantPack['integrations'][number]['dataSensitivity']
+  lastReviewDate?: string
+  documentationStatus: TenantPack['integrations'][number]['documentationStatus']
+  monitoringStatus: TenantPack['integrations'][number]['monitoringStatus']
+  pointToPoint: boolean
+  middlewarePlatform?: string
+  dataObjectIds?: string[]
+  technologyIds?: string[]
+  tags?: string[]
+  status?: TenantPack['integrations'][number]['status']
+  ownerId?: string
+}
+
+function int(
+  id: string,
+  name: string,
+  description: string,
+  fields: IntFields,
+): TenantPack['integrations'][number] {
+  return {
+    ...entityBase(T, id, name, description, fields.ownerId || fields.technologyOwnerId, fields.status ?? 'active', fields.tags ?? [], [
+      'bog-seed-v1',
+    ]),
+    pattern: fields.pattern,
+    integrationType: fields.integrationType,
+    sourceApplicationId: fields.sourceApplicationId,
+    targetApplicationId: fields.targetApplicationId,
+    direction: fields.direction ?? 'outbound',
+    businessOwnerId: fields.businessOwnerId,
+    technologyOwnerId: fields.technologyOwnerId,
+    supportedCapabilityIds: fields.supportedCapabilityIds ?? [],
+    supportedProcessIds: fields.supportedProcessIds ?? [],
+    apiOrInterfaceName: fields.apiOrInterfaceName,
+    protocol: fields.protocol,
+    dataFormat: fields.dataFormat ?? 'JSON',
+    authenticationMethod: fields.authenticationMethod ?? 'mTLS',
+    environment: fields.environment ?? 'production',
+    lifecycleStatus: fields.lifecycleStatus,
+    criticality: fields.criticality,
+    reusabilityStatus: fields.reusabilityStatus,
+    consumerCount: fields.consumerCount ?? 1,
+    transactionVolumeBand: fields.transactionVolumeBand ?? 'medium',
+    availabilityTarget: fields.availabilityTarget ?? '99.5%',
+    dataSensitivity: fields.dataSensitivity ?? 'confidential',
+    lastReviewDate: fields.lastReviewDate ?? '2026-06-15',
+    documentationStatus: fields.documentationStatus,
+    monitoringStatus: fields.monitoringStatus,
+    pointToPoint: fields.pointToPoint,
+    middlewarePlatform: fields.middlewarePlatform,
+    dataObjectIds: fields.dataObjectIds ?? [],
+    technologyIds: fields.technologyIds ?? [],
+  }
+}
+
+/** ~40 synthetic BoG integrations — illustrative central-bank inventory. */
+export const bogIntegrations: TenantPack['integrations'] = [
+  int('int-bog-01', 'Legacy Returns → Off-site Engine (file)', 'Nightly fixed-width bank returns still land via legacy intake.', {
+    pattern: 'file', integrationType: 'File transfer', sourceApplicationId: 'app-bog-22', targetApplicationId: 'app-bog-04',
+    businessOwnerId: 'person-bog-domain-regdata', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-31', 'cap-bog-11'], supportedProcessIds: ['prc-bog-08'],
+    apiOrInterfaceName: 'LegacyReturnFileDrop', protocol: 'SFTP', dataFormat: 'fixed-width', authenticationMethod: 'SSH key',
+    lifecycleStatus: 'Deprecated', criticality: 'high', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'partial', monitoringStatus: 'unmonitored', pointToPoint: true,
+    dataObjectIds: ['data-bog-01'], technologyIds: ['tech-bog-03'], tags: ['lineage', 'legacy'],
+  }),
+  int('int-bog-02', 'Off-site Engine → Regulatory Data Lake', 'Primary ETL of validated supervisory returns into the lake.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-04', targetApplicationId: 'app-bog-11',
+    businessOwnerId: 'person-bog-domain-regdata', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-31', 'cap-bog-32'], supportedProcessIds: ['prc-bog-09'],
+    apiOrInterfaceName: 'SupervisoryReturnETL', protocol: 'ETL', dataFormat: 'Parquet',
+    lifecycleStatus: 'Active', criticality: 'critical', reusabilityStatus: 'candidate', consumerCount: 3,
+    transactionVolumeBand: 'high', documentationStatus: 'documented', monitoringStatus: 'partial', pointToPoint: false,
+    middlewarePlatform: 'Informatica', dataObjectIds: ['data-bog-01', 'data-bog-02'], technologyIds: ['tech-bog-09'],
+    tags: ['lineage'],
+  }),
+  int('int-bog-03', 'Legacy Returns → Data Lake (bypass)', 'Direct load bypassing validation rules and lineage catalogue.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-22', targetApplicationId: 'app-bog-11',
+    businessOwnerId: 'person-bog-domain-regdata', technologyOwnerId: 'person-bog-unknown',
+    supportedCapabilityIds: ['cap-bog-32'], supportedProcessIds: ['prc-bog-08'],
+    apiOrInterfaceName: 'ShadowReturnLoad', protocol: 'JDBC', dataFormat: 'relational', authenticationMethod: 'DB credential',
+    lifecycleStatus: 'Restricted', criticality: 'high', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'missing', monitoringStatus: 'unmonitored', pointToPoint: true,
+    dataObjectIds: ['data-bog-01'], tags: ['lineage', 'shadow', 'p2p'],
+  }),
+  int('int-bog-04', 'Data Lake → Supervisory Analytics', 'Certified extract for off-site risk dashboards.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-11', targetApplicationId: 'app-bog-12',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-33', 'cap-bog-11'], supportedProcessIds: ['prc-bog-10'],
+    apiOrInterfaceName: 'SupervisoryDatasetAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'reusable', consumerCount: 4,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-02', 'data-bog-03'], technologyIds: ['tech-bog-04'],
+  }),
+  int('int-bog-05', 'Data Lake → Shadow BI (unmediated)', 'Parallel BI tool pulls raw lake tables without semantic layer.', {
+    pattern: 'point-to-point', integrationType: 'Database integration', sourceApplicationId: 'app-bog-11', targetApplicationId: 'app-bog-13',
+    businessOwnerId: 'person-bog-domain-research', technologyOwnerId: 'person-bog-unknown',
+    supportedCapabilityIds: ['cap-bog-33', 'cap-bog-28'], supportedProcessIds: ['prc-bog-11'],
+    apiOrInterfaceName: 'LakeODBC_ShadowBI', protocol: 'ODBC', dataFormat: 'SQL row', authenticationMethod: 'DB credential',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'missing', monitoringStatus: 'unmonitored', pointToPoint: true,
+    dataObjectIds: ['data-bog-02'], tags: ['duplicate', 'ownership', 'p2p'],
+  }),
+  int('int-bog-06', 'Off-site Engine → Statistics Warehouse', 'Secondary definition path for published monetary statistics.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-04', targetApplicationId: 'app-bog-10',
+    businessOwnerId: 'person-bog-domain-research', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-28', 'cap-bog-31'], supportedProcessIds: ['prc-bog-12'],
+    apiOrInterfaceName: 'StatsReturnFeed', protocol: 'CSV/SFTP', dataFormat: 'CSV', authenticationMethod: 'SSH key',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: true,
+    dataObjectIds: ['data-bog-04'], tags: ['lineage', 'definitions'],
+  }),
+  int('int-bog-07', 'Supervision Portal → Off-site Engine', 'Analyst queries against latest validated returns.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-03', targetApplicationId: 'app-bog-04',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-11', 'cap-bog-31'], supportedProcessIds: ['prc-bog-07'],
+    apiOrInterfaceName: 'ReturnEnquiryAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'candidate', consumerCount: 2,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-01'], technologyIds: ['tech-bog-04'],
+  }),
+  int('int-bog-08', 'Supervision Portal → Licensing Register', 'Licence status lookup during authorisation workflows.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-03', targetApplicationId: 'app-bog-27',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-chief-architect',
+    supportedCapabilityIds: ['cap-bog-10'], supportedProcessIds: ['prc-bog-05'],
+    apiOrInterfaceName: 'LicenceStatusAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'reusable', consumerCount: 3,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-05'], technologyIds: ['tech-bog-04'],
+  }),
+  int('int-bog-09', 'Examination Workbench → Case Management', 'Finding packages handed to enforcement cases.', {
+    pattern: 'event', integrationType: 'Event or message', sourceApplicationId: 'app-bog-05', targetApplicationId: 'app-bog-28',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-12', 'cap-bog-13'], supportedProcessIds: ['prc-bog-06'],
+    apiOrInterfaceName: 'ExamFindingEvent', protocol: 'AMQP', dataFormat: 'JSON',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'candidate', consumerCount: 2,
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: false,
+    middlewarePlatform: 'RabbitMQ', dataObjectIds: ['data-bog-06'], technologyIds: ['tech-bog-15'],
+  }),
+  int('int-bog-10', 'RTGS Core → SWIFT Gateway', 'Cross-border and correspondent settlement messaging.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-06', targetApplicationId: 'app-bog-26',
+    businessOwnerId: 'person-bog-domain-payments', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-15', 'cap-bog-17'], supportedProcessIds: ['prc-bog-13'],
+    apiOrInterfaceName: 'RTGS_SWIFT_Advice', protocol: 'HTTPS/ISO20022', dataFormat: 'XML', authenticationMethod: 'mTLS',
+    lifecycleStatus: 'Active', criticality: 'critical', reusabilityStatus: 'reusable', consumerCount: 5,
+    transactionVolumeBand: 'very-high', availabilityTarget: '99.95%', dataSensitivity: 'restricted',
+    documentationStatus: 'documented', monitoringStatus: 'partial', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-08'], technologyIds: ['tech-bog-04', 'tech-bog-08'],
+    tags: ['payments', 'resilience'],
+  }),
+  int('int-bog-11', 'SWIFT Gateway → RTGS Core', 'Inbound payment instructions into settlement.', {
+    pattern: 'event', integrationType: 'Event or message', sourceApplicationId: 'app-bog-26', targetApplicationId: 'app-bog-06',
+    businessOwnerId: 'person-bog-domain-payments', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-15', 'cap-bog-17'], supportedProcessIds: ['prc-bog-13'],
+    apiOrInterfaceName: 'InboundPaymentInstruction', protocol: 'MQ', dataFormat: 'ISO20022',
+    lifecycleStatus: 'Active', criticality: 'critical', reusabilityStatus: 'reusable', consumerCount: 3,
+    transactionVolumeBand: 'very-high', availabilityTarget: '99.95%', dataSensitivity: 'restricted',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'IBM MQ', dataObjectIds: ['data-bog-08'], technologyIds: ['tech-bog-08', 'tech-bog-16'],
+    tags: ['payments', 'resilience'],
+  }),
+  int('int-bog-12', 'RTGS → Retail Oversight (P2P)', 'Direct settlement snapshot feed without hub mediation.', {
+    pattern: 'point-to-point', integrationType: 'Database integration', sourceApplicationId: 'app-bog-06', targetApplicationId: 'app-bog-07',
+    businessOwnerId: 'person-bog-domain-payments', technologyOwnerId: 'person-bog-unknown',
+    supportedCapabilityIds: ['cap-bog-16', 'cap-bog-15'], supportedProcessIds: ['prc-bog-14'],
+    apiOrInterfaceName: 'RTGS_Oversight_ODBC', protocol: 'ODBC', dataFormat: 'SQL row', authenticationMethod: 'DB credential',
+    lifecycleStatus: 'Active', criticality: 'critical', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'missing', monitoringStatus: 'unmonitored', pointToPoint: true,
+    dataObjectIds: ['data-bog-09'], tags: ['payments', 'p2p', 'resilience'],
+  }),
+  int('int-bog-13', 'Collateral System → RTGS Core', 'Intraday liquidity collateral pledges.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-23', targetApplicationId: 'app-bog-06',
+    businessOwnerId: 'person-bog-domain-payments', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-17', 'cap-bog-24'], supportedProcessIds: ['prc-bog-15'],
+    apiOrInterfaceName: 'CollateralPledgeAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'critical', reusabilityStatus: 'candidate', consumerCount: 2,
+    transactionVolumeBand: 'high', availabilityTarget: '99.9%', dataSensitivity: 'restricted',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-10'], technologyIds: ['tech-bog-04'],
+    tags: ['payments'],
+  }),
+  int('int-bog-14', 'RTGS → Stability Dashboard', 'Systemic settlement concentration metrics.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-06', targetApplicationId: 'app-bog-02',
+    businessOwnerId: 'person-bog-domain-stability', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-07', 'cap-bog-15'], supportedProcessIds: ['prc-bog-03'],
+    apiOrInterfaceName: 'SettlementConcentrationFeed', protocol: 'ETL', dataFormat: 'Parquet',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'candidate', consumerCount: 2,
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: false,
+    middlewarePlatform: 'Informatica', dataObjectIds: ['data-bog-09'], technologyIds: ['tech-bog-09'],
+  }),
+  int('int-bog-15', 'SOC → RTGS health events', 'Cyber and availability alerts for settlement platforms.', {
+    pattern: 'event', integrationType: 'Event or message', sourceApplicationId: 'app-bog-15', targetApplicationId: 'app-bog-06',
+    businessOwnerId: 'person-bog-ciso', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-44', 'cap-bog-15'], supportedProcessIds: ['prc-bog-22'],
+    apiOrInterfaceName: 'RTGSHealthAlert', protocol: 'Syslog/JSON', dataFormat: 'JSON', authenticationMethod: 'certificate',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'candidate',
+    documentationStatus: 'partial', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'SIEM bus', dataObjectIds: ['data-bog-11'], technologyIds: ['tech-bog-17'],
+    tags: ['cyber', 'resilience'],
+  }),
+  int('int-bog-16', 'Market Data Gateway → Monetary DSS', 'Market rates feeding policy decision support.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-25', targetApplicationId: 'app-bog-01',
+    businessOwnerId: 'person-bog-domain-monetary', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-02', 'cap-bog-03'], supportedProcessIds: ['prc-bog-01'],
+    apiOrInterfaceName: 'MarketRateAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'reusable', consumerCount: 4,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-12'], technologyIds: ['tech-bog-04'],
+  }),
+  int('int-bog-17', 'Monetary DSS → Policy communication CMS', 'Approved policy package publication path.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-01', targetApplicationId: 'app-bog-30',
+    businessOwnerId: 'person-bog-domain-monetary', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-04'], supportedProcessIds: ['prc-bog-02'],
+    apiOrInterfaceName: 'PolicyPublishAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-13'],
+  }),
+  int('int-bog-18', 'Reserve Platform → SWIFT Gateway', 'Reserve settlement and custody instructions.', {
+    pattern: 'api', integrationType: 'SOAP service', sourceApplicationId: 'app-bog-09', targetApplicationId: 'app-bog-26',
+    businessOwnerId: 'person-bog-domain-reserves', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-23', 'cap-bog-25'], supportedProcessIds: ['prc-bog-17'],
+    apiOrInterfaceName: 'ReserveSettlementSoap', protocol: 'SOAP', dataFormat: 'XML',
+    lifecycleStatus: 'Active', criticality: 'critical', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: true,
+    dataObjectIds: ['data-bog-14'], technologyIds: ['tech-bog-08'], tags: ['reserves', 'p2p'],
+  }),
+  int('int-bog-19', 'Reserve Platform → Stability Dashboard', 'Reserve adequacy indicators for FSC packs.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-09', targetApplicationId: 'app-bog-02',
+    businessOwnerId: 'person-bog-domain-stability', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-06', 'cap-bog-23'], supportedProcessIds: ['prc-bog-03'],
+    apiOrInterfaceName: 'ReserveAdequacyFeed', protocol: 'ETL',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'Informatica', dataObjectIds: ['data-bog-14'], technologyIds: ['tech-bog-09'],
+  }),
+  int('int-bog-20', 'Portfolio Tracker → Architecture Repository', 'Late-bound design artefacts pushed after build starts.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-21', targetApplicationId: 'app-bog-20',
+    businessOwnerId: 'person-bog-chief-architect', technologyOwnerId: 'person-bog-domain-transformation',
+    supportedCapabilityIds: ['cap-bog-43', 'cap-bog-47'], supportedProcessIds: ['prc-bog-23'],
+    apiOrInterfaceName: 'DesignArtefactSync', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'candidate',
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-15'], technologyIds: ['tech-bog-04'],
+    tags: ['governance'], lastReviewDate: '2025-11-02',
+  }),
+  int('int-bog-21', 'Architecture Repository → Hub standards', 'Published interface standards consumed by hub.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-20', targetApplicationId: 'app-bog-14',
+    businessOwnerId: 'person-bog-chief-architect', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-43', 'cap-bog-45'], supportedProcessIds: ['prc-bog-24'],
+    apiOrInterfaceName: 'InterfaceStandardAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Planned', criticality: 'medium', reusabilityStatus: 'reusable', consumerCount: 0,
+    documentationStatus: 'partial', monitoringStatus: 'unmonitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-15'], technologyIds: ['tech-bog-04'],
+    tags: ['governance'],
+  }),
+  int('int-bog-22', 'Currency CMS → Vault Logistics', 'Note order and vault movement instructions.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-08', targetApplicationId: 'app-bog-31',
+    businessOwnerId: 'person-bog-domain-currency', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-19', 'cap-bog-20'], supportedProcessIds: ['prc-bog-16'],
+    apiOrInterfaceName: 'VaultMovementAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    dataObjectIds: ['data-bog-16'], technologyIds: ['tech-bog-04'],
+  }),
+  int('int-bog-23', 'Counterfeit DB → Currency CMS', 'Counterfeit incident updates into currency ops.', {
+    pattern: 'batch', integrationType: 'File transfer', sourceApplicationId: 'app-bog-29', targetApplicationId: 'app-bog-08',
+    businessOwnerId: 'person-bog-domain-currency', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-18'], supportedProcessIds: ['prc-bog-16'],
+    apiOrInterfaceName: 'CounterfeitIncidentFile', protocol: 'SFTP', dataFormat: 'CSV', authenticationMethod: 'SSH key',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: true,
+    dataObjectIds: ['data-bog-17'],
+  }),
+  int('int-bog-24', 'ERP → Data Lake finance extracts', 'Budget and cost centres for transformation reporting.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-19', targetApplicationId: 'app-bog-11',
+    businessOwnerId: 'person-bog-domain-corporate', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-39', 'cap-bog-47'], supportedProcessIds: ['prc-bog-19'],
+    apiOrInterfaceName: 'FinanceCostETL', protocol: 'ETL',
+    lifecycleStatus: 'Active', criticality: 'low', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'Informatica', dataObjectIds: ['data-bog-18'], technologyIds: ['tech-bog-09'],
+  }),
+  int('int-bog-25', 'HR Suite → IAM provisioning', 'Joiner-mover-leaver identity events.', {
+    pattern: 'event', integrationType: 'Event or message', sourceApplicationId: 'app-bog-18', targetApplicationId: 'app-bog-16',
+    businessOwnerId: 'person-bog-domain-corporate', technologyOwnerId: 'person-bog-ciso',
+    supportedCapabilityIds: ['cap-bog-40', 'cap-bog-44'], supportedProcessIds: ['prc-bog-20'],
+    apiOrInterfaceName: 'JMLIdentityEvent', protocol: 'SCIM', dataFormat: 'JSON', authenticationMethod: 'OAuth2',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'reusable', consumerCount: 6,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-19'], technologyIds: ['tech-bog-07'],
+  }),
+  int('int-bog-26', 'IAM → Supervision Portal SSO', 'Workforce authentication for supervisors.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-16', targetApplicationId: 'app-bog-03',
+    businessOwnerId: 'person-bog-ciso', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-44', 'cap-bog-11'],
+    apiOrInterfaceName: 'OIDC_SSO', protocol: 'OIDC', dataFormat: 'JWT', authenticationMethod: 'OAuth2',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'reusable', consumerCount: 12,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'Keycloak', dataObjectIds: ['data-bog-19'], technologyIds: ['tech-bog-07'],
+  }),
+  int('int-bog-27', 'Crisis Simulator → Stability Dashboard', 'Stress-test outputs for committee packs.', {
+    pattern: 'file', integrationType: 'File transfer', sourceApplicationId: 'app-bog-24', targetApplicationId: 'app-bog-02',
+    businessOwnerId: 'person-bog-domain-stability', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-08', 'cap-bog-07'], supportedProcessIds: ['prc-bog-04'],
+    apiOrInterfaceName: 'StressResultDrop', protocol: 'SFTP', dataFormat: 'CSV', authenticationMethod: 'SSH key',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: true,
+    dataObjectIds: ['data-bog-20'],
+  }),
+  int('int-bog-28', 'Model Risk Inventory → Analytics Workbench', 'Approved model metadata for supervisory models.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-32', targetApplicationId: 'app-bog-12',
+    businessOwnerId: 'person-bog-cro', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-37', 'cap-bog-33'], supportedProcessIds: ['prc-bog-18'],
+    apiOrInterfaceName: 'ModelMetadataAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-07'], technologyIds: ['tech-bog-04'],
+  }),
+  int('int-bog-29', 'Document Vault → Examination Workbench', 'Evidence packs for on-site exams.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-17', targetApplicationId: 'app-bog-05',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-12'], supportedProcessIds: ['prc-bog-06'],
+    apiOrInterfaceName: 'ExamEvidenceAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'reusable', consumerCount: 3,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    dataObjectIds: ['data-bog-06'],
+  }),
+  int('int-bog-30', 'Statistics Warehouse → Monetary DSS', 'Macro time series for MPC packs.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-10', targetApplicationId: 'app-bog-01',
+    businessOwnerId: 'person-bog-domain-monetary', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-02', 'cap-bog-27'], supportedProcessIds: ['prc-bog-01'],
+    apiOrInterfaceName: 'MacroSeriesETL', protocol: 'ETL',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'Informatica', dataObjectIds: ['data-bog-04'], technologyIds: ['tech-bog-09'],
+  }),
+  int('int-bog-31', 'Hub → Off-site Engine facade', 'Mediated returns enquiry for future channel cutover.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-14', targetApplicationId: 'app-bog-04',
+    businessOwnerId: 'person-bog-chief-architect', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-31', 'cap-bog-45'], supportedProcessIds: ['prc-bog-09'],
+    apiOrInterfaceName: 'ReturnsFacadeAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Planned', criticality: 'high', reusabilityStatus: 'reusable', consumerCount: 0,
+    documentationStatus: 'partial', monitoringStatus: 'unmonitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-01'], technologyIds: ['tech-bog-04'],
+    tags: ['api-led'],
+  }),
+  int('int-bog-32', 'Hub → RTGS settlement facade', 'Target reusable settlement advice API replacing P2P oversight path.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-14', targetApplicationId: 'app-bog-06',
+    businessOwnerId: 'person-bog-domain-payments', technologyOwnerId: 'person-bog-chief-architect',
+    supportedCapabilityIds: ['cap-bog-15', 'cap-bog-45'], supportedProcessIds: ['prc-bog-14'],
+    apiOrInterfaceName: 'SettlementAdviceAPI', protocol: 'HTTPS/ISO20022', dataFormat: 'XML',
+    lifecycleStatus: 'Planned', criticality: 'critical', reusabilityStatus: 'reusable', consumerCount: 0,
+    availabilityTarget: '99.95%', dataSensitivity: 'restricted',
+    documentationStatus: 'partial', monitoringStatus: 'unmonitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-09'], technologyIds: ['tech-bog-04'],
+    tags: ['payments', 'api-led'],
+  }),
+  int('int-bog-33', 'Shadow BI → Intranet KPI publish', 'Uncertified supervisory KPIs published to internal portal.', {
+    pattern: 'file', integrationType: 'Manual exchange', sourceApplicationId: 'app-bog-13', targetApplicationId: 'app-bog-30',
+    businessOwnerId: 'person-bog-domain-research', technologyOwnerId: 'person-bog-unknown',
+    supportedCapabilityIds: ['cap-bog-33', 'cap-bog-28'], supportedProcessIds: ['prc-bog-11'],
+    apiOrInterfaceName: 'ManualKPIUpload', protocol: 'manual', dataFormat: 'XLSX', authenticationMethod: 'N/A',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'missing', monitoringStatus: 'unmonitored', pointToPoint: true,
+    dataObjectIds: ['data-bog-03'], tags: ['ownership', 'shadow'],
+  }),
+  int('int-bog-34', 'ERP → Portfolio Tracker costs', 'Initiative spend actuals.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-19', targetApplicationId: 'app-bog-21',
+    businessOwnerId: 'person-bog-domain-transformation', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-47', 'cap-bog-39'], supportedProcessIds: ['prc-bog-23'],
+    apiOrInterfaceName: 'InitiativeCostFeed', protocol: 'CSV/SFTP', dataFormat: 'CSV', authenticationMethod: 'SSH key',
+    lifecycleStatus: 'Active', criticality: 'low', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: true,
+    dataObjectIds: ['data-bog-18'],
+  }),
+  int('int-bog-35', 'SOC → IAM privileged alerts', 'Privileged access anomaly events.', {
+    pattern: 'event', integrationType: 'Event or message', sourceApplicationId: 'app-bog-15', targetApplicationId: 'app-bog-16',
+    businessOwnerId: 'person-bog-ciso', technologyOwnerId: 'person-bog-ciso',
+    supportedCapabilityIds: ['cap-bog-44'], supportedProcessIds: ['prc-bog-22'],
+    apiOrInterfaceName: 'PrivAccessAlert', protocol: 'Webhook', dataFormat: 'JSON', authenticationMethod: 'HMAC',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    dataObjectIds: ['data-bog-11', 'data-bog-19'], technologyIds: ['tech-bog-17'],
+  }),
+  int('int-bog-36', 'Licensing Register → Data Lake', 'Authorised institution master for analytics.', {
+    pattern: 'batch', integrationType: 'Batch integration', sourceApplicationId: 'app-bog-27', targetApplicationId: 'app-bog-11',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-cdo',
+    supportedCapabilityIds: ['cap-bog-10', 'cap-bog-32'], supportedProcessIds: ['prc-bog-05'],
+    apiOrInterfaceName: 'InstitutionMasterETL', protocol: 'ETL',
+    lifecycleStatus: 'Active', criticality: 'medium', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'Informatica', dataObjectIds: ['data-bog-05'], technologyIds: ['tech-bog-09'],
+  }),
+  int('int-bog-37', 'Enforcement Cases → Document Vault', 'Case dossiers archived to records.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-28', targetApplicationId: 'app-bog-17',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-13'], supportedProcessIds: ['prc-bog-06'],
+    apiOrInterfaceName: 'CaseArchiveAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'low', reusabilityStatus: 'candidate',
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    dataObjectIds: ['data-bog-06'],
+  }),
+  int('int-bog-38', 'Market Data → Reserve Platform', 'FX and rate inputs for reserve valuation.', {
+    pattern: 'api', integrationType: 'REST API', sourceApplicationId: 'app-bog-25', targetApplicationId: 'app-bog-09',
+    businessOwnerId: 'person-bog-domain-reserves', technologyOwnerId: 'person-bog-cto',
+    supportedCapabilityIds: ['cap-bog-23'], supportedProcessIds: ['prc-bog-17'],
+    apiOrInterfaceName: 'ReserveMarketDataAPI', protocol: 'HTTPS/JSON',
+    lifecycleStatus: 'Active', criticality: 'high', reusabilityStatus: 'reusable', consumerCount: 2,
+    documentationStatus: 'documented', monitoringStatus: 'monitored', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-12', 'data-bog-14'], technologyIds: ['tech-bog-04'],
+  }),
+  int('int-bog-39', 'Legacy Returns → Supervision Portal (ad-hoc)', 'Analysts still pull raw legacy files for quick checks.', {
+    pattern: 'file', integrationType: 'Manual exchange', sourceApplicationId: 'app-bog-22', targetApplicationId: 'app-bog-03',
+    businessOwnerId: 'person-bog-domain-supervision', technologyOwnerId: 'person-bog-unknown',
+    supportedCapabilityIds: ['cap-bog-11', 'cap-bog-31'], supportedProcessIds: ['prc-bog-07'],
+    apiOrInterfaceName: 'AdHocLegacyDownload', protocol: 'SMB', dataFormat: 'fixed-width', authenticationMethod: 'AD',
+    lifecycleStatus: 'Deprecated', criticality: 'medium', reusabilityStatus: 'point-to-point',
+    documentationStatus: 'missing', monitoringStatus: 'unmonitored', pointToPoint: true,
+    dataObjectIds: ['data-bog-01'], technologyIds: ['tech-bog-03'], tags: ['legacy', 'lineage', 'p2p'],
+  }),
+  int('int-bog-40', 'RTGS → Hub settlement events (pilot)', 'Pilot event publication for hub-mediated consumers.', {
+    pattern: 'event', integrationType: 'Event or message', sourceApplicationId: 'app-bog-06', targetApplicationId: 'app-bog-14',
+    businessOwnerId: 'person-bog-domain-payments', technologyOwnerId: 'person-bog-chief-architect',
+    supportedCapabilityIds: ['cap-bog-15', 'cap-bog-45'], supportedProcessIds: ['prc-bog-13'],
+    apiOrInterfaceName: 'SettlementFinalityEvent', protocol: 'Kafka', dataFormat: 'Avro',
+    lifecycleStatus: 'Planned', criticality: 'critical', reusabilityStatus: 'reusable', consumerCount: 1,
+    transactionVolumeBand: 'very-high', availabilityTarget: '99.95%', dataSensitivity: 'restricted',
+    documentationStatus: 'partial', monitoringStatus: 'partial', pointToPoint: false,
+    middlewarePlatform: 'BoG Integration Hub', dataObjectIds: ['data-bog-08', 'data-bog-09'], technologyIds: ['tech-bog-04', 'tech-bog-18'],
+    tags: ['payments', 'api-led', 'resilience'],
+  }),
+]
+
+export default bogIntegrations
