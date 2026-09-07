@@ -207,6 +207,16 @@ export default function EntityDrawer() {
             Upstream feeds: {upstream.length || 'none'} · Downstream consumers:{' '}
             {downstream.length || 'none'}
           </p>
+          <button
+            type="button"
+            className="btn secondary-button"
+            onClick={() => {
+              setGraphRoot({ id: a.id, type: 'application' })
+              goView('explorer')
+            }}
+          >
+            Open in Relationship Explorer
+          </button>
         </Section>
         <Section title="Data objects">
           <ul className="drawer-list">

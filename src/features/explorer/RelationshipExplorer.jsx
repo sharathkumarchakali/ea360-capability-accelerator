@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ReactFlow,
+  ReactFlowProvider,
   Background,
   Controls,
   MiniMap,
@@ -11,9 +12,11 @@ import {
   Position,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { usePrototypeStore } from '../../state/prototypeStore'
+import { usePrototypeStore, getTenantConfig } from '../../state/prototypeStore'
 import { analyseImpact, buildNeighbourhoodGraph } from '../../domain/metrics/graph'
 import { impactNarrative } from '../../lib/ai'
+import { resolveExplorerRoot } from './resolveExplorerRoot'
+import { validateFlowGraph } from './validateFlowGraph'
 
 const ENTITY_FILTER_OPTIONS = [
   'capability',
@@ -48,6 +51,7 @@ function EntityNode({ data }) {
     <div
       className={`rf-entity-node${data.isRoot ? ' root' : ''}${data.impactLevel ? ` impact-${data.impactLevel}` : ''}`}
       style={{ borderColor: color }}
+      data-demo-target={data.isRoot ? 'graph-node' : undefined}
     >
       <Handle type="target" position={Position.Left} />
       <div className="rf-node-type" style={{ color }}>
@@ -61,6 +65,7 @@ function EntityNode({ data }) {
   )
 }
 
+/** Stable outside render — required by React Flow */
 const nodeTypes = { entity: EntityNode }
 
 function layoutNodes(graphNodes, rootId) {
@@ -103,8 +108,44 @@ function layoutNodes(graphNodes, rootId) {
   return placed
 }
 
-export default function RelationshipExplorer() {
-  const repo = usePrototypeStore((s) => s.getRepo)()
+function ExplorerCanvas({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onNodeClick,
+  onNodeDoubleClick,
+  onInit,
+}) {
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onNodeClick={onNodeClick}
+      onNodeDoubleClick={onNodeDoubleClick}
+      nodeTypes={nodeTypes}
+      onInit={onInit}
+      fitView={nodes.length > 0}
+      minZoom={0.3}
+      maxZoom={1.6}
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background gap={18} color="#c0f0f2" />
+      <Controls showInteractive={false} />
+      <MiniMap
+        nodeColor={(n) => TYPE_COLORS[n.data?.entityType] || '#1E8CAA'}
+        maskColor="rgba(255,255,255,0.7)"
+      />
+    </ReactFlow>
+  )
+}
+
+export default function RelationshipExplorer({ onNavigate }) {
+  const workingPack = usePrototypeStore((s) => s.workingPack)
+  const tenantCode = usePrototypeStore((s) => s.tenantCode)
+  const getRepo = usePrototypeStore((s) => s.getRepo)
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
   const scenarioId = usePrototypeStore((s) => s.scenarioId)
   const setScenarioId = usePrototypeStore((s) => s.setScenarioId)
@@ -124,51 +165,78 @@ export default function RelationshipExplorer() {
   const filters = usePrototypeStore((s) => s.filters)
   const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
   const recordAiResponse = usePrototypeStore((s) => s.recordAiResponse)
+  const setView = usePrototypeStore((s) => s.setView)
   const [fitToken, setFitToken] = useState(0)
   const [selectedSideId, setSelectedSideId] = useState(null)
+  const [graphFailed, setGraphFailed] = useState(false)
+  const [forceList, setForceList] = useState(false)
 
-  const scenarios = repo.listScenarios()
-  const scenario = repo.getScenario(scenarioId) || scenarios[0]
+  // Stable repo: only rebuild when the active pack / tenant changes (prevents render loops)
+  const repo = useMemo(() => getRepo(), [getRepo, workingPack, tenantCode])
+  const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
 
-  const root = useMemo(() => {
-    if (graphRoot) {
-      const node = repo.resolveGraphNode(graphRoot.id)
-      if (node) return node
-    }
-    if (scenario) {
-      const node = repo.resolveGraphNode(scenario.startingEntityId)
-      if (node) return node
-    }
-    const firstApp = repo.listApplications()[0]
-    return firstApp
-      ? { id: firstApp.id, type: 'application', name: firstApp.name, criticality: firstApp.criticality }
-      : null
-  }, [graphRoot, scenario, repo])
+  const scenarios = useMemo(() => repo.listScenarios(), [repo])
+  const scenario = useMemo(
+    () => repo.getScenario(scenarioId) || scenarios[0] || null,
+    [repo, scenarioId, scenarios],
+  )
+
+  const root = useMemo(
+    () =>
+      resolveExplorerRoot({
+        navRoot: graphRoot,
+        scenarioRoot: scenario
+          ? { id: scenario.startingEntityId, type: scenario.startingEntityType }
+          : null,
+        configDefault: config.defaultScenarioId
+          ? (() => {
+              const def = repo.getScenario(config.defaultScenarioId)
+              return def
+                ? { id: def.startingEntityId, type: def.startingEntityType }
+                : null
+            })()
+          : null,
+        resolveEntity: (id) => repo.resolveGraphNode(id),
+        listApplications: () => repo.listApplications(),
+        listCapabilities: () => repo.listCapabilities(),
+      }),
+    [graphRoot, scenario, config.defaultScenarioId, repo],
+  )
 
   const graph = useMemo(() => {
     if (!root) return { nodes: [], edges: [] }
-    return buildNeighbourhoodGraph({
-      rootId: root.id,
-      rootType: root.type,
-      rootName: root.name,
-      relationships: repo.listRelationships(),
-      resolveEntity: (id) => repo.resolveGraphNode(id),
-      depth: relationshipDepth,
-      direction: graphDirection,
-      entityTypes: entityTypeFilters.length ? entityTypeFilters : undefined,
-      maxNodes: 28,
-    })
+    try {
+      return buildNeighbourhoodGraph({
+        rootId: root.id,
+        rootType: root.type,
+        rootName: root.name,
+        relationships: repo.listRelationships() || [],
+        resolveEntity: (id) => repo.resolveGraphNode(id),
+        depth: Math.min(Math.max(relationshipDepth || 1, 1), 3),
+        direction: graphDirection,
+        entityTypes: entityTypeFilters.length ? entityTypeFilters : undefined,
+        maxNodes: 28,
+      })
+    } catch (err) {
+      console.error('[EA360] buildNeighbourhoodGraph failed', err)
+      return { nodes: [], edges: [], _failed: true }
+    }
   }, [root, repo, relationshipDepth, graphDirection, entityTypeFilters])
 
   const impact = useMemo(() => {
     if (!root || !impactMode) return null
-    return analyseImpact({
-      rootId: root.id,
-      relationships: repo.listRelationships(),
-      resolveEntity: (id) => repo.resolveGraphNode(id),
-      direction: graphDirection,
-      maxDepth: Math.max(relationshipDepth, 3),
-    })
+    try {
+      return analyseImpact({
+        rootId: root.id,
+        relationships: repo.listRelationships() || [],
+        resolveEntity: (id) => repo.resolveGraphNode(id),
+        direction: graphDirection,
+        maxDepth: Math.max(relationshipDepth, 3),
+      })
+    } catch (err) {
+      console.error('[EA360] analyseImpact failed', err)
+      return null
+    }
   }, [root, impactMode, repo, graphDirection, relationshipDepth])
 
   const impactMap = useMemo(() => {
@@ -177,6 +245,12 @@ export default function RelationshipExplorer() {
     for (const h of impact.hits) map.set(h.id, h.level)
     return map
   }, [impact])
+
+  const tenantEntityIds = useMemo(() => {
+    const ids = new Set()
+    for (const n of graph.nodes) ids.add(n.id)
+    return ids
+  }, [graph.nodes])
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -188,34 +262,63 @@ export default function RelationshipExplorer() {
       setEdges([])
       return
     }
-    const laid = layoutNodes(graph.nodes, root.id).map((n) => ({
-      ...n,
-      data: {
-        ...n.data,
-        impactLevel: impactMap.get(n.id) || null,
-      },
-    }))
-    const flowEdges = graph.edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      label: e.label,
-      markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
-      style: {
-        stroke:
-          e.criticality === 'critical' || e.criticality === 'high' ? '#B42318' : '#1E8CAA',
-        strokeWidth: e.criticality === 'critical' ? 2.2 : 1.4,
-      },
-      labelStyle: { fontSize: 10, fill: '#053642' },
-    }))
-    setNodes(laid)
-    setEdges(flowEdges)
-    setSelectedSideId(root.id)
-  }, [graph, root, impactMap, setNodes, setEdges])
+    if (graph._failed) {
+      setGraphFailed(true)
+      setNodes([])
+      setEdges([])
+      return
+    }
+    try {
+      const laid = layoutNodes(graph.nodes, root.id).map((n) => ({
+        ...n,
+        data: {
+          ...n.data,
+          impactLevel: impactMap.get(n.id) || null,
+        },
+      }))
+      const flowEdges = (graph.edges || []).map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        label: e.label,
+        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+        style: {
+          stroke:
+            e.criticality === 'critical' || e.criticality === 'high' ? '#B42318' : '#1E8CAA',
+          strokeWidth: e.criticality === 'critical' ? 2.2 : 1.4,
+        },
+        labelStyle: { fontSize: 10, fill: '#053642' },
+      }))
+      const validated = validateFlowGraph({
+        nodes: laid,
+        edges: flowEdges,
+        tenantEntityIds,
+        maxNodes: 28,
+      })
+      if (import.meta.env.DEV && validated.warnings.length) {
+        console.warn('[EA360] Explorer graph validation', validated.warnings)
+      }
+      setNodes(validated.nodes)
+      setEdges(validated.edges)
+      setSelectedSideId(root.id)
+      setGraphFailed(false)
+    } catch (err) {
+      console.error('[EA360] Explorer graph prepare failed', err)
+      setNodes([])
+      setEdges([])
+      setGraphFailed(true)
+    }
+  }, [graph, root, impactMap, tenantEntityIds, setNodes, setEdges])
 
   useEffect(() => {
-    if (!rfInstance || !fitToken) return
-    const t = setTimeout(() => rfInstance.fitView({ padding: 0.2 }), 40)
+    if (!rfInstance || !fitToken || !nodes.length) return undefined
+    const t = setTimeout(() => {
+      try {
+        rfInstance.fitView({ padding: 0.2 })
+      } catch (err) {
+        console.warn('[EA360] fitView skipped', err)
+      }
+    }, 60)
     return () => clearTimeout(t)
   }, [rfInstance, fitToken, nodes])
 
@@ -231,8 +334,30 @@ export default function RelationshipExplorer() {
 
   const sideRels = useMemo(() => {
     if (!sideEntity) return []
-    return repo.relationshipsFor(sideEntity.id)
+    return repo.relationshipsFor(sideEntity.id) || []
   }, [sideEntity, repo])
+
+  const upstreamList = useMemo(() => {
+    if (!root) return []
+    return (repo.relationshipsFor(root.id) || [])
+      .filter((r) => r.targetId === root.id)
+      .map((r) => ({
+        id: r.id,
+        other: repo.resolveGraphNode(r.sourceId),
+        type: r.relationshipType,
+      }))
+  }, [root, repo])
+
+  const downstreamList = useMemo(() => {
+    if (!root) return []
+    return (repo.relationshipsFor(root.id) || [])
+      .filter((r) => r.sourceId === root.id)
+      .map((r) => ({
+        id: r.id,
+        other: repo.resolveGraphNode(r.targetId),
+        type: r.relationshipType,
+      }))
+  }, [root, repo])
 
   const onNodeClick = useCallback((_e, node) => {
     setSelectedSideId(node.id)
@@ -259,8 +384,15 @@ export default function RelationshipExplorer() {
   }
 
   function resetGraph() {
+    setGraphFailed(false)
+    setForceList(false)
     if (scenario) {
-      setGraphRoot({ id: scenario.startingEntityId, type: scenario.startingEntityType })
+      const node = repo.resolveGraphNode(scenario.startingEntityId)
+      if (node) {
+        setGraphRoot({ id: node.id, type: node.type })
+      } else {
+        setGraphRoot(null)
+      }
       setScenarioId(scenario.id)
     } else {
       setGraphRoot(null)
@@ -276,12 +408,22 @@ export default function RelationshipExplorer() {
     setScenarioId(id)
     const next = repo.getScenario(id)
     if (next) {
-      setGraphRoot({ id: next.startingEntityId, type: next.startingEntityType })
+      const node = repo.resolveGraphNode(next.startingEntityId)
+      if (node) setGraphRoot({ id: node.id, type: node.type })
+      else setGraphRoot(null)
+    }
+  }
+
+  function goCockpit() {
+    if (onNavigate) onNavigate('executive')
+    else {
+      setView('executive')
+      window.location.hash = ''
     }
   }
 
   const mobileList = useMemo(() => {
-    return graph.edges.map((e) => {
+    return (graph.edges || []).map((e) => {
       const from = repo.resolveGraphNode(e.source)
       const to = repo.resolveGraphNode(e.target)
       return {
@@ -295,12 +437,14 @@ export default function RelationshipExplorer() {
     })
   }, [graph.edges, repo])
 
+  const showListFallback = forceList || graphFailed
+
   return (
-    <section className="view active">
+    <section className="view active" data-demo-target="relationship-explorer">
       <div className="module explorer-module">
         <div className="module-header">
           <div>
-            <div className="kicker">Diagnose · Relationship Explorer</div>
+            <div className="kicker">Enterprise Map · Relationship Explorer</div>
             <h1 className="page-title">Connected enterprise explorer</h1>
             <p>
               Traverse typed relationships from a curated scenario root. Expand nodes, filter entity
@@ -354,14 +498,22 @@ export default function RelationshipExplorer() {
             Fit view
           </button>
           <button type="button" className="btn secondary-button" onClick={resetGraph}>
-            Reset
+            Reset Explorer
           </button>
           <button
             type="button"
             className={`btn secondary-button${impactMode ? ' active-toggle' : ''}`}
+            data-demo-target="impact-analysis"
             onClick={() => setImpactMode(!impactMode)}
           >
             Impact analysis {impactMode ? 'on' : 'off'}
+          </button>
+          <button
+            type="button"
+            className={`btn secondary-button${forceList ? ' active-toggle' : ''}`}
+            onClick={() => setForceList((v) => !v)}
+          >
+            {forceList ? 'Show graph' : 'List view'}
           </button>
           <button
             type="button"
@@ -416,7 +568,7 @@ export default function RelationshipExplorer() {
               <strong>Action:</strong> {scenario.recommendedAction}
             </p>
             {impactMode && impact && (
-              <div className="impact-summary">
+              <div className="impact-summary" data-demo-target="impact-analysis">
                 <span>{impact.affectedCapabilities} capabilities</span>
                 <span>{impact.affectedApplications} applications</span>
                 <span>{impact.criticalDependencies} critical deps</span>
@@ -427,112 +579,192 @@ export default function RelationshipExplorer() {
           </div>
         )}
 
-        <div className="explorer-layout">
-          <div className="explorer-canvas-wrap explorer-desktop">
-            {root ? (
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={onNodesChange}
-                onEdgesChange={onEdgesChange}
-                onNodeClick={onNodeClick}
-                onNodeDoubleClick={onNodeDoubleClick}
-                nodeTypes={nodeTypes}
-                onInit={setRfInstance}
-                fitView
-                minZoom={0.3}
-                maxZoom={1.6}
-                proOptions={{ hideAttribution: true }}
-              >
-                <Background gap={18} color="#c0f0f2" />
-                <Controls showInteractive={false} />
-                <MiniMap
-                  nodeColor={(n) => TYPE_COLORS[n.data?.entityType] || '#1E8CAA'}
-                  maskColor="rgba(255,255,255,0.7)"
-                />
-              </ReactFlow>
-            ) : (
-              <div className="empty-state">No root entity available.</div>
-            )}
+        {!root ? (
+          <div className="empty-state explorer-empty" role="status">
+            <p>No connected enterprise object is available for this view.</p>
+            <div className="hero-actions">
+              {scenarios[0] && (
+                <button
+                  type="button"
+                  className="btn primary primary-button"
+                  onClick={() => onScenarioChange(scenarios[0].id)}
+                >
+                  Open default scenario
+                </button>
+              )}
+              <button type="button" className="btn secondary-button" onClick={resetGraph}>
+                Reset Explorer
+              </button>
+              <button type="button" className="btn secondary-button" onClick={goCockpit}>
+                Return to Executive Cockpit
+              </button>
+            </div>
           </div>
-
-          <div className="explorer-mobile">
-            <h3 className="section-title">Relationships (mobile)</h3>
-            <p className="sub">
-              Root: {root?.name || '—'} · {graph.edges.length} edges · depth {relationshipDepth}
-            </p>
-            <ul className="rel-mobile-list">
-              {mobileList.map((r) => (
-                <li key={r.id}>
-                  <button
-                    type="button"
-                    className="rel-mobile-item"
-                    onClick={() => {
-                      setSelectedSideId(r.toId === (selectedSideId || root?.id) ? r.fromId : r.toId)
-                    }}
-                  >
-                    <strong>{r.label}</strong>
-                    <span>
-                      {r.from} → {r.to}
-                    </span>
-                  </button>
-                </li>
-              ))}
-              {!mobileList.length && <li className="empty-state">No relationships at this depth.</li>}
-            </ul>
-          </div>
-
-          <aside className="explorer-side">
-            <h3 className="section-title">Entity detail</h3>
-            {sideEntity ? (
-              <>
-                <div className="kicker">{sideEntity.type}</div>
-                <h4>{sideEntity.name}</h4>
-                {sideEntity.criticality && (
-                  <p className="sub">Criticality: {sideEntity.criticality}</p>
-                )}
-                {sideEntity.status && <p className="sub">Status: {sideEntity.status}</p>}
-                {impactMap.get(sideEntity.id) && (
-                  <p className="sub">Impact: {impactMap.get(sideEntity.id)}</p>
-                )}
-                <div className="chip-row" style={{ marginTop: 8 }}>
-                  <button type="button" className="btn primary primary-button" onClick={openDetail}>
-                    Open full detail
-                  </button>
-                  <button type="button" className="btn secondary-button" onClick={expandFromSide}>
-                    Expand from here
-                  </button>
+        ) : (
+          <div className="explorer-layout">
+            <div
+              className="explorer-canvas-wrap explorer-desktop explorer-canvas"
+              data-demo-target="relationship-explorer"
+              style={{ width: '100%', height: 520 }}
+            >
+              {graphFailed && (
+                <div className="explorer-graph-fallback-banner" role="status">
+                  Visual graph could not be prepared. Showing relationship lists instead.
                 </div>
-                <h4 className="drawer-section-title">Linked relationships</h4>
-                <ul className="drawer-list">
-                  {sideRels.slice(0, 12).map((r) => {
-                    const otherId = r.sourceId === sideEntity.id ? r.targetId : r.sourceId
-                    const other = repo.resolveGraphNode(otherId)
-                    return (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          className="text-link"
-                          onClick={() => {
-                            if (other) {
-                              setSelectedSideId(other.id)
-                              setGraphRoot({ id: other.id, type: other.type })
-                            }
-                          }}
-                        >
-                          {r.relationshipType}: {other?.name || otherId}
-                        </button>
-                      </li>
-                    )
-                  })}
-                  {!sideRels.length && <li className="sub">No direct relationships.</li>}
-                </ul>
-              </>
-            ) : (
-              <p className="sub">Select a node to inspect.</p>
-            )}
-          </aside>
-        </div>
+              )}
+              {!showListFallback ? (
+                <ReactFlowProvider>
+                  <ExplorerCanvas
+                    nodes={nodes}
+                    edges={edges}
+                    onNodesChange={onNodesChange}
+                    onEdgesChange={onEdgesChange}
+                    onNodeClick={onNodeClick}
+                    onNodeDoubleClick={onNodeDoubleClick}
+                    onInit={setRfInstance}
+                  />
+                </ReactFlowProvider>
+              ) : (
+                <div className="explorer-list-fallback" data-demo-target="relationship-explorer">
+                  <h3 className="section-title">Selected entity</h3>
+                  <p>
+                    <strong>{root.name}</strong> · {root.type}
+                    {root.criticality ? ` · ${root.criticality}` : ''}
+                  </p>
+                  <div className="explorer-list-columns">
+                    <div>
+                      <h4>Upstream</h4>
+                      <ul className="rel-mobile-list">
+                        {upstreamList.map((r) => (
+                          <li key={r.id}>
+                            <button
+                              type="button"
+                              className="rel-mobile-item"
+                              onClick={() => r.other && setSelectedSideId(r.other.id)}
+                            >
+                              <strong>{r.type}</strong>
+                              <span>{r.other?.name || '—'}</span>
+                            </button>
+                          </li>
+                        ))}
+                        {!upstreamList.length && <li className="empty-state">No upstream links.</li>}
+                      </ul>
+                    </div>
+                    <div>
+                      <h4>Downstream</h4>
+                      <ul className="rel-mobile-list">
+                        {downstreamList.map((r) => (
+                          <li key={r.id}>
+                            <button
+                              type="button"
+                              className="rel-mobile-item"
+                              onClick={() => r.other && setSelectedSideId(r.other.id)}
+                            >
+                              <strong>{r.type}</strong>
+                              <span>{r.other?.name || '—'}</span>
+                            </button>
+                          </li>
+                        ))}
+                        {!downstreamList.length && (
+                          <li className="empty-state">No downstream links.</li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                  {!forceList && graphFailed && (
+                    <button
+                      type="button"
+                      className="btn secondary-button"
+                      onClick={() => {
+                        setGraphFailed(false)
+                        setFitToken((t) => t + 1)
+                      }}
+                    >
+                      Retry graph
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="explorer-mobile">
+              <h3 className="section-title">Relationships</h3>
+              <p className="sub">
+                Root: {root?.name || '—'} · {graph.edges.length} edges · depth {relationshipDepth}
+              </p>
+              <ul className="rel-mobile-list">
+                {mobileList.map((r) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      className="rel-mobile-item"
+                      onClick={() => {
+                        setSelectedSideId(r.toId === (selectedSideId || root?.id) ? r.fromId : r.toId)
+                      }}
+                    >
+                      <strong>{r.label}</strong>
+                      <span>
+                        {r.from} → {r.to}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {!mobileList.length && <li className="empty-state">No relationships at this depth.</li>}
+              </ul>
+            </div>
+
+            <aside className="explorer-side" data-demo-target="entity-detail">
+              <h3 className="section-title">Entity detail</h3>
+              {sideEntity ? (
+                <>
+                  <div className="kicker">{sideEntity.type}</div>
+                  <h4>{sideEntity.name}</h4>
+                  {sideEntity.criticality && (
+                    <p className="sub">Criticality: {sideEntity.criticality}</p>
+                  )}
+                  {sideEntity.status && <p className="sub">Status: {sideEntity.status}</p>}
+                  {impactMap.get(sideEntity.id) && (
+                    <p className="sub">Impact: {impactMap.get(sideEntity.id)}</p>
+                  )}
+                  <div className="chip-row" style={{ marginTop: 8 }}>
+                    <button type="button" className="btn primary primary-button" onClick={openDetail}>
+                      Open full detail
+                    </button>
+                    <button type="button" className="btn secondary-button" onClick={expandFromSide}>
+                      Expand from here
+                    </button>
+                  </div>
+                  <h4 className="drawer-section-title">Linked relationships</h4>
+                  <ul className="drawer-list">
+                    {sideRels.slice(0, 12).map((r) => {
+                      const otherId = r.sourceId === sideEntity.id ? r.targetId : r.sourceId
+                      const other = repo.resolveGraphNode(otherId)
+                      return (
+                        <li key={r.id}>
+                          <button
+                            type="button"
+                            className="text-link"
+                            onClick={() => {
+                              if (other) {
+                                setSelectedSideId(other.id)
+                                setGraphRoot({ id: other.id, type: other.type })
+                              }
+                            }}
+                          >
+                            {r.relationshipType}: {other?.name || otherId}
+                          </button>
+                        </li>
+                      )
+                    })}
+                    {!sideRels.length && <li className="sub">No direct relationships.</li>}
+                  </ul>
+                </>
+              ) : (
+                <p className="sub">Select a node to inspect.</p>
+              )}
+            </aside>
+          </div>
+        )}
       </div>
     </section>
   )

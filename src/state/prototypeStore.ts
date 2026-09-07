@@ -208,8 +208,10 @@ type PrototypeState = {
   setGuidedStep: (stepIndex: number) => void
   exitGuidedTour: () => void
   restartGuidedTour: () => void
+  skipGuidedStep: () => void
   showToast: (message: string) => void
   clearToast: () => void
+  prototypeSchemaVersion: number
   getRepo: () => TenantRepository
   ensurePack: () => TenantPack
   updatePack: (fn: (pack: TenantPack) => void, audit?: Omit<AuditFields, 'id' | 'timestamp' | 'tenantId' | 'actorRole'> & { actorRole?: string }) => void
@@ -606,6 +608,7 @@ export const usePrototypeStore = create<PrototypeState>()(
         presentationMode: false,
         guidedTour: null,
         toast: { message: '', show: false },
+        prototypeSchemaVersion: 7,
         setAskOpen: (askOpen) => set({ askOpen }),
         dismissLanding: () => set({ landingComplete: true }),
         showLanding: () => set({ landingComplete: false, guidedTour: null }),
@@ -614,6 +617,8 @@ export const usePrototypeStore = create<PrototypeState>()(
           set({
             guidedTour: { active: true, journeyId, stepIndex: 0 },
             landingComplete: true,
+            askOpen: false,
+            graphRoot: null,
           }),
         setGuidedStep: (stepIndex) => {
           const tour = get().guidedTour
@@ -624,7 +629,17 @@ export const usePrototypeStore = create<PrototypeState>()(
         restartGuidedTour: () => {
           const tour = get().guidedTour
           if (!tour?.journeyId) return
-          set({ guidedTour: { active: true, journeyId: tour.journeyId, stepIndex: 0 } })
+          set({
+            guidedTour: { active: true, journeyId: tour.journeyId, stepIndex: 0 },
+            askOpen: false,
+            graphRoot: null,
+          })
+        },
+        skipGuidedStep: () => {
+          const tour = get().guidedTour
+          if (!tour?.active) return
+          // Consumer advances; GuidedDemoBar Finish handles end — clamp happens in UI
+          set({ guidedTour: { ...tour, stepIndex: tour.stepIndex + 1 } })
         },
         showToast: (message) => set({ toast: { message, show: true } }),
         clearToast: () => set({ toast: { message: '', show: false } }),
@@ -732,7 +747,9 @@ export const usePrototypeStore = create<PrototypeState>()(
             view: 'executive',
             guidedTour: null,
             graphRoot: null,
+            impactMode: false,
             toast: { message: 'Demonstration restored for the active organisation.', show: true },
+            prototypeSchemaVersion: 7,
           })
         },
 
@@ -1308,7 +1325,27 @@ export const usePrototypeStore = create<PrototypeState>()(
       }
     },
     {
-      name: 'ea360-prototype-v6',
+      name: 'ea360-prototype-v7',
+      version: 7,
+      migrate: (persisted: unknown) => {
+        const state = (persisted || {}) as Record<string, unknown>
+        const version = Number(state.prototypeSchemaVersion || 0)
+        // Discard incompatible Explorer / guided-demo hydration from older schemas
+        if (version < 7) {
+          return {
+            ...state,
+            graphRoot: null,
+            guidedTour: null,
+            impactMode: false,
+            relationshipDepth: 1,
+            entityTypeFilters: [],
+            compareCapabilityIds: [],
+            selectedEntity: null,
+            prototypeSchemaVersion: 7,
+          }
+        }
+        return { ...state, prototypeSchemaVersion: 7 }
+      },
       partialize: (s) => ({
         tenantCode: s.tenantCode,
         workingPacks: s.workingPacks,
@@ -1319,6 +1356,7 @@ export const usePrototypeStore = create<PrototypeState>()(
         view: s.view,
         landingComplete: s.landingComplete,
         presentationMode: s.presentationMode,
+        prototypeSchemaVersion: s.prototypeSchemaVersion || 7,
         // Active flattened fields for immediate hydrate (also in tenantSlices)
         role: s.role,
         filters: s.filters,
@@ -1333,10 +1371,11 @@ export const usePrototypeStore = create<PrototypeState>()(
         portfolioFilters: s.portfolioFilters,
         integrationFilters: s.integrationFilters,
         scenarioId: s.scenarioId,
+        // Intentionally omit graphRoot from persistence — stale roots crash Explorer
         relationshipDepth: s.relationshipDepth,
         graphDirection: s.graphDirection,
         entityTypeFilters: s.entityTypeFilters,
-        impactMode: s.impactMode,
+        impactMode: false,
         compareCapabilityIds: s.compareCapabilityIds,
         aiHistory: s.aiHistory.slice(-MAX_AI_HISTORY),
         aiFeedback: s.aiFeedback.slice(-20),

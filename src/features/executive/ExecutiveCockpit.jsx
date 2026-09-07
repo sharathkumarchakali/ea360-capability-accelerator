@@ -137,7 +137,7 @@ export default function ExecutiveCockpit({ onNavigate }) {
               </button>
             </div>
           </div>
-          <div className="maturity-card">
+          <div className="maturity-card" data-demo-target="executive-health">
             <div className="maturity-gauge" style={{ '--value': metrics.enterpriseHealth }}>
               <div className="gauge-rail" aria-hidden="true">
                 <div className="gauge-ticks">

@@ -38,7 +38,7 @@ export default function EvidenceView() {
   return (
     <section className="view active">
       <div className="module">
-        <div className="module-header">
+        <div className="module-header" data-demo-target="evidence-panel">
           <div>
             <div className="kicker">Diagnose · Evidence</div>
             <h1 className="page-title">Evidence register</h1>

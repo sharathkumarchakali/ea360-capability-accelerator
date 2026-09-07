@@ -23,7 +23,6 @@ export default function ApplicationsView() {
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
   const portfolioFilters = usePrototypeStore((s) => s.portfolioFilters)
   const setPortfolioFilters = usePrototypeStore((s) => s.setPortfolioFilters)
-  const setView = usePrototypeStore((s) => s.setView)
   const [page, setPage] = useState(0)
   const [sort, setSort] = useState({ key: 'businessValue', dir: 'desc' })
 
@@ -417,7 +416,7 @@ export default function ApplicationsView() {
             </div>
           </div>
 
-          <div className="tablewrap portfolio-table-desktop">
+          <div className="tablewrap portfolio-table-desktop" data-demo-target="application-portfolio">
             {!pageRows.length ? (
               <div className="empty-state">No rows match filters.</div>
             ) : (

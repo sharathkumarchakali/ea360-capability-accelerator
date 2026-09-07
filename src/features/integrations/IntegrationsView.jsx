@@ -379,7 +379,7 @@ export default function IntegrationsView() {
           </div>
         )}
 
-        <div className="viz-card topology-card">
+        <div className="viz-card topology-card" data-demo-target="integration-topology">
           <div className="viz-head">
             <div>
               <h3 className="section-title">Curated scenario topology</h3>

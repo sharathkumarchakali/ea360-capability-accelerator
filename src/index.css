@@ -3159,3 +3159,10 @@ button.metric {
   }
   a[href]::after { content: ''; }
 }
+
+.explorer-list-fallback{padding:16px;height:100%;overflow:auto}
+.explorer-list-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.explorer-graph-fallback-banner{padding:8px 12px;background:#fff7ed;border-bottom:1px solid #fdba74;font-size:.85rem}
+.explorer-empty{padding:28px;border:1px dashed var(--border);border-radius:12px;background:#fff}
+.guided-warning{color:#9a3412;font-size:.85rem;margin:6px 0 0}
+@media (max-width:760px){.explorer-list-columns{grid-template-columns:1fr}}

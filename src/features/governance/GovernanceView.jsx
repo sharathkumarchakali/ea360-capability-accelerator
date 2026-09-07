@@ -138,7 +138,7 @@ export default function GovernanceView() {
   return (
     <section className="view active">
       <div className="module">
-        <div className="module-header">
+        <div className="module-header" data-demo-target="governance-decisions">
           <div>
             <div className="kicker">Decide · Governance & decisions</div>
             <h1 className="page-title">Architecture Review Board</h1>

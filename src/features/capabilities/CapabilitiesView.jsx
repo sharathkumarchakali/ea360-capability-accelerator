@@ -183,7 +183,7 @@ export default function CapabilitiesView() {
           </label>
         </div>
 
-        <div className="viz-card heatmap-panel">
+        <div className="viz-card heatmap-panel" data-demo-target="capability-heatmap">
           <div className="viz-head">
             <div>
               <h3 className="section-title">Where is capability risk and maturity concentrated?</h3>

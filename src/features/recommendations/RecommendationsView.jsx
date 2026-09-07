@@ -87,7 +87,7 @@ export default function RecommendationsView() {
   return (
     <section className="view active">
       <div className="module">
-        <div className="module-header">
+        <div className="module-header" data-demo-target="recommendations-list">
           <div>
             <div className="kicker">Decide · Recommendations</div>
             <h1 className="page-title">Recommendations</h1>

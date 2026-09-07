@@ -218,7 +218,7 @@ export default function RoadmapView() {
           </label>
         </div>
 
-        <div className={`roadmap-board mode-${mode}`}>
+        <div className={`roadmap-board mode-${mode}`} data-demo-target="roadmap-board">
           {columns.map((col) => (
             <div key={col.key} className="roadmap-column">
               <header className="roadmap-column-head">

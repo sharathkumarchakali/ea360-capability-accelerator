@@ -175,7 +175,7 @@ export default function App() {
   else if (view === 'capabilities') content = <CapabilitiesView />
   else if (view === 'applications') content = <ApplicationsView />
   else if (view === 'integrations') content = <IntegrationsView />
-  else if (view === 'explorer') content = <RelationshipExplorer />
+  else if (view === 'explorer') content = <RelationshipExplorer onNavigate={navigate} />
   else if (view === 'findings') content = <FindingsView />
   else if (view === 'evidence') content = <EvidenceView />
   else if (view === 'recommendations') content = <RecommendationsView />

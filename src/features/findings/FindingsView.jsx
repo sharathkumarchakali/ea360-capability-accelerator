@@ -429,7 +429,7 @@ export default function FindingsView() {
         </div>
 
         <div className="findings-layout">
-          <div className="findings-register">
+          <div className="findings-register" data-demo-target="findings-register">
             <div className="tablewrap int-table-desktop">
               <table>
                 <thead>
