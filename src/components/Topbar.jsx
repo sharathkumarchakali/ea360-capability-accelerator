@@ -23,12 +23,19 @@ export default function Topbar({
         ☰
       </button>
       <div className="brand">
+<<<<<<< HEAD
         <div className="brandmark" aria-hidden="true">
           EA
         </div>
         <div className="brandtext">
           <strong>EA360</strong>
           <span>by Kulana</span>
+=======
+        <div className="brandmark">EA</div>
+        <div className="brandtext">
+          <strong>EA360</strong>
+          <span>Know Your Enterprise</span>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
         </div>
       </div>
       <select

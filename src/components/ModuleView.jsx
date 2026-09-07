@@ -229,16 +229,20 @@ function ModuleContent({ data }) {
 }
 
 export default function ModuleView({ id, data, onAction }) {
+<<<<<<< HEAD
   const sectionLabel = id
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 
+=======
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
   return (
     <section className="view active">
       <div className="module">
         <div className="module-header">
           <div>
+<<<<<<< HEAD
             <div className="kicker">EA360 · {sectionLabel}</div>
             <h1 className="page-title">{data.title}</h1>
             <p>{data.desc}</p>
@@ -249,6 +253,18 @@ export default function ModuleView({ id, data, onAction }) {
             </button>
             <button
               className="btn primary primary-button"
+=======
+            <div className="kicker">EA360 · {id.replaceAll('-', ' ')}</div>
+            <h1>{data.title}</h1>
+            <p>{data.desc}</p>
+          </div>
+          <div className="toolbar">
+            <button className="btn" type="button" onClick={() => onAction('export')}>
+              Export
+            </button>
+            <button
+              className="btn primary"
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
               type="button"
               onClick={() => onAction('create')}
             >
@@ -259,8 +275,13 @@ export default function ModuleView({ id, data, onAction }) {
         <div className="metrics">
           {data.metrics.map(([label, value]) => (
             <div className="metric" key={label}>
+<<<<<<< HEAD
               <div className="m-label kpi-label">{label}</div>
               <div className="m-value kpi-value">{value}</div>
+=======
+              <div className="m-label">{label}</div>
+              <div className="m-value">{value}</div>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
             </div>
           ))}
         </div>

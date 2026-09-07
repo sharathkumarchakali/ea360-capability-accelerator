@@ -7,11 +7,16 @@ export default function Overview({ orgLabel }) {
         <div className="executive-band">
           <div className="executive-message">
             <div className="kicker">
+<<<<<<< HEAD
               Architecture control tower · {orgLabel}
+=======
+              Enterprise Architecture Control Tower · {orgLabel}
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
             </div>
             <h1>Transformation is moving faster than architecture control.</h1>
             <p>
               Governance, Integration &amp; APIs and AI Governance are the binding
+<<<<<<< HEAD
               constraints. Close these gaps first to reduce execution risk and
               accelerate reuse.
             </p>
@@ -40,6 +45,25 @@ export default function Overview({ orgLabel }) {
             </div>
             <div className="maturity-copy">
               <h3 className="section-title">Enterprise maturity</h3>
+=======
+              constraints. Closing these gaps first will reduce execution risk and
+              accelerate reuse.
+            </p>
+            <div className="hero-chips">
+              <span className="hero-chip">12 domains assessed</span>
+              <span className="hero-chip">126 evidence items</span>
+              <span className="hero-chip">Updated 04 Sep 2026</span>
+            </div>
+          </div>
+          <div className="maturity-card">
+            <div className="maturity-ring" style={{ '--value': 46 }}>
+              <div className="ring-value">
+                2.3<small>OF 5 · EMERGING</small>
+              </div>
+            </div>
+            <div className="maturity-copy">
+              <h3>Enterprise maturity</h3>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
               <p>Current capability is 1.2 points below the 12-month ambition.</p>
               <span className="target-pill">Target 3.5 ↑</span>
             </div>
@@ -63,7 +87,11 @@ export default function Overview({ orgLabel }) {
               className="signal-icon"
               style={{ background: 'var(--warn-soft)', color: 'var(--warn)' }}
             >
+<<<<<<< HEAD
               →
+=======
+              ↗
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
             </div>
             <div>
               <strong>12</strong>
@@ -90,7 +118,11 @@ export default function Overview({ orgLabel }) {
           <div className="viz-card">
             <div className="viz-head">
               <div>
+<<<<<<< HEAD
                 <h3 className="section-title">Capability maturity by domain</h3>
+=======
+                <h3>Capability maturity by domain</h3>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
                 <p>Current maturity against the five-level EA360 model.</p>
               </div>
               <div className="legend">
@@ -132,7 +164,11 @@ export default function Overview({ orgLabel }) {
           <div className="viz-card">
             <div className="viz-head">
               <div>
+<<<<<<< HEAD
                 <h3 className="section-title">Transformation risk</h3>
+=======
+                <h3>Transformation risk</h3>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
                 <p>Architecture signals by severity.</p>
               </div>
               <span className="tag red">5 critical</span>
@@ -162,28 +198,50 @@ export default function Overview({ orgLabel }) {
             </div>
             <div className="priority-flow">
               <div className="priority-row">
+<<<<<<< HEAD
                 <span className="priority-rank">P1</span>
+=======
+                <span className="priority-rank">01</span>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
                 <div>
                   <b>Establish Architecture Review Board</b>
                   <small>Decision rights and mandatory review gates</small>
                 </div>
+<<<<<<< HEAD
                 <span className="tag red">0–30d</span>
               </div>
               <div className="priority-row">
                 <span className="priority-rank">P1</span>
+=======
+                <span className="tag red">P1</span>
+              </div>
+              <div className="priority-row">
+                <span className="priority-rank">02</span>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
                 <div>
                   <b>Establish enterprise API standards</b>
                   <small>Ownership, lifecycle, security and reuse</small>
                 </div>
+<<<<<<< HEAD
                 <span className="tag red">31–90d</span>
               </div>
               <div className="priority-row">
                 <span className="priority-rank">P1</span>
+=======
+                <span className="tag red">P1</span>
+              </div>
+              <div className="priority-row">
+                <span className="priority-rank">03</span>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
                 <div>
                   <b>Govern AI agents and models</b>
                   <small>Inventory, controls and lifecycle assurance</small>
                 </div>
+<<<<<<< HEAD
                 <span className="tag amber">3–6m</span>
+=======
+                <span className="tag amber">P1</span>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
               </div>
             </div>
           </div>
@@ -193,9 +251,13 @@ export default function Overview({ orgLabel }) {
       <div className="journey-wrap">
         <div className="journey-head">
           <div>
+<<<<<<< HEAD
             <h3 className="section-title" style={{ margin: 0 }}>
               12-month capability trajectory
             </h3>
+=======
+            <h3 style={{ margin: 0 }}>12-month capability trajectory</h3>
+>>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
             <div className="sub">
               Target progression from control establishment to measurable business
               value.
