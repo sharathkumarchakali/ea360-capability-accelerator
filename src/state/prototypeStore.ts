@@ -168,6 +168,10 @@ type PrototypeState = {
   recommendationDrafts: SavedRecommendationDraft[]
   briefingPreferences: BriefingPreferences
   lastAiResponseId: string | null
+  landingComplete: boolean
+  presentationMode: boolean
+  guidedTour: { active: boolean; journeyId: string; stepIndex: number } | null
+  toast: { message: string; show: boolean }
   setAskOpen: (open: boolean) => void
   recordAiResponse: (response: EA360AIResponse) => void
   reviewAiResponse: (responseId: string, status: AIReviewStatus, comment?: string) => void
@@ -197,6 +201,15 @@ type PrototypeState = {
   setTenant: (code: TenantCode) => void
   resetDemo: () => void
   resetAllTenants: () => void
+  dismissLanding: () => void
+  showLanding: () => void
+  setPresentationMode: (on: boolean) => void
+  startGuidedTour: (journeyId: string) => void
+  setGuidedStep: (stepIndex: number) => void
+  exitGuidedTour: () => void
+  restartGuidedTour: () => void
+  showToast: (message: string) => void
+  clearToast: () => void
   getRepo: () => TenantRepository
   ensurePack: () => TenantPack
   updatePack: (fn: (pack: TenantPack) => void, audit?: Omit<AuditFields, 'id' | 'timestamp' | 'tenantId' | 'actorRole'> & { actorRole?: string }) => void
@@ -589,7 +602,32 @@ export const usePrototypeStore = create<PrototypeState>()(
         recommendationDrafts: [],
         briefingPreferences: { ...initialBriefingPrefs },
         lastAiResponseId: null,
+        landingComplete: false,
+        presentationMode: false,
+        guidedTour: null,
+        toast: { message: '', show: false },
         setAskOpen: (askOpen) => set({ askOpen }),
+        dismissLanding: () => set({ landingComplete: true }),
+        showLanding: () => set({ landingComplete: false, guidedTour: null }),
+        setPresentationMode: (presentationMode) => set({ presentationMode }),
+        startGuidedTour: (journeyId) =>
+          set({
+            guidedTour: { active: true, journeyId, stepIndex: 0 },
+            landingComplete: true,
+          }),
+        setGuidedStep: (stepIndex) => {
+          const tour = get().guidedTour
+          if (!tour?.active) return
+          set({ guidedTour: { ...tour, stepIndex } })
+        },
+        exitGuidedTour: () => set({ guidedTour: null, askOpen: false }),
+        restartGuidedTour: () => {
+          const tour = get().guidedTour
+          if (!tour?.journeyId) return
+          set({ guidedTour: { active: true, journeyId: tour.journeyId, stepIndex: 0 } })
+        },
+        showToast: (message) => set({ toast: { message, show: true } }),
+        clearToast: () => set({ toast: { message: '', show: false } }),
         recordAiResponse: (response) =>
           set({
             aiHistory: [...get().aiHistory, response].slice(-MAX_AI_HISTORY),
@@ -692,6 +730,9 @@ export const usePrototypeStore = create<PrototypeState>()(
             selectedEntity: null,
             ...slice,
             view: 'executive',
+            guidedTour: null,
+            graphRoot: null,
+            toast: { message: 'Demonstration restored for the active organisation.', show: true },
           })
         },
 
@@ -744,6 +785,8 @@ export const usePrototypeStore = create<PrototypeState>()(
             tenantSlices,
             askOpen: false,
             selectedEntity: null,
+            guidedTour: null,
+            view: 'executive',
             role: restored.role,
             filters: restored.filters,
             mutations: restored.mutations,
@@ -765,6 +808,9 @@ export const usePrototypeStore = create<PrototypeState>()(
             briefingPreferences: restored.briefingPreferences,
             lastAiResponseId: restored.lastAiResponseId,
           })
+          if (typeof window !== 'undefined') {
+            window.location.hash = ''
+          }
         },
 
         setTenant: (code: TenantCode) => get().switchTenant(code),
@@ -1262,7 +1308,7 @@ export const usePrototypeStore = create<PrototypeState>()(
       }
     },
     {
-      name: 'ea360-prototype-v5',
+      name: 'ea360-prototype-v6',
       partialize: (s) => ({
         tenantCode: s.tenantCode,
         workingPacks: s.workingPacks,
@@ -1271,6 +1317,8 @@ export const usePrototypeStore = create<PrototypeState>()(
           [s.tenantCode]: captureTenantSlice(s),
         },
         view: s.view,
+        landingComplete: s.landingComplete,
+        presentationMode: s.presentationMode,
         // Active flattened fields for immediate hydrate (also in tenantSlices)
         role: s.role,
         filters: s.filters,

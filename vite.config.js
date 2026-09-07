@@ -12,6 +12,17 @@ export default defineConfig({
       '@': path.resolve(rootDir, 'src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          echarts: ['echarts', 'echarts-for-react'],
+          xyflow: ['@xyflow/react'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 900,
+  },
   test: {
     environment: 'node',
     globals: true,

@@ -5,6 +5,7 @@ import {
   usePrototypeStore,
 } from '../../state/prototypeStore'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { getDemoJourneys } from '../../features/demo/demoJourneys'
 
 export default function Topbar({
   onMobileMenu,
@@ -13,6 +14,7 @@ export default function Topbar({
   profileOpen,
   onToggleNotif,
   onToggleProfile,
+  onOpenDemoHome,
 }) {
   const tenants = listAvailableTenants()
   const tenantCode = usePrototypeStore((s) => s.tenantCode)
@@ -23,9 +25,13 @@ export default function Topbar({
   const mutations = usePrototypeStore((s) => s.mutations)
   const filters = usePrototypeStore((s) => s.filters)
   const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
+  const presentationMode = usePrototypeStore((s) => s.presentationMode)
+  const setPresentationMode = usePrototypeStore((s) => s.setPresentationMode)
+  const startGuidedTour = usePrototypeStore((s) => s.startGuidedTour)
   const tenant = tenants.find((t) => t.code === tenantCode)
   const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
   const [pendingTenant, setPendingTenant] = useState(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   function requestTenantSwitch(nextCode) {
     if (nextCode === tenantCode) return
@@ -35,6 +41,8 @@ export default function Topbar({
     }
     switchTenant(nextCode)
   }
+
+  const journeys = getDemoJourneys(tenantCode)
 
   return (
     <header className="topbar">
@@ -86,6 +94,25 @@ export default function Topbar({
       </select>
       <div className="top-actions">
         <span className="pill period">{filters.period}</span>
+        <select
+          className="orgselect scenario-launch"
+          aria-label="Guided scenario"
+          defaultValue=""
+          onChange={(e) => {
+            const id = e.target.value
+            e.target.value = ''
+            if (id) startGuidedTour(id)
+          }}
+        >
+          <option value="" disabled>
+            Guided scenario…
+          </option>
+          {journeys.map((j) => (
+            <option key={j.id} value={j.id}>
+              {j.title} ({j.durationLabel})
+            </option>
+          ))}
+        </select>
         <button
           className="pill ask-pill"
           type="button"
@@ -98,12 +125,20 @@ export default function Topbar({
           ⌕ Search
         </button>
         <button
+          className={`pill${presentationMode ? ' active-pill' : ''}`}
+          type="button"
+          aria-pressed={presentationMode}
+          onClick={() => setPresentationMode(!presentationMode)}
+        >
+          Present
+        </button>
+        <button className="pill" type="button" onClick={onOpenDemoHome}>
+          Demo home
+        </button>
+        <button
           className="pill"
           type="button"
-          onClick={() => {
-            resetDemo()
-            window.location.hash = ''
-          }}
+          onClick={() => setConfirmReset(true)}
           title="Restore seeded state for the active tenant"
         >
           Reset demo
@@ -111,7 +146,7 @@ export default function Topbar({
         <button
           className="iconbtn blue"
           type="button"
-          aria-label="Notifications"
+          aria-label="Decision inbox"
           aria-expanded={notifOpen}
           onClick={onToggleNotif}
         >
@@ -129,7 +164,7 @@ export default function Topbar({
         <div className={`popover${notifOpen ? ' show' : ''}`}>
           <h4>Decision inbox</h4>
           <p>
-            {tenant?.shortName}: review pending recommendations in the Decide section.
+            {tenant?.shortName}: review pending recommendations and decisions under Governance.
           </p>
         </div>
         <div className={`popover${profileOpen ? ' show' : ''}`}>
@@ -141,7 +176,7 @@ export default function Topbar({
       <ConfirmDialog
         open={Boolean(pendingTenant)}
         title="Switch organisation?"
-        message={`You have ${mutations.length} unsaved demo mutation(s) on ${tenant?.shortName || tenantCode}. Switching tenants isolates session state; continue?`}
+        message={`You have ${mutations.length} demo mutation(s) on ${tenant?.shortName || tenantCode}. Switching tenants isolates session state; continue?`}
         confirmLabel="Switch tenant"
         cancelLabel="Stay"
         tone="danger"
@@ -150,6 +185,21 @@ export default function Topbar({
           const next = pendingTenant
           setPendingTenant(null)
           if (next) switchTenant(next)
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmReset}
+        title="Reset demonstration?"
+        message="This restores the original synthetic pack, filters, AI history and roadmap state for the active organisation only."
+        confirmLabel="Reset demo"
+        cancelLabel="Cancel"
+        tone="danger"
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={() => {
+          setConfirmReset(false)
+          resetDemo()
+          window.location.hash = ''
         }}
       />
     </header>

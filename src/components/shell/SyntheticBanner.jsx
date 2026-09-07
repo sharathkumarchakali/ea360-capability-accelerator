@@ -8,7 +8,7 @@ export default function SyntheticBanner() {
 
   return (
     <div className="synthetic-banner" role="status">
-      {disclaimer}
+      Synthetic demonstration data — not supplied or validated by the named institution. {disclaimer}
     </div>
   )
 }

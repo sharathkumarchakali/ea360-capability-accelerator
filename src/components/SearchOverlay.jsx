@@ -5,13 +5,14 @@ const MODULES = [
   { label: 'Executive Cockpit', id: 'executive', type: 'Module' },
   { label: 'Capabilities', id: 'capabilities', type: 'Module' },
   { label: 'Applications', id: 'applications', type: 'Module' },
-  { label: 'Integration Landscape', id: 'integrations', type: 'Module' },
+  { label: 'Integrations and APIs', id: 'integrations', type: 'Module' },
   { label: 'Relationship Explorer', id: 'explorer', type: 'Module' },
-  { label: 'Findings & Risks', id: 'findings', type: 'Module' },
+  { label: 'Findings and Risks', id: 'findings', type: 'Module' },
   { label: 'Evidence', id: 'evidence', type: 'Module' },
   { label: 'Recommendations', id: 'recommendations', type: 'Module' },
-  { label: 'Governance & Decisions', id: 'governance', type: 'Module' },
+  { label: 'Decisions', id: 'governance', type: 'Module' },
   { label: 'Roadmap', id: 'roadmap', type: 'Module' },
+  { label: 'Executive Report', id: 'reports', type: 'Module' },
 ]
 
 export default function SearchOverlay({ open, onClose, onNavigate }) {

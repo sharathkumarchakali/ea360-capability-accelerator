@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
-import { usePrototypeStore } from '../../state/prototypeStore'
+import { usePrototypeStore, getTenantConfig } from '../../state/prototypeStore'
 import { deriveIntegrationMetrics } from '../../domain/metrics/integration'
 import ExplainButton from '../ai-assist/ExplainButton'
 import ExecutiveBriefing from '../ai-assist/ExecutiveBriefing'
 
 export default function ExecutiveCockpit({ onNavigate }) {
   const repo = usePrototypeStore((s) => s.getRepo)()
+  const tenantCode = usePrototypeStore((s) => s.tenantCode)
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
   const setView = usePrototypeStore((s) => s.setView)
   const setCapabilityFilters = usePrototypeStore((s) => s.setCapabilityFilters)
@@ -13,6 +14,9 @@ export default function ExecutiveCockpit({ onNavigate }) {
   const setIntegrationFilters = usePrototypeStore((s) => s.setIntegrationFilters)
   const setHeatmapMode = usePrototypeStore((s) => s.setHeatmapMode)
   const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
+  const startGuidedTour = usePrototypeStore((s) => s.startGuidedTour)
+  const showLanding = usePrototypeStore((s) => s.showLanding)
+  const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
   const tenant = repo.getTenant()
   const metrics = useMemo(() => repo.getExecutiveMetrics(), [repo])
   const intMetrics = useMemo(
@@ -31,17 +35,17 @@ export default function ExecutiveCockpit({ onNavigate }) {
   const insights = [
     {
       title: 'What changed',
-      body: `${tenant.shortName} still depends on fragmented taxpayer masters and duplicate point-to-point identity lookups across channels.`,
+      body: config.storyline || `${tenant.shortName} still carries concentrated architecture and integration risk in its priority domain.`,
     },
     {
       title: 'Why it matters',
-      body: `${metrics.criticalRiskCount} critical findings concentrate on taxpayer registration, integration reuse and revenue assurance.`,
+      body: `${metrics.criticalRiskCount} critical findings concentrate on the highest-risk capabilities and brittle integration paths.`,
     },
     {
       title: 'Action required',
       body: topRec
-        ? `Advance “${topRec.name}” into the active roadmap wave and retire brittle channel interfaces.`
-        : 'Prioritise approved recommendations for the taxpayer domain.',
+        ? `Advance “${topRec.name}” into the active roadmap wave and retire brittle interfaces.`
+        : 'Prioritise approved recommendations for the priority domain.',
     },
   ]
 
@@ -104,7 +108,7 @@ export default function ExecutiveCockpit({ onNavigate }) {
               Executive cockpit · {tenant.shortName} · Synthetic demonstration data
             </div>
             <h1>Know your enterprise. Shape what is next.</h1>
-            <p>{tenant.story}</p>
+            <p>{config.storyline || tenant.story}</p>
             <div className="hero-chips">
               <span className="hero-chip">{metrics.openFindings} open findings</span>
               <span className="hero-chip">{repo.listApplications().length} applications</span>
@@ -120,6 +124,16 @@ export default function ExecutiveCockpit({ onNavigate }) {
                 onClick={() => openCapabilityIntel({ mode: 'risk' })}
               >
                 Capability intelligence
+              </button>
+              <button
+                type="button"
+                className="btn secondary-button"
+                onClick={() => startGuidedTour(`${tenantCode.toLowerCase()}-executive`)}
+              >
+                Start Executive Demo
+              </button>
+              <button type="button" className="btn secondary-button" onClick={() => showLanding()}>
+                Demo home
               </button>
             </div>
           </div>
@@ -270,7 +284,7 @@ export default function ExecutiveCockpit({ onNavigate }) {
             <div className="viz-head">
               <div>
                 <h3 className="section-title">Three executive insights</h3>
-                <p>Decision-oriented narrative from GRA records.</p>
+                <p>Decision-oriented narrative from {tenant.shortName} records.</p>
               </div>
             </div>
             <div className="insight-stack">

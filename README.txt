@@ -11,19 +11,20 @@ npm install
 npm run dev      # local development
 npm run build    # production build to dist/
 npm run preview  # preview production build
-npm test         # Vitest (domain + Phase 1A–5 tenants / AI)
+npm test         # Vitest (existing domain / tenant / AI suites — not a Phase 6 gate)
+npx vite-node scripts/validateTenants.mjs   # pack + relationship validation
 ```
 
-## Current scope (Phase 5)
+## Current scope (Phase 6)
 
-- Four synthetic tenants on one product engine: GRA, Bank of Ghana, Fidelity Bank Ghana, Acme Enterprise Group
-- Organisation switcher with per-tenant isolated session state (persist key ea360-prototype-v5)
-- Executive Cockpit through Relationship Explorer and governed transformation journey
-- Ask EA360 (deterministic, active-tenant grounded, explainable; cross-tenant refused)
-- Explain selected insights; impact narratives; AI-assisted recommendation drafts; executive briefing
-- AI suggests → Evidence shown → Architect validates → Authority approves → EA360 records
-- Reset demo restores the active tenant seed; reset-all clears every tenant and reloads GRA
+- Four synthetic tenants: GRA, Bank of Ghana, Fidelity Bank Ghana, Acme Enterprise Group
+- Demo landing, guided executive / architecture / transformation journeys, presentation mode
+- Organisation switcher with per-tenant isolated session state (persist key ea360-prototype-v6)
+- Executive Report with Print / Save as PDF (browser print)
+- Ask EA360 (deterministic, active-tenant grounded); AI suggests → evidence → human validation
+- Demo reset with confirmation; Netlify-ready static deploy (`netlify.toml`)
 
-See `IMPLEMENTATION_STATUS.md`, `TENANT_MODEL.md`, `DEMO_SCENARIOS.md`, `METRIC_DEFINITIONS.md`, `RELATIONSHIP_MODEL.md`, `WORKFLOW_MODEL.md`, and `AI_ASSISTANCE_MODEL.md`.
+See `DEMO_RUNBOOK.md`, `RELEASE_CHECKLIST.md`, `IMPLEMENTATION_STATUS.md`, `TENANT_MODEL.md`, `DEMO_SCENARIOS.md`, and the other model docs.
 
-No backend, authentication, external LLM, or live AI in this prototype.
+No backend, authentication, external LLM, or live institutional data in this prototype.
+Do not publish the site publicly without product-owner approval.
