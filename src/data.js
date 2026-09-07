@@ -1,5 +1,4 @@
 export const domains = [
-<<<<<<< HEAD
   ['Strategy', '3.0', '#1E8CAA'],
   ['Governance', '1.8', '#c0392b'],
   ['Business', '2.1', '#b7791f'],
@@ -12,20 +11,6 @@ export const domains = [
   ['Technology Standards', '1.9', '#c0392b'],
   ['AI Governance', '1.2', '#c0392b'],
   ['People & Capability', '2.0', '#b7791f'],
-=======
-  ['Strategy', '3.0', '#2f5cff'],
-  ['Governance', '1.8', '#eb4d4d'],
-  ['Business', '2.1', '#c98500'],
-  ['Data', '2.5', '#2f5cff'],
-  ['Applications', '2.8', '#2f5cff'],
-  ['Integration & APIs', '2.0', '#c98500'],
-  ['Security', '2.2', '#c98500'],
-  ['Infrastructure & Cloud', '2.7', '#2f5cff'],
-  ['Resilience', '2.4', '#2f5cff'],
-  ['Technology Standards', '1.9', '#eb4d4d'],
-  ['AI Governance', '1.2', '#eb4d4d'],
-  ['People & Capability', '2.0', '#c98500'],
->>>>>>> 18cecbeb09ecba21914e0e885d24cc50173dfb57
 ]
 
 export const navGroups = [
