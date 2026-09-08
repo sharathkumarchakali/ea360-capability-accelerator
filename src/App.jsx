@@ -1,8 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import Topbar from './components/shell/Topbar'
-import ContextBar from './components/shell/ContextBar'
 import Sidebar from './components/shell/Sidebar'
-import SyntheticBanner from './components/shell/SyntheticBanner'
 import EntityDrawer from './components/enterprise/EntityDrawer'
 import SearchOverlay from './components/SearchOverlay'
 import ErrorBoundary from './components/shell/ErrorBoundary'
@@ -190,10 +188,10 @@ export default function App() {
       {!landingComplete && <DemoLanding onStart={() => navigate('executive')} />}
 
       <div className={`app${presentationMode ? ' is-presentation' : ''}`}>
-        <SyntheticBanner />
         <Topbar
           onMobileMenu={() => setSidebarOpen(true)}
           onSearch={() => setSearchOpen(true)}
+          onOpenDemoHome={() => showLanding()}
           notifOpen={notifOpen}
           profileOpen={profileOpen}
           onToggleNotif={() => {
@@ -205,8 +203,6 @@ export default function App() {
             setNotifOpen(false)
           }}
         />
-
-        <ContextBar onOpenDemoHome={() => showLanding()} />
 
         <GuidedDemoBar onNavigate={navigate} />
 

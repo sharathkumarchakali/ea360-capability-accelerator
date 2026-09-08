@@ -18,7 +18,7 @@ const EMPHASIS = [
   { id: 'delivery', label: 'Delivery progress' },
 ]
 
-export default function ExecutiveBriefing({ onAction, embedded }) {
+export default function ExecutiveBriefing({ onAction, embedded, inDrawer }) {
   const role = usePrototypeStore((s) => s.role)
   const filters = usePrototypeStore((s) => s.filters)
   const getRepo = usePrototypeStore((s) => s.getRepo)
@@ -67,18 +67,25 @@ export default function ExecutiveBriefing({ onAction, embedded }) {
   }
 
   return (
-    <div className={`ai-briefing${embedded ? ' embedded' : ''}`}>
-      <div className="kicker">Assist · Executive briefing</div>
-      <h3 className="section-title">Decision briefing</h3>
-      <p className="sub">
+    <div
+      className={`ai-briefing${embedded ? ' embedded' : ''}${inDrawer ? ' in-drawer' : ''}`}
+    >
+      {!inDrawer ? (
+        <>
+          <div className="kicker">Assist · Executive briefing</div>
+          <h3 className="section-title">Decision briefing</h3>
+        </>
+      ) : null}
+      <p className="sub ai-briefing-lede">
         Role-specific snapshot from the active tenant. Indicative only — not a guaranteed financial
         forecast.
       </p>
 
       <div className="form-grid ai-briefing-form">
-        <label className="field">
+        <label className="field ea-field">
           <span>Audience role</span>
           <select
+            className="ea-control"
             value={prefs.role}
             onChange={(e) => setBriefingPreferences({ role: e.target.value })}
           >
@@ -89,16 +96,18 @@ export default function ExecutiveBriefing({ onAction, embedded }) {
             ))}
           </select>
         </label>
-        <label className="field">
+        <label className="field ea-field">
           <span>Period</span>
           <input
+            className="ea-control"
             value={prefs.period}
             onChange={(e) => setBriefingPreferences({ period: e.target.value })}
           />
         </label>
-        <label className="field">
+        <label className="field ea-field">
           <span>Domain focus</span>
           <select
+            className="ea-control"
             value={prefs.domain}
             onChange={(e) => setBriefingPreferences({ domain: e.target.value })}
           >
@@ -110,9 +119,10 @@ export default function ExecutiveBriefing({ onAction, embedded }) {
             ))}
           </select>
         </label>
-        <label className="field">
+        <label className="field ea-field">
           <span>Emphasis</span>
           <select
+            className="ea-control"
             value={prefs.emphasis}
             onChange={(e) => setBriefingPreferences({ emphasis: e.target.value })}
           >
@@ -125,9 +135,9 @@ export default function ExecutiveBriefing({ onAction, embedded }) {
         </label>
       </div>
 
-      <div className="toolbar wrap-actions">
+      <div className="toolbar wrap-actions ai-briefing-actions">
         <button type="button" className="btn primary primary-button" onClick={generate}>
-          Generate briefing
+          Generate
         </button>
         <button
           type="button"
