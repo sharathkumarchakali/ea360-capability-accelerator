@@ -1,0 +1,62 @@
+[
+  {
+    "viewport": "1920x1080",
+    "file": "C:\\Users\\DELL\\Desktop\\Desktop Folders\\temp\\ea\\EA360\\ea360-capability-accelerator\\screenshots\\explorer\\explorer-1920x1080.png",
+    "hasExplorer": true,
+    "pageOverflowX": false,
+    "mainOverflowY": false,
+    "explorerHeight": 1016,
+    "canvasWidth": 1049,
+    "bodyWidth": 1641,
+    "canvasPct": 63.9,
+    "chipCount": 0,
+    "nodeCount": 7,
+    "mobileList": false,
+    "desktopGraph": true
+  },
+  {
+    "viewport": "1440x900",
+    "file": "C:\\Users\\DELL\\Desktop\\Desktop Folders\\temp\\ea\\EA360\\ea360-capability-accelerator\\screenshots\\explorer\\explorer-1440x900.png",
+    "hasExplorer": true,
+    "pageOverflowX": false,
+    "mainOverflowY": false,
+    "explorerHeight": 836,
+    "canvasWidth": 569,
+    "bodyWidth": 1161,
+    "canvasPct": 49,
+    "chipCount": 0,
+    "nodeCount": 7,
+    "mobileList": false,
+    "desktopGraph": true
+  },
+  {
+    "viewport": "1024x768",
+    "file": "C:\\Users\\DELL\\Desktop\\Desktop Folders\\temp\\ea\\EA360\\ea360-capability-accelerator\\screenshots\\explorer\\explorer-1024x768.png",
+    "hasExplorer": true,
+    "pageOverflowX": false,
+    "mainOverflowY": false,
+    "explorerHeight": 704,
+    "canvasWidth": 745,
+    "bodyWidth": 745,
+    "canvasPct": 100,
+    "chipCount": 0,
+    "nodeCount": 2,
+    "mobileList": false,
+    "desktopGraph": true
+  },
+  {
+    "viewport": "390x844",
+    "file": "C:\\Users\\DELL\\Desktop\\Desktop Folders\\temp\\ea\\EA360\\ea360-capability-accelerator\\screenshots\\explorer\\explorer-390x844.png",
+    "hasExplorer": true,
+    "pageOverflowX": false,
+    "mainOverflowY": false,
+    "explorerHeight": 285,
+    "canvasWidth": 0,
+    "bodyWidth": 351,
+    "canvasPct": null,
+    "chipCount": 0,
+    "nodeCount": 2,
+    "mobileList": true,
+    "desktopGraph": false
+  }
+]
