@@ -1,0 +1,42 @@
+﻿
+> ea360-enterprise-architecture-capability-accelerator@1.0.0 build
+> vite build
+
+node.exe : You are using Node.js 20.13.1. Vite requires Node.js version 20.19+ or 22.12+. Please upgrade your Node.js 
+version.
+At C:\sharath\installations\nodejs\npm.ps1:16 char:5
++     & "$basedir/node$exe"  "$basedir/node_modules/npm/bin/npm-cli.js" ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (You are using N...ode.js version.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+vite v7.3.6 building client environment for production...
+transforming...
+node_modules/zod/v4/core/util.js (330:0): A comment
+
+"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on 
+`Number`, so the bare object literal survived into every bundle."
+
+in "node_modules/zod/v4/core/util.js" contains an annotation that Rollup cannot interpret due to the position of the 
+comment. The comment will be removed to avoid issues.
+node_modules/zod/v4/core/regexes.js (70:0): A comment
+
+"/** Anchors a pattern source. The interpolation lives here rather than at the call site because
+ * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it
+ * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */"
+
+in "node_modules/zod/v4/core/regexes.js" contains an annotation that Rollup cannot interpret due to the position of 
+the comment. The comment will be removed to avoid issues.
+Γ£ô 930 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     0.93 kB Γöé gzip:   0.50 kB
+dist/assets/index-C-DohUbr.css     50.08 kB Γöé gzip:   9.60 kB
+dist/assets/index-Bmlc7mPy.js   1,796.39 kB Γöé gzip: 573.56 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: 
+https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+Γ£ô built in 30.26s

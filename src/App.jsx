@@ -1,5 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react'
 import Topbar from './components/shell/Topbar'
+import ContextBar from './components/shell/ContextBar'
 import Sidebar from './components/shell/Sidebar'
 import SyntheticBanner from './components/shell/SyntheticBanner'
 import EntityDrawer from './components/enterprise/EntityDrawer'
@@ -79,6 +80,7 @@ export default function App() {
   const resetDemo = usePrototypeStore((s) => s.resetDemo)
   const showLanding = usePrototypeStore((s) => s.showLanding)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
@@ -202,8 +204,9 @@ export default function App() {
             setProfileOpen((v) => !v)
             setNotifOpen(false)
           }}
-          onOpenDemoHome={() => showLanding()}
         />
+
+        <ContextBar onOpenDemoHome={() => showLanding()} />
 
         <GuidedDemoBar onNavigate={navigate} />
 
@@ -213,7 +216,12 @@ export default function App() {
             onClick={closeMobile}
             aria-hidden={!sidebarOpen}
           />
-          <Sidebar open={sidebarOpen} onNavigate={navigate} />
+          <Sidebar
+            open={sidebarOpen}
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+            onNavigate={navigate}
+          />
           <main className="main" id="main-content">
             <ErrorBoundary onRecover={recover}>
               <Suspense fallback={<ViewFallback />}>{content}</Suspense>
