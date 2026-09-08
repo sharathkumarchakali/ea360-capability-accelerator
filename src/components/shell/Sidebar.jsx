@@ -1,96 +1,110 @@
+import {
+  Boxes,
+  CheckSquare,
+  FileText,
+  Flag,
+  FolderOpen,
+  Gauge,
+  GitBranch,
+  LayoutDashboard,
+  Network,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Route,
+  Shield,
+} from 'lucide-react'
 import { usePrototypeStore } from '../../state/prototypeStore'
-import { getTenantConfig } from '../../state/prototypeStore'
 
 const NAV = [
   [
     'Executive',
-    [['Executive Cockpit', 'executive', '⌘']],
+    [['Executive Cockpit', 'executive', LayoutDashboard]],
   ],
   [
     'Enterprise Map',
     [
-      ['Relationship Explorer', 'explorer', '⬡'],
-      ['Capabilities', 'capabilities', '▣'],
+      ['Relationship Explorer', 'explorer', Network],
+      ['Capabilities', 'capabilities', Boxes],
     ],
   ],
   [
     'Portfolios',
     [
-      ['Applications', 'applications', '⧉'],
-      ['Integrations and APIs', 'integrations', '⟷'],
+      ['Applications', 'applications', FolderOpen],
+      ['Integrations and APIs', 'integrations', GitBranch],
     ],
   ],
   [
     'Insights',
     [
-      ['Findings and Risks', 'findings', '⚑'],
-      ['Evidence', 'evidence', '▤'],
-      ['Recommendations', 'recommendations', '✓'],
+      ['Findings and Risks', 'findings', Flag],
+      ['Evidence', 'evidence', FileText],
+      ['Recommendations', 'recommendations', CheckSquare],
     ],
   ],
   [
     'Transformation',
-    [['Roadmap', 'roadmap', '⌁']],
+    [['Roadmap', 'roadmap', Route]],
   ],
   [
     'Governance',
-    [['Decisions', 'governance', '▧']],
+    [['Decisions', 'governance', Shield]],
   ],
   [
     'Reports',
-    [['Executive Report', 'reports', '▥']],
+    [['Executive Report', 'reports', Gauge]],
   ],
 ]
 
-export default function Sidebar({ open, onNavigate }) {
+export default function Sidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
   const activeView = usePrototypeStore((s) => s.view)
-  const tenantCode = usePrototypeStore((s) => s.tenantCode)
-  const repo = usePrototypeStore((s) => s.getRepo)()
-  const metrics = repo.getExecutiveMetrics()
-  const config = getTenantConfig(tenantCode)
-  const tenant = repo.getTenant()
 
   return (
-    <aside className={`sidebar${open ? ' open' : ''}`} aria-label="Primary">
+    <aside
+      className={`sidebar${open ? ' open' : ''}${collapsed ? ' is-collapsed' : ''}`}
+      aria-label="Primary"
+    >
+      <div className="sidebar-toolbar">
+        <button
+          type="button"
+          className="sidebar-collapse-btn"
+          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+          aria-pressed={collapsed}
+          onClick={onToggleCollapse}
+        >
+          {collapsed ? (
+            <PanelLeftOpen size={16} strokeWidth={2} aria-hidden="true" />
+          ) : (
+            <PanelLeftClose size={16} strokeWidth={2} aria-hidden="true" />
+          )}
+          <span className="sidebar-collapse-label">Collapse</span>
+        </button>
+      </div>
+
       <nav className="nav">
         {NAV.map(([group, items]) => (
           <div className="group" key={group}>
             <div className="group-title">{group}</div>
-            {items.map(([label, id, ico]) => (
+            {items.map(([label, id, Icon]) => (
               <button
                 key={id}
                 type="button"
                 className={`navitem${activeView === id ? ' active' : ''}`}
                 aria-current={activeView === id ? 'page' : undefined}
+                title={label}
                 onClick={() => onNavigate(id)}
               >
                 <span className="left">
                   <span className="ico" aria-hidden="true">
-                    {ico}
+                    <Icon size={16} strokeWidth={2} />
                   </span>
-                  <span>{label}</span>
+                  <span className="nav-label">{label}</span>
                 </span>
               </button>
             ))}
           </div>
         ))}
       </nav>
-      <div className="sidefoot">
-        <div className="cap-card">
-          <div className="cap-label">Enterprise health · {tenant.shortName}</div>
-          <div className="cap-score">
-            {metrics.enterpriseHealth} <span>/ 100</span>
-          </div>
-          <div className="progress" aria-hidden="true">
-            <div style={{ width: `${metrics.enterpriseHealth}%` }} />
-          </div>
-          <p>
-            Derived from {tenant.shortName} maturity, risk, application health and initiative
-            progress.
-          </p>
-        </div>
-        <div className="version">{config.syntheticDisclaimer}</div>
-      </div>
     </aside>
   )
 }

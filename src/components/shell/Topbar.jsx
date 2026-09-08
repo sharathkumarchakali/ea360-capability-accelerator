@@ -1,37 +1,34 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { Bell, Menu, MessageSquareText, Search } from 'lucide-react'
 import {
   getTenantConfig,
   listAvailableTenants,
   usePrototypeStore,
 } from '../../state/prototypeStore'
 import ConfirmDialog from '../ui/ConfirmDialog'
-import { getDemoJourneys } from '../../features/demo/demoJourneys'
+import SyntheticBadge from './SyntheticBanner'
+import DemoControls from './ContextBar'
 
 export default function Topbar({
   onMobileMenu,
   onSearch,
+  onOpenDemoHome,
   notifOpen,
   profileOpen,
   onToggleNotif,
   onToggleProfile,
-  onOpenDemoHome,
 }) {
   const tenants = listAvailableTenants()
   const tenantCode = usePrototypeStore((s) => s.tenantCode)
-  const role = usePrototypeStore((s) => s.role)
-  const setRole = usePrototypeStore((s) => s.setRole)
   const switchTenant = usePrototypeStore((s) => s.switchTenant)
-  const resetDemo = usePrototypeStore((s) => s.resetDemo)
   const mutations = usePrototypeStore((s) => s.mutations)
-  const filters = usePrototypeStore((s) => s.filters)
   const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
-  const presentationMode = usePrototypeStore((s) => s.presentationMode)
-  const setPresentationMode = usePrototypeStore((s) => s.setPresentationMode)
-  const startGuidedTour = usePrototypeStore((s) => s.startGuidedTour)
   const tenant = tenants.find((t) => t.code === tenantCode)
   const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
   const [pendingTenant, setPendingTenant] = useState(null)
-  const [confirmReset, setConfirmReset] = useState(false)
+  const [demoOpen, setDemoOpen] = useState(false)
+
+  const closeDemo = useCallback(() => setDemoOpen(false), [])
 
   function requestTenantSwitch(nextCode) {
     if (nextCode === tenantCode) return
@@ -42,7 +39,21 @@ export default function Topbar({
     switchTenant(nextCode)
   }
 
-  const journeys = getDemoJourneys(tenantCode)
+  function toggleNotif() {
+    setDemoOpen(false)
+    onToggleNotif()
+  }
+
+  function toggleProfile() {
+    setDemoOpen(false)
+    onToggleProfile()
+  }
+
+  function toggleDemo() {
+    setDemoOpen((v) => !v)
+    if (notifOpen) onToggleNotif()
+    if (profileOpen) onToggleProfile()
+  }
 
   return (
     <header className="topbar">
@@ -52,122 +63,87 @@ export default function Topbar({
         type="button"
         onClick={onMobileMenu}
       >
-        ☰
+        <Menu size={18} strokeWidth={2} aria-hidden="true" />
       </button>
+
       <div className="brand">
         <div className="brandmark" aria-hidden="true">
           EA
         </div>
         <div className="brandtext">
           <strong>EA360</strong>
-          <span>Know Your Enterprise. Shape What’s Next.</span>
         </div>
       </div>
+
       <div className="tenant-select-wrap">
         <span className="tenant-lettermark" aria-hidden="true">
           {tenant?.lettermark || config.lettermark}
         </span>
         <select
-          className="orgselect"
+          className="orgselect tenant-select"
           aria-label="Organisation"
+          title={
+            tenant
+              ? `${tenant.name} (${tenant.shortName}) · ${tenant.tenantType}`
+              : 'Organisation'
+          }
           value={tenantCode}
           onChange={(e) => requestTenantSwitch(e.target.value)}
         >
           {tenants.map((t) => (
-            <option key={t.code} value={t.code}>
-              {t.name} ({t.shortName}) · {t.tenantType} · Synthetic
+            <option key={t.code} value={t.code} title={`${t.name} · ${t.tenantType}`}>
+              {t.shortName} · {t.tenantType}
             </option>
           ))}
         </select>
+        <SyntheticBadge />
       </div>
-      <select
-        className="orgselect role-select"
-        aria-label="Role"
-        value={role}
-        onChange={(e) => setRole(e.target.value)}
-      >
-        {config.roleLabels.map((r) => (
-          <option key={r.id} value={r.id}>
-            {r.label}
-          </option>
-        ))}
-      </select>
+
       <div className="top-actions">
-        <span className="pill period">{filters.period}</span>
-        <select
-          className="orgselect scenario-launch"
-          aria-label="Guided scenario"
-          defaultValue=""
-          onChange={(e) => {
-            const id = e.target.value
-            e.target.value = ''
-            if (id) startGuidedTour(id)
-          }}
-        >
-          <option value="" disabled>
-            Guided scenario…
-          </option>
-          {journeys.map((j) => (
-            <option key={j.id} value={j.id}>
-              {j.title} ({j.durationLabel})
-            </option>
-          ))}
-        </select>
+        <button className="pill search-pill" type="button" onClick={onSearch}>
+          <Search size={15} strokeWidth={2} aria-hidden="true" />
+          <span>Search</span>
+        </button>
         <button
           className="pill ask-pill"
           type="button"
           onClick={() => setAskOpen(true)}
           title="Ask EA360"
         >
-          Ask EA360
-        </button>
-        <button className="pill" type="button" onClick={onSearch}>
-          ⌕ Search
+          <MessageSquareText size={15} strokeWidth={2} aria-hidden="true" />
+          <span>Ask EA360</span>
         </button>
         <button
-          className={`pill${presentationMode ? ' active-pill' : ''}`}
-          type="button"
-          aria-pressed={presentationMode}
-          onClick={() => setPresentationMode(!presentationMode)}
-        >
-          Present
-        </button>
-        <button className="pill" type="button" onClick={onOpenDemoHome}>
-          Demo home
-        </button>
-        <button
-          className="pill"
-          type="button"
-          onClick={() => setConfirmReset(true)}
-          title="Restore seeded state for the active tenant"
-        >
-          Reset demo
-        </button>
-        <button
-          className="iconbtn blue"
+          className="iconbtn"
           type="button"
           aria-label="Decision inbox"
           aria-expanded={notifOpen}
-          onClick={onToggleNotif}
+          onClick={toggleNotif}
         >
-          ♢
+          <Bell size={16} strokeWidth={2} aria-hidden="true" />
         </button>
         <button
-          className="iconbtn dark"
+          className="iconbtn profile-btn"
           type="button"
           aria-label="Profile"
           aria-expanded={profileOpen}
-          onClick={onToggleProfile}
+          onClick={toggleProfile}
         >
           {tenant?.lettermark || 'EA'}
         </button>
+        <DemoControls
+          open={demoOpen}
+          onToggle={toggleDemo}
+          onClose={closeDemo}
+          onOpenDemoHome={onOpenDemoHome}
+        />
         <div className={`popover${notifOpen ? ' show' : ''}`}>
           <h4>Decision inbox</h4>
           <p>
             {tenant?.shortName}: review pending recommendations and decisions under Governance.
           </p>
         </div>
-        <div className={`popover${profileOpen ? ' show' : ''}`}>
+        <div className={`popover profile-popover${profileOpen ? ' show' : ''}`}>
           <h4>EA360 prototype</h4>
           <p>Enterprise Intelligence and Transformation Governance · Kulana</p>
         </div>
@@ -185,21 +161,6 @@ export default function Topbar({
           const next = pendingTenant
           setPendingTenant(null)
           if (next) switchTenant(next)
-        }}
-      />
-
-      <ConfirmDialog
-        open={confirmReset}
-        title="Reset demonstration?"
-        message="This restores the original synthetic pack, filters, AI history and roadmap state for the active organisation only."
-        confirmLabel="Reset demo"
-        cancelLabel="Cancel"
-        tone="danger"
-        onCancel={() => setConfirmReset(false)}
-        onConfirm={() => {
-          setConfirmReset(false)
-          resetDemo()
-          window.location.hash = ''
         }}
       />
     </header>
