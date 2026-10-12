@@ -2,17 +2,26 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePrototypeStore } from '../state/prototypeStore'
 
 const MODULES = [
-  { label: 'Executive Cockpit', id: 'executive', type: 'Module' },
-  { label: 'Capabilities', id: 'capabilities', type: 'Module' },
+  { label: 'Executive Overview', id: 'executive', type: 'Module' },
   { label: 'Applications', id: 'applications', type: 'Module' },
-  { label: 'Integrations and APIs', id: 'integrations', type: 'Module' },
-  { label: 'Relationship Explorer', id: 'explorer', type: 'Module' },
-  { label: 'Findings and Risks', id: 'findings', type: 'Module' },
+  { label: 'Integrations & APIs', id: 'integrations', type: 'Module' },
+  { label: 'Data & Information', id: 'data-information', type: 'Module' },
+  {
+    label: 'Technology & Infrastructure',
+    id: 'technology-infrastructure',
+    type: 'Module',
+  },
+  { label: 'AI & Automation', id: 'ai-automation', type: 'Module' },
+  { label: 'Architecture Health', id: 'assessment', type: 'Module' },
+  { label: 'Findings & Risks', id: 'findings', type: 'Module' },
   { label: 'Evidence', id: 'evidence', type: 'Module' },
   { label: 'Recommendations', id: 'recommendations', type: 'Module' },
-  { label: 'Decisions', id: 'governance', type: 'Module' },
   { label: 'Roadmap', id: 'roadmap', type: 'Module' },
-  { label: 'Executive Report', id: 'reports', type: 'Module' },
+  { label: 'Initiatives', id: 'initiatives', type: 'Module' },
+  { label: 'KPIs', id: 'kpis', type: 'Module' },
+  { label: 'Standards & Principles', id: 'standards', type: 'Module' },
+  { label: 'Decision Register', id: 'decisions', type: 'Module' },
+  { label: 'Review Board', id: 'reviews', type: 'Module' },
 ]
 
 export default function SearchOverlay({ open, onClose, onNavigate }) {
@@ -35,6 +44,15 @@ export default function SearchOverlay({ open, onClose, onNavigate }) {
     )
     repo.listIntegrations().forEach((i) =>
       items.push({ label: i.name, id: i.id, type: 'Integration', entityType: 'integration' }),
+    )
+    repo.listDataObjects().forEach((d) =>
+      items.push({ label: d.name, id: d.id, type: 'Data Domain', entityType: 'dataObject' }),
+    )
+    repo.listTechnologies().forEach((t) =>
+      items.push({ label: t.name, id: t.id, type: 'Technology', entityType: 'technology' }),
+    )
+    repo.listAiSolutions().forEach((s) =>
+      items.push({ label: s.name, id: s.id, type: 'AI Solution', entityType: 'aiSolution' }),
     )
     repo.listRecommendations().forEach((r) =>
       items.push({ label: r.name, id: r.id, type: 'Recommendation', entityType: 'recommendation' }),
@@ -72,7 +90,7 @@ export default function SearchOverlay({ open, onClose, onNavigate }) {
       <div className="searchbox">
         <input
           ref={inputRef}
-          placeholder="Search capabilities, applications, integrations, findings…"
+          placeholder="Search AI use cases, agents, models, capabilities, applications, findings…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -89,6 +107,13 @@ export default function SearchOverlay({ open, onClose, onNavigate }) {
                   if (r.entityType === 'capability') onNavigate('capabilities', { keepSelection: true })
                   if (r.entityType === 'application') onNavigate('applications', { keepSelection: true })
                   if (r.entityType === 'integration') onNavigate('integrations', { keepSelection: true })
+                  if (r.entityType === 'dataObject') onNavigate('data-information', { keepSelection: true })
+                  if (r.entityType === 'technology') {
+                    onNavigate('technology-infrastructure', { keepSelection: true })
+                  }
+                  if (r.entityType === 'aiSolution') {
+                    onNavigate('ai-automation', { keepSelection: true })
+                  }
                   if (r.entityType === 'recommendation') onNavigate('recommendations', { keepSelection: true })
                   if (r.entityType === 'initiative') onNavigate('roadmap', { keepSelection: true })
                 } else {

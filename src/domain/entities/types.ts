@@ -19,6 +19,8 @@ export type EntityType =
   | 'decision'
   | 'initiative'
   | 'kpi'
+  | 'aiSolution'
+  | 'aiModel'
 
 export interface EntityBase {
   id: string
@@ -91,17 +93,46 @@ export interface Application extends EntityBase {
   supportedCapabilityIds: string[]
 }
 
+export type IntegrationExposure = 'Internal' | 'Partner' | 'Public'
+export type IntegrationPortfolioDecision =
+  | 'Invest'
+  | 'Standardise'
+  | 'Reuse'
+  | 'Modernise'
+  | 'Consolidate'
+  | 'Replace'
+  | 'Retire'
+export type IntegrationPortfolioLifecycle =
+  | 'Strategic'
+  | 'Active'
+  | 'Legacy'
+  | 'Deprecated'
+  | 'Retire'
+export type IntegrationAssetType =
+  | 'API'
+  | 'Event'
+  | 'Service'
+  | 'Batch'
+  | 'Point-to-Point'
+  | 'Database Integration'
+export type IntegrationReuseClass = 'Enterprise Reusable' | 'Multi-Consumer' | 'Single Consumer'
+export type StandardsComplianceStatus = 'Compliant' | 'Partial' | 'Non-Compliant'
+
 export interface Integration extends EntityBase {
   /** Legacy pattern retained for compatibility; prefer integrationType + pointToPoint */
   pattern: 'api' | 'batch' | 'point-to-point' | 'event' | 'file'
   integrationType:
     | 'REST API'
     | 'SOAP service'
+    | 'GraphQL API'
     | 'Event or message'
     | 'File transfer'
     | 'Database integration'
     | 'Batch integration'
     | 'Manual exchange'
+    | 'ESB / mediation'
+    | 'Message queue'
+    | 'Event stream'
   sourceApplicationId: string
   targetApplicationId: string
   direction: 'inbound' | 'outbound' | 'bidirectional'
@@ -128,16 +159,193 @@ export interface Integration extends EntityBase {
   middlewarePlatform?: string
   dataObjectIds: string[]
   technologyIds: string[]
+  /** Portfolio intelligence fields (optional — derived when absent). */
+  providerApplicationId?: string
+  consumerApplicationIds?: string[]
+  integrationOwnerId?: string
+  exposure?: IntegrationExposure
+  portfolioDecision?: IntegrationPortfolioDecision
+  portfolioLifecycle?: IntegrationPortfolioLifecycle
+  assetType?: IntegrationAssetType
+  integrationPattern?: string
+  architectureRisk?: Severity
+  standardsCompliance?: StandardsComplianceStatus
+  reuseClassification?: IntegrationReuseClass
+  runtime?: string
+  gateway?: string
+  securityClassification?: string
+  resilienceStatus?: Severity
+  observabilityStatus?: 'Observed' | 'Partial' | 'Blind'
+  standardIds?: string[]
+  initiativeIds?: string[]
+  recommendationWhy?: string
+  recommendationAction?: string
+  isSynthetic?: boolean
+}
+
+export type DataAssetType = 'Data Domain' | 'Data Product' | 'Key Information Entity'
+export type DataAuthoritativeSourceStatus =
+  | 'Confirmed'
+  | 'Multiple Sources'
+  | 'Under Review'
+  | 'Unknown'
+export type DataClassificationLabel =
+  | 'Public'
+  | 'Internal'
+  | 'Confidential'
+  | 'Restricted'
+  | 'Highly Sensitive'
+export type DataQualityStatus = 'Good' | 'Watch' | 'Poor' | 'Not Assessed'
+export type DataRiskLevel = 'Critical' | 'High' | 'Medium' | 'Low'
+export type DataResidencyStatus = 'Compliant' | 'Review Required' | 'Cross-Border' | 'Unknown'
+export type DataAiReadiness = 'Ready' | 'Conditional' | 'Not Ready' | 'Not Assessed'
+export type DataPortfolioAction =
+  | 'Govern'
+  | 'Consolidate'
+  | 'Improve Quality'
+  | 'Modernise'
+  | 'Enable Reuse'
+  | 'Protect'
+  | 'Retire'
+export type DataCrossBorderStatus = 'Yes' | 'No' | 'Under Review' | 'Unknown'
+export type DataGovernanceMaturity = 'Low' | 'Medium' | 'High'
+
+export interface DataFlowStep {
+  label: string
+  kind: 'application' | 'integration' | 'data' | 'other'
+  entityId?: string
+}
+
+export interface DataProductRef {
+  id: string
+  name: string
+  description?: string
 }
 
 export interface DataObject extends EntityBase {
+  /** Legacy domain label retained for compatibility. */
   classification: string
   domain: string
+  /** Portfolio intelligence fields (optional — derived when absent). */
+  type?: DataAssetType
+  businessMeaning?: string
+  businessCapabilityIds?: string[]
+  businessServiceIds?: string[]
+  criticality?: Criticality
+  businessOwner?: string | null
+  dataSteward?: string | null
+  technicalCustodian?: string | null
+  authoritativeSourceStatus?: DataAuthoritativeSourceStatus
+  systemOfRecordApplicationId?: string | null
+  primaryApplicationId?: string | null
+  sourceApplicationIds?: string[]
+  consumerApplicationIds?: string[]
+  integrationIds?: string[]
+  classificationLabel?: DataClassificationLabel
+  containsPersonalData?: boolean
+  containsFinancialData?: boolean
+  sensitive?: boolean
+  residencyRequirement?: string
+  hostingLocation?: string
+  crossBorderStatus?: DataCrossBorderStatus
+  residencyStatus?: DataResidencyStatus
+  qualityStatus?: DataQualityStatus
+  completenessStatus?: DataQualityStatus
+  accuracyStatus?: DataQualityStatus
+  timelinessStatus?: DataQualityStatus
+  consistencyStatus?: DataQualityStatus
+  risk?: DataRiskLevel
+  governanceMaturity?: DataGovernanceMaturity
+  aiReadiness?: DataAiReadiness
+  aiReadinessReason?: string
+  aiReadinessFactors?: string[]
+  futureAiUses?: string[]
+  dataProducts?: DataProductRef[]
+  dataProductIds?: string[]
+  keyEntityNames?: string[]
+  findingIds?: string[]
+  standardIds?: string[]
+  policyIds?: string[]
+  decisionIds?: string[]
+  initiativeIds?: string[]
+  portfolioAction?: DataPortfolioAction
+  portfolioActionReason?: string
+  evidenceConfidence?: DataQuality
+  lastReviewedAt?: string
+  duplicationGroupId?: string
+  duplicationNote?: string
+  flowSteps?: DataFlowStep[]
+  regulatoryImportance?: string
+  citizenImpact?: string
+  isSynthetic?: boolean
 }
+
+export type TechnologyLifecycle =
+  | 'strategic'
+  | 'approved'
+  | 'tolerated'
+  | 'deprecated'
+  | 'retire'
+  | 'end-of-support-risk'
+
+export type TechnologyPortfolioDecision =
+  | 'INVEST'
+  | 'STANDARDISE'
+  | 'MODERNISE'
+  | 'CONSOLIDATE'
+  | 'TOLERATE'
+  | 'REPLACE'
+  | 'RETIRE'
+
+export type TechnologyRiskLevel = 'Critical' | 'High' | 'Medium' | 'Low'
+
+export type TechnologyStandardStatus = 'Standard' | 'Exception' | 'Under Review' | 'Not Assessed'
+
+export type TechnologyDeploymentModel =
+  | 'on-premise'
+  | 'private-cloud'
+  | 'public-cloud'
+  | 'hybrid'
+  | 'saas'
 
 export interface Technology extends EntityBase {
   category: string
-  lifecycle: 'strategic' | 'approved' | 'tolerated' | 'deprecated' | 'retire'
+  subcategory?: string
+  lifecycle: TechnologyLifecycle
+  vendor?: string
+  version?: string
+  targetLifecycle?: TechnologyLifecycle
+  targetLifecycleDate?: string
+  targetLifecycleReason?: string
+  deploymentModel?: TechnologyDeploymentModel
+  environments?: string[]
+  technologyOwner?: string
+  platformOwner?: string
+  operationalOwner?: string
+  applicationIds?: string[]
+  integrationIds?: string[]
+  dataDomainIds?: string[]
+  criticalApplicationCount?: number
+  standardIds?: string[]
+  standardStatus?: TechnologyStandardStatus
+  exceptionIds?: string[]
+  architectureRisk?: TechnologyRiskLevel
+  resilienceStatus?: 'Meets Target' | 'Gap' | 'Not Assessed'
+  securityReviewStatus?: 'Approved' | 'Review Required' | 'Not Assessed'
+  haStatus?: 'Yes' | 'Partial' | 'No' | 'Unknown'
+  drStatus?: 'Meets Target' | 'Gap' | 'Not Assessed'
+  rtoTier?: string
+  rpoTier?: string
+  supportStatus?: string
+  supportEndDate?: string
+  supportEndDateSynthetic?: boolean
+  findingIds?: string[]
+  decisionIds?: string[]
+  initiativeIds?: string[]
+  portfolioDecision?: TechnologyPortfolioDecision
+  portfolioDecisionReason?: string
+  lastReviewedAt?: string
+  isSynthetic?: boolean
 }
 
 export type EvidenceType =
@@ -253,6 +461,39 @@ export interface Decision extends EntityBase {
   requiredReviewerIds?: string[]
 }
 
+export type InitiativeDeliveryStatus =
+  | 'Proposed'
+  | 'Planned'
+  | 'In Progress'
+  | 'At Risk'
+  | 'Completed'
+  | 'On Hold'
+
+export type ArchitectureReadiness =
+  | 'Ready'
+  | 'Ready with Conditions'
+  | 'Decision Required'
+  | 'Blocked'
+  | 'Not Assessed'
+
+export type StrategicPriority = 'Critical' | 'High' | 'Medium' | 'Low'
+export type ArchitectureRiskLevel = 'Critical' | 'High' | 'Medium' | 'Low'
+
+export type CapabilityImpactKind = 'Enable' | 'Improve' | 'Transform' | 'Retire'
+export type ApplicationImpactKind = 'Introduce' | 'Change' | 'Migrate' | 'Retire' | 'Dependency'
+export type IntegrationImpactKind = 'Introduce' | 'Change' | 'Migrate' | 'Retire' | 'Reuse'
+export type DataImpactKind =
+  | 'Introduce'
+  | 'Improve'
+  | 'Migrate'
+  | 'Retire'
+  | 'Reuse'
+  | 'Establish Source'
+export type TechnologyImpactKind = 'Introduce' | 'Retain' | 'Modernise' | 'Retire' | 'Dependency'
+export type AiImpactKind = 'Introduce' | 'Change' | 'Reuse' | 'Retire'
+export type StandardsComplianceLevel = 'Aligned' | 'Partial' | 'Exception'
+export type CurrentMeasurementStatus = 'Available' | 'Pending'
+
 export interface Initiative extends EntityBase {
   recommendationIds: string[]
   objectiveIds: string[]
@@ -273,6 +514,51 @@ export interface Initiative extends EntityBase {
   intendedOutcome?: string
   effortBand?: string
   blocked?: boolean
+  /** Delivery status for transformation programmes (distinct from EntityBase.status). */
+  initiativeStatus?: InitiativeDeliveryStatus
+  strategicPriority?: StrategicPriority
+  architectureReadiness?: ArchitectureReadiness
+  architectureRisk?: ArchitectureRiskLevel
+  executiveSponsorId?: string
+  initiativeOwnerId?: string
+  architectureOwnerId?: string
+  businessProblem?: string
+  expectedOutcome?: string
+  capabilityImpacts?: { capabilityId: string; impact: CapabilityImpactKind }[]
+  applicationImpacts?: { applicationId: string; impact: ApplicationImpactKind }[]
+  integrationImpacts?: { integrationId: string; impact: IntegrationImpactKind }[]
+  dataImpacts?: { dataObjectId: string; impact: DataImpactKind }[]
+  technologyImpacts?: { technologyId: string; impact: TechnologyImpactKind }[]
+  aiImpacts?: { aiSolutionId: string; impact: AiImpactKind }[]
+  decisionIds?: string[]
+  outstandingDecisionIds?: string[]
+  standardIds?: string[]
+  standardCompliance?: { standardId: string; compliance: StandardsComplianceLevel }[]
+  exceptionIds?: string[]
+  exceptionsDetail?: {
+    id: string
+    name: string
+    standardId?: string
+    expiryDate?: string
+  }[]
+  enablesInitiativeIds?: string[]
+  conflictInitiativeIds?: string[]
+  overlapInitiativeIds?: string[]
+  dependencyReasons?: { initiativeId: string; reason: string }[]
+  conflictNotes?: string
+  overlapNotes?: string
+  risksReduced?: string[]
+  risksIntroduced?: string[]
+  lastArchitectureReview?: string
+  nextArchitectureReview?: string
+  roadmapPhase?: string
+  startDate?: string
+  targetDate?: string
+  valueMeasureDefined?: boolean
+  baselineDefined?: boolean
+  targetDefined?: boolean
+  currentMeasurement?: CurrentMeasurementStatus
+  isSynthetic?: boolean
 }
 
 export interface KPI extends EntityBase {
@@ -289,6 +575,100 @@ export interface KPI extends EntityBase {
   linkedInitiativeIds?: string[]
 }
 
+export type AiLifecycle = 'EXPERIMENT' | 'APPROVED' | 'PRODUCTION' | 'RESTRICTED' | 'RETIRED'
+export type AiPermission = 'READ' | 'WRITE' | 'EXECUTE' | 'APPROVE' | 'NONE'
+export type AiGuardrailStatus = 'Defined' | 'Partial' | 'Missing' | 'Not Assessed'
+export type AiGovernanceStatus = 'Complete' | 'Partial' | 'Gap' | 'Not Assessed'
+export type AiPortfolioAction =
+  | 'SCALE'
+  | 'GOVERN'
+  | 'REDESIGN'
+  | 'RESTRICT'
+  | 'CONSOLIDATE'
+  | 'EXPERIMENT'
+  | 'RETIRE'
+export type AiHumanOversight =
+  | 'Every Action'
+  | 'Exception-Based'
+  | 'Periodic Review'
+  | 'Supervisory Monitoring'
+  | 'None Documented'
+export type AiRiskLevel = 'Critical' | 'High' | 'Medium' | 'Low'
+
+export interface AiModel extends EntityBase {
+  provider: string
+  modelType: string
+  hosting: string
+  status: 'Active' | 'Pilot' | 'Deprecated' | 'Retired'
+  riskLevel: AiRiskLevel
+  isExternalProvider?: boolean
+  isSynthetic?: boolean
+}
+
+export interface AiToolPermission {
+  integrationId: string
+  permission: AiPermission
+}
+
+export interface AiSolution extends EntityBase {
+  solutionType: string
+  businessCapabilityIds: string[]
+  businessPurpose: string
+  lifecycle: AiLifecycle
+  businessCriticality: Criticality
+  businessOwner?: string
+  technicalOwner?: string
+  aiOwner?: string
+  autonomyLevel: 0 | 1 | 2 | 3 | 4
+  humanOversightType: AiHumanOversight
+  humanOversightRole?: string
+  escalationOwner?: string
+  overrideAvailable?: boolean
+  agentName?: string
+  agentRole?: string
+  modelIds: string[]
+  dataDomainIds: string[]
+  knowledgeSources?: string[]
+  toolPermissions: AiToolPermission[]
+  applicationIds: string[]
+  technologyIds: string[]
+  riskLevel: AiRiskLevel
+  governanceStatus: AiGovernanceStatus
+  governanceDetail?: {
+    ownership: AiGovernanceStatus
+    dataApproval: AiGovernanceStatus
+    humanOversight: AiGovernanceStatus
+    permissions: AiGovernanceStatus
+    guardrails: AiGovernanceStatus
+    monitoring: AiGovernanceStatus
+  }
+  guardrails?: {
+    approvedUseCase: AiGuardrailStatus
+    allowedActions: AiGuardrailStatus
+    prohibitedActions: AiGuardrailStatus
+    approvedData: AiGuardrailStatus
+    humanApproval: AiGuardrailStatus
+    escalation: AiGuardrailStatus
+    outputReview: AiGuardrailStatus
+    monitoring: AiGuardrailStatus
+  }
+  monitoringStatus?: AiGuardrailStatus
+  outcomeStatement?: string
+  outcomeKpiId?: string
+  outcomeBaseline?: string
+  outcomeCurrent?: string
+  outcomeTarget?: string
+  decisionSupported?: string
+  findingIds: string[]
+  decisionIds: string[]
+  initiativeIds: string[]
+  portfolioAction: AiPortfolioAction
+  portfolioActionReason?: string
+  riskFactors?: string[]
+  lastReviewedAt?: string
+  isSynthetic?: boolean
+}
+
 export type AnyEntity =
   | StrategicObjective
   | Capability
@@ -303,3 +683,5 @@ export type AnyEntity =
   | Decision
   | Initiative
   | KPI
+  | AiModel
+  | AiSolution

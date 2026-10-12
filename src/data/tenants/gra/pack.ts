@@ -1,6 +1,15 @@
 import type { TenantPack } from '@/domain/schemas'
+import { graDataObjects } from './dataObjects'
 import { graIntegrations } from './integrations'
 import { graScenarios } from './scenarios'
+import { graTechnologies } from './technologies'
+import {
+  graAiFindings,
+  graAiKpiExtra,
+  graAiModels,
+  graAiSolutions,
+} from './aiAutomation'
+import { graInitiatives } from './initiatives'
 
 const T = 'tenant-gra'
 const now = '2026-09-01T00:00:00.000Z'
@@ -814,30 +823,12 @@ export const graPack: TenantPack = {
 
   integrations: graIntegrations,
 
-  dataObjects: [
-    { ...base('data-gra-01', 'Taxpayer master', 'Canonical taxpayer identity attributes (illustrative).', 'person-cdo', 'active', ['fragmentation']), classification: 'confidential', domain: 'Taxpayer' },
-    { ...base('data-gra-02', 'TIN record', 'Tax identification number record.', 'person-cdo'), classification: 'confidential', domain: 'Taxpayer' },
-    { ...base('data-gra-03', 'Return filing', 'Filed return header and totals.', 'person-domain-tax'), classification: 'confidential', domain: 'Tax' },
-    { ...base('data-gra-04', 'Payment advice', 'Payment notification from channels.', 'person-domain-finance'), classification: 'restricted', domain: 'Finance' },
-    { ...base('data-gra-05', 'Liability ledger', 'Assessed liabilities.', 'person-domain-finance'), classification: 'confidential', domain: 'Finance' },
-    { ...base('data-gra-06', 'Customs declaration', 'Import/export declaration.', 'person-domain-customs'), classification: 'confidential', domain: 'Customs' },
-    { ...base('data-gra-07', 'Assurance exception', 'Unmatched liability/payment pairs.', 'person-cro'), classification: 'internal', domain: 'Assurance' },
-    { ...base('data-gra-08', 'Risk score event', 'Border risk score advice payload.', 'person-domain-customs'), classification: 'restricted', domain: 'Customs' },
-    { ...base('data-gra-09', 'Case dossier', 'Compliance case metadata and outcomes.', 'person-domain-compliance'), classification: 'confidential', domain: 'Compliance' },
-  ],
+  dataObjects: graDataObjects,
 
-  technologies: [
-    { ...base('tech-gra-01', 'Oracle Database 19c', 'Primary RDBMS for domestic tax.', 'person-cto'), category: 'Database', lifecycle: 'approved' },
-    { ...base('tech-gra-02', 'Java EE monolith runtime', 'Runtime for Domestic Tax Core.', 'person-cto'), category: 'Application runtime', lifecycle: 'tolerated' },
-    { ...base('tech-gra-03', 'Legacy Customs COBOL stack', 'End-of-support customs stack.', 'person-cto', 'active', ['legacy']), category: 'Application runtime', lifecycle: 'retire' },
-    { ...base('tech-gra-04', 'WSO2 API Manager', 'Target API management platform.', 'person-chief-architect'), category: 'Integration', lifecycle: 'strategic' },
-    { ...base('tech-gra-05', 'Microsoft Excel / Access', 'Assurance reconciliation tooling.', 'person-cro', 'active', ['manual']), category: 'End-user computing', lifecycle: 'deprecated' },
-    { ...base('tech-gra-06', 'Kubernetes', 'Container platform for new services.', 'person-cto'), category: 'Platform', lifecycle: 'strategic' },
-    { ...base('tech-gra-07', 'Keycloak', 'Identity broker.', 'person-ciso'), category: 'Security', lifecycle: 'approved' },
-    { ...base('tech-gra-08', 'Informatica ETL', 'Batch integration / warehouse loads.', 'person-cdo'), category: 'Integration', lifecycle: 'tolerated' },
-    { ...base('tech-gra-09', 'React SPA portal', 'Taxpayer portal front end.', 'person-domain-taxpayer'), category: 'UI', lifecycle: 'approved' },
-    { ...base('tech-gra-10', 'VB6 runtime', 'Legacy filing client runtime.', 'person-cto', 'active', ['legacy']), category: 'Application runtime', lifecycle: 'retire' },
-  ],
+  technologies: graTechnologies,
+
+  aiModels: graAiModels,
+  aiSolutions: graAiSolutions,
 
   evidence: [
     { ...base('ev-gra-01', 'Taxpayer identity overlap analysis', 'Sample showing duplicate keys across TIN Registry and Domestic Tax Core.', 'person-cdo'), evidenceType: 'system-extract', confidence: 'high', linkedObjectIds: ['data-gra-01', 'app-gra-08', 'app-gra-01'] },
@@ -969,6 +960,7 @@ export const graPack: TenantPack = {
       targetDate: '2027-05-31',
       recommendedAction: 'Close feature gaps in Case Management and retire the Access DB.',
     },
+    ...graAiFindings,
   ],
 
   recommendations: [
@@ -1065,63 +1057,7 @@ export const graPack: TenantPack = {
     },
   ],
 
-  initiatives: [
-    {
-      ...base('init-gra-01', 'Unified Taxpayer View programme', 'Deliver taxpayer domain service and channel cutover.', 'person-cio', 'in_progress', ['taxpayer']),
-      recommendationIds: ['rec-gra-01'],
-      objectiveIds: ['obj-gra-01'],
-      capabilityIds: ['cap-gra-01', 'cap-gra-02'],
-      horizon: 'now',
-      expectedValue: 'Coherent taxpayer journey',
-      costBand: 'GHS 8–12m',
-      riskReduction: 'Identity fragmentation',
-      progressPercent: 28,
-    },
-    {
-      ...base('init-gra-02', 'API-led integration wave 1', 'Migrate identity and account lookups onto the hub.', 'person-chief-architect', 'in_progress', ['integration']),
-      recommendationIds: ['rec-gra-02'],
-      objectiveIds: ['obj-gra-03'],
-      capabilityIds: ['cap-gra-08', 'cap-gra-29'],
-      horizon: 'now',
-      expectedValue: 'Reusable APIs; fewer P2P links',
-      costBand: 'GHS 3–5m',
-      riskReduction: 'Duplicate integrations',
-      progressPercent: 35,
-    },
-    {
-      ...base('init-gra-03', 'Revenue assurance automation', 'Automate matching and exception workflows.', 'person-cro', 'proposed', ['assurance']),
-      recommendationIds: ['rec-gra-03'],
-      objectiveIds: ['obj-gra-02'],
-      capabilityIds: ['cap-gra-06', 'cap-gra-21'],
-      horizon: 'next',
-      expectedValue: 'Same-day assurance exceptions',
-      costBand: 'GHS 4–7m',
-      riskReduction: 'Manual reconciliation lag',
-      progressPercent: 5,
-    },
-    {
-      ...base('init-gra-04', 'Customs containment & migration', 'Wrap critical customs interfaces and sequence platform migration.', 'person-cto', 'proposed', ['legacy']),
-      recommendationIds: ['rec-gra-04'],
-      objectiveIds: ['obj-gra-04'],
-      capabilityIds: ['cap-gra-07', 'cap-gra-19'],
-      horizon: 'next',
-      expectedValue: 'Reduced end-of-support exposure',
-      costBand: 'GHS 15–25m',
-      riskReduction: 'Customs legacy risk',
-      progressPercent: 8,
-    },
-    {
-      ...base('init-gra-05', 'Reporting rationalisation', 'Retire shadow reporting and certify warehouse datasets.', 'person-cdo', 'proposed', ['duplicate']),
-      recommendationIds: ['rec-gra-05'],
-      objectiveIds: ['obj-gra-02'],
-      capabilityIds: ['cap-gra-09', 'cap-gra-11'],
-      horizon: 'later',
-      expectedValue: 'Trusted management information',
-      costBand: 'GHS 2–4m',
-      riskReduction: 'Reporting duplication',
-      progressPercent: 2,
-    },
-  ],
+  initiatives: graInitiatives,
 
   kpis: [
     { ...base('kpi-gra-01', 'Taxpayer profile consistency', 'Share of sampled taxpayers with consistent attributes across systems.', 'person-cdo'), unit: '%', currentValue: 62, targetValue: 95, direction: 'higher-better', linkedObjectiveIds: ['obj-gra-01'] },
@@ -1130,6 +1066,7 @@ export const graPack: TenantPack = {
     { ...base('kpi-gra-04', 'Point-to-point interface count', 'Number of active P2P interfaces in inventory.', 'person-chief-architect'), unit: 'count', currentValue: 12, targetValue: 3, direction: 'lower-better', linkedObjectiveIds: ['obj-gra-03'] },
     { ...base('kpi-gra-05', 'Legacy critical systems', 'Critical applications on retire/deprecated stacks.', 'person-cto'), unit: 'count', currentValue: 3, targetValue: 0, direction: 'lower-better', linkedObjectiveIds: ['obj-gra-04'] },
     { ...base('kpi-gra-06', 'Assurance cycle time', 'Days from payment to reconciled exception list.', 'person-cro'), unit: 'days', currentValue: 6, targetValue: 1, direction: 'lower-better', linkedObjectiveIds: ['obj-gra-02'] },
+    ...graAiKpiExtra,
   ],
 
   relationships: [
@@ -1162,6 +1099,16 @@ export const graPack: TenantPack = {
     { id: 'rel-gra-27', tenantId: T, sourceId: 'cap-gra-07', sourceType: 'capability', targetId: 'app-gra-02', targetType: 'application', relationshipType: 'uses', criticality: 'critical', evidenceIds: ['ev-gra-04'], description: 'Customs administration on CMS' },
     { id: 'rel-gra-28', tenantId: T, sourceId: 'cap-gra-29', sourceType: 'capability', targetId: 'app-gra-07', targetType: 'application', relationshipType: 'uses', criticality: 'high', evidenceIds: ['ev-gra-07'], description: 'Integration platform services via hub' },
     { id: 'rel-gra-29', tenantId: T, sourceId: 'app-gra-14', sourceType: 'application', targetId: 'tech-gra-10', targetType: 'technology', relationshipType: 'runs-on', criticality: 'medium', evidenceIds: ['ev-gra-09'], description: 'Filing client on VB6' },
+    { id: 'rel-gra-41', tenantId: T, sourceId: 'app-gra-01', sourceType: 'application', targetId: 'tech-gra-01', targetType: 'technology', relationshipType: 'runs-on', criticality: 'critical', evidenceIds: [], description: 'Tax core on Oracle' },
+    { id: 'rel-gra-42', tenantId: T, sourceId: 'app-gra-01', sourceType: 'application', targetId: 'tech-gra-02', targetType: 'technology', relationshipType: 'runs-on', criticality: 'critical', evidenceIds: [], description: 'Tax core Java runtime' },
+    { id: 'rel-gra-43', tenantId: T, sourceId: 'app-gra-07', sourceType: 'application', targetId: 'tech-gra-04', targetType: 'technology', relationshipType: 'runs-on', criticality: 'high', evidenceIds: [], description: 'Hub on API platform' },
+    { id: 'rel-gra-44', tenantId: T, sourceId: 'app-gra-03', sourceType: 'application', targetId: 'tech-gra-06', targetType: 'technology', relationshipType: 'runs-on', criticality: 'high', evidenceIds: [], description: 'Portal on Kubernetes' },
+    { id: 'rel-gra-45', tenantId: T, sourceId: 'app-gra-03', sourceType: 'application', targetId: 'tech-gra-09', targetType: 'technology', relationshipType: 'runs-on', criticality: 'high', evidenceIds: [], description: 'Portal React stack' },
+    { id: 'rel-gra-46', tenantId: T, sourceId: 'app-gra-09', sourceType: 'application', targetId: 'tech-gra-08', targetType: 'technology', relationshipType: 'runs-on', criticality: 'high', evidenceIds: [], description: 'Warehouse ETL loads' },
+    { id: 'rel-gra-47', tenantId: T, sourceId: 'app-gra-06', sourceType: 'application', targetId: 'tech-gra-05', targetType: 'technology', relationshipType: 'runs-on', criticality: 'medium', evidenceIds: ['ev-gra-03'], description: 'Assurance spreadsheets' },
+    { id: 'rel-gra-48', tenantId: T, sourceId: 'app-gra-10', sourceType: 'application', targetId: 'tech-gra-07', targetType: 'technology', relationshipType: 'runs-on', criticality: 'high', evidenceIds: [], description: 'Identity provider on Keycloak' },
+    { id: 'rel-gra-49', tenantId: T, sourceId: 'app-gra-02', sourceType: 'application', targetId: 'tech-gra-14', targetType: 'technology', relationshipType: 'runs-on', criticality: 'critical', evidenceIds: [], description: 'Customs on legacy ESB' },
+    { id: 'rel-gra-50', tenantId: T, sourceId: 'app-gra-16', sourceType: 'application', targetId: 'tech-gra-13', targetType: 'technology', relationshipType: 'runs-on', criticality: 'medium', evidenceIds: [], description: 'Shadow DB on Windows 2016' },
     { id: 'rel-gra-30', tenantId: T, sourceId: 'rec-gra-06', sourceType: 'recommendation', targetId: 'find-gra-08', targetType: 'finding', relationshipType: 'addresses', evidenceIds: ['ev-gra-09'], description: 'Filing retirement addresses thick-client finding' },
     { id: 'rel-gra-31', tenantId: T, sourceId: 'app-gra-05', sourceType: 'application', targetId: 'int-gra-05', targetType: 'integration', relationshipType: 'integrates', criticality: 'critical', evidenceIds: [], description: 'Payments gateway publishes payment advice' },
     { id: 'rel-gra-32', tenantId: T, sourceId: 'int-gra-05', sourceType: 'integration', targetId: 'app-gra-01', targetType: 'application', relationshipType: 'depends-on', criticality: 'critical', evidenceIds: [], description: 'Payment advice targets tax core' },

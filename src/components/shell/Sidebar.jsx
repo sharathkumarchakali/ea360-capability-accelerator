@@ -1,63 +1,116 @@
 import {
-  Boxes,
-  CheckSquare,
-  FileText,
-  Flag,
-  FolderOpen,
-  Gauge,
-  GitBranch,
+  Activity,
+  BarChart3,
+  BookMarked,
+  CircleCheck,
+  Database,
+  FileCheck,
   LayoutDashboard,
-  Network,
+  LayoutGrid,
+  Lightbulb,
   PanelLeftClose,
   PanelLeftOpen,
+  Rocket,
   Route,
-  Shield,
+  Server,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+  Users,
+  Waypoints,
 } from 'lucide-react'
 import { usePrototypeStore } from '../../state/prototypeStore'
 
+/** Primary product IA — Phase 0 navigation only. */
 const NAV = [
   [
-    'Executive',
-    [['Executive Cockpit', 'executive', LayoutDashboard]],
-  ],
-  [
-    'Enterprise Map',
+    'Home',
     [
-      ['Relationship Explorer', 'explorer', Network],
-      ['Capabilities', 'capabilities', Boxes],
+      {
+        label: 'Executive Overview',
+        id: 'executive',
+        Icon: LayoutDashboard,
+      },
     ],
   ],
   [
     'Portfolios',
     [
-      ['Applications', 'applications', FolderOpen],
-      ['Integrations and APIs', 'integrations', GitBranch],
+      { label: 'Applications', id: 'applications', Icon: LayoutGrid },
+      { label: 'Integrations & APIs', id: 'integrations', Icon: Waypoints },
+      {
+        label: 'Data & Information',
+        id: 'data-information',
+        Icon: Database,
+      },
+      {
+        label: 'Technology & Infrastructure',
+        id: 'technology-infrastructure',
+        Icon: Server,
+      },
+      {
+        label: 'AI & Automation',
+        id: 'ai-automation',
+        Icon: Sparkles,
+      },
     ],
   ],
   [
     'Insights',
     [
-      ['Findings and Risks', 'findings', Flag],
-      ['Evidence', 'evidence', FileText],
-      ['Recommendations', 'recommendations', CheckSquare],
+      { label: 'Architecture Health', id: 'assessment', Icon: Activity },
+      { label: 'Findings & Risks', id: 'findings', Icon: TriangleAlert },
+      { label: 'Evidence', id: 'evidence', Icon: FileCheck },
+      { label: 'Recommendations', id: 'recommendations', Icon: Lightbulb },
     ],
   ],
   [
-    'Transformation',
-    [['Roadmap', 'roadmap', Route]],
+    'Transform',
+    [
+      { label: 'Roadmap', id: 'roadmap', Icon: Route },
+      {
+        label: 'Initiatives',
+        id: 'initiatives',
+        Icon: Rocket,
+      },
+      { label: 'KPIs', id: 'kpis', Icon: BarChart3 },
+    ],
   ],
   [
     'Governance',
-    [['Decisions', 'governance', Shield]],
-  ],
-  [
-    'Reports',
-    [['Executive Report', 'reports', Gauge]],
+    [
+      { label: 'Standards & Principles', id: 'standards', Icon: BookMarked },
+      { label: 'Decision Register', id: 'decisions', Icon: CircleCheck },
+      { label: 'Review Board', id: 'reviews', Icon: Users },
+      {
+        label: 'AI & Data Governance',
+        id: 'ai-data-governance',
+        Icon: ShieldCheck,
+        comingNext: true,
+      },
+    ],
   ],
 ]
 
+const COMING_NEXT_MESSAGE = 'Module scheduled for the next implementation phase.'
+
+/** Decision Register shares the existing governance screen / deep links. */
+function isNavActive(id, activeView) {
+  if (id === 'decisions') return activeView === 'decisions' || activeView === 'governance'
+  return activeView === id
+}
+
 export default function Sidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
   const activeView = usePrototypeStore((s) => s.view)
+  const showToast = usePrototypeStore((s) => s.showToast)
+
+  function handleNav(item) {
+    if (item.comingNext) {
+      showToast(COMING_NEXT_MESSAGE)
+      return
+    }
+    onNavigate(item.id)
+  }
 
   return (
     <aside
@@ -85,23 +138,35 @@ export default function Sidebar({ open, collapsed, onToggleCollapse, onNavigate 
         {NAV.map(([group, items]) => (
           <div className="group" key={group}>
             <div className="group-title">{group}</div>
-            {items.map(([label, id, Icon]) => (
-              <button
-                key={id}
-                type="button"
-                className={`navitem${activeView === id ? ' active' : ''}`}
-                aria-current={activeView === id ? 'page' : undefined}
-                title={label}
-                onClick={() => onNavigate(id)}
-              >
-                <span className="left">
-                  <span className="ico" aria-hidden="true">
-                    <Icon size={16} strokeWidth={2} />
+            {items.map((item) => {
+              const { label, id, Icon, comingNext } = item
+              const active = !comingNext && isNavActive(id, activeView)
+              const title = comingNext ? `${label} — Coming next` : label
+
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`navitem${active ? ' active' : ''}${comingNext ? ' is-coming' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  aria-label={comingNext ? `${label}, coming next` : undefined}
+                  title={title}
+                  onClick={() => handleNav(item)}
+                >
+                  <span className="left">
+                    <span className="ico" aria-hidden="true">
+                      <Icon size={16} strokeWidth={2} />
+                    </span>
+                    <span className="nav-label">{label}</span>
                   </span>
-                  <span className="nav-label">{label}</span>
-                </span>
-              </button>
-            ))}
+                  {comingNext ? (
+                    <span className="nav-coming" aria-hidden="true">
+                      Coming next
+                    </span>
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
         ))}
       </nav>

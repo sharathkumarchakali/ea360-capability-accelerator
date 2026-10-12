@@ -1,766 +1,849 @@
 import { useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { usePrototypeStore } from '../../state/prototypeStore'
+import { getTenantConfig, usePrototypeStore } from '../../state/prototypeStore'
 import {
-  concentrationByApplication,
-  deriveIntegrationMetrics,
-  integrationRiskScore,
-  isPointToPoint,
-  missingOwner,
-  topIntegrationInsights,
-  typeDistribution,
-} from '../../domain/metrics/integration'
+  DECISION_COLORS,
+  emptyIntFilters,
+  computePortfolioMetrics,
+  enrichIntegration,
+  exposureReuseMix,
+  filterPortfolioIntegrations,
+  formatCriticality,
+  matrixSample,
+  patternMix,
+  portfolioSignal,
+  PORTFOLIO_LIFECYCLES,
+} from './portfolioModel'
 
-const PAGE_SIZE = 8
+function StatusTag({ children, tone }) {
+  return <span className={`status-tag tone-${tone || 'muted'}`}>{children}</span>
+}
 
-const CHART_COLORS = ['#1E8CAA', '#52CFE4', '#0D6B7A', '#62E0C8', '#C47B2C', '#6B7280', '#B42318']
+function riskTone(r) {
+  if (r === 'Critical' || r === 'High') return 'bad'
+  if (r === 'Medium') return 'warn'
+  return 'good'
+}
+
+function critTone(c) {
+  if (c === 'critical') return 'bad'
+  if (c === 'high') return 'warn'
+  return 'muted'
+}
+
+function complianceTone(c) {
+  if (c === 'Compliant') return 'good'
+  if (c === 'Partial') return 'warn'
+  return 'bad'
+}
+
+const PATTERN_COLORS = {
+  'Managed API': '#1E8CAA',
+  'Event / Streaming': '#52CFE4',
+  'Service Integration': '#0D6B7A',
+  'Point-to-Point': '#C47B2C',
+  'Batch / File': '#6B7280',
+  'Database Integration': '#B42318',
+}
 
 export default function IntegrationsView() {
   const repo = usePrototypeStore((s) => s.getRepo)()
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
-  const integrationFilters = usePrototypeStore((s) => s.integrationFilters)
-  const setIntegrationFilters = usePrototypeStore((s) => s.setIntegrationFilters)
-  const scenarioId = usePrototypeStore((s) => s.scenarioId)
-  const setScenarioId = usePrototypeStore((s) => s.setScenarioId)
-  const setGraphRoot = usePrototypeStore((s) => s.setGraphRoot)
   const setView = usePrototypeStore((s) => s.setView)
-  const [page, setPage] = useState(0)
-  const [sort, setSort] = useState({ key: 'risk', dir: 'desc' })
+  const tenantCode = usePrototypeStore((s) => s.tenantCode)
+  const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
+  const [filters, setFilters] = useState(emptyIntFilters)
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' })
+  const [showAllMatrix, setShowAllMatrix] = useState(false)
 
-  const integrations = repo.listIntegrations()
+  const packInts = repo.listIntegrations()
   const applications = repo.listApplications()
-  const scenarios = repo.listScenarios()
-  const scenario = repo.getScenario(scenarioId) || scenarios[0]
-
-  const metrics = useMemo(() => deriveIntegrationMetrics(integrations), [integrations])
-  const insights = useMemo(() => topIntegrationInsights(integrations), [integrations])
-  const concentration = useMemo(
-    () => concentrationByApplication(integrations, applications).slice(0, 8),
-    [integrations, applications],
-  )
-  const types = useMemo(() => typeDistribution(integrations), [integrations])
+  const caps = repo.listCapabilities()
+  const initiatives = repo.listInitiatives()
+  const orgName = config.shortName || config.displayName || tenantCode || 'Organisation'
 
   const enriched = useMemo(
     () =>
-      integrations.map((i) => ({
-        int: i,
-        risk: integrationRiskScore(i),
-        p2p: isPointToPoint(i),
-        sourceName: repo.getApplication(i.sourceApplicationId)?.name || i.sourceApplicationId,
-        targetName: repo.getApplication(i.targetApplicationId)?.name || i.targetApplicationId,
-        ownerGap: missingOwner(i),
-      })),
-    [integrations, repo],
+      packInts.map((i) =>
+        enrichIntegration(i, { applications, capabilities: caps, initiatives }),
+      ),
+    [packInts, applications, caps, initiatives],
   )
 
-  const filtered = useMemo(() => {
-    const q = integrationFilters.search.trim().toLowerCase()
-    return enriched.filter(({ int: i, p2p, ownerGap }) => {
-      if (integrationFilters.integrationType && i.integrationType !== integrationFilters.integrationType) {
-        return false
-      }
-      if (integrationFilters.criticality && i.criticality !== integrationFilters.criticality) return false
-      if (integrationFilters.lifecycleStatus && i.lifecycleStatus !== integrationFilters.lifecycleStatus) {
-        return false
-      }
-      if (integrationFilters.pointToPoint === 'true' && !p2p) return false
-      if (integrationFilters.pointToPoint === 'false' && p2p) return false
-      if (integrationFilters.reusabilityStatus && i.reusabilityStatus !== integrationFilters.reusabilityStatus) {
-        return false
-      }
-      if (integrationFilters.monitoringStatus && i.monitoringStatus !== integrationFilters.monitoringStatus) {
-        return false
-      }
-      if (integrationFilters.missingOwner === 'true' && !ownerGap) return false
-      if (q) {
-        const hay = `${i.name} ${i.apiOrInterfaceName} ${i.protocol} ${i.integrationType}`.toLowerCase()
-        if (!hay.includes(q)) return false
-      }
-      return true
-    })
-  }, [enriched, integrationFilters])
+  const metrics = useMemo(() => computePortfolioMetrics(enriched), [enriched])
+  const patterns = useMemo(() => patternMix(enriched), [enriched])
+  const exposureReuse = useMemo(() => exposureReuseMix(enriched), [enriched])
+  const signal = useMemo(() => portfolioSignal(enriched), [enriched])
+
+  const filtered = useMemo(
+    () => filterPortfolioIntegrations(enriched, filters),
+    [enriched, filters],
+  )
 
   const sorted = useMemo(() => {
     const list = [...filtered]
+    const critOrder = { critical: 4, high: 3, medium: 2, low: 1 }
+    const riskOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 }
+    const lifeOrder = Object.fromEntries(PORTFOLIO_LIFECYCLES.map((k, i) => [k, i]))
     list.sort((a, b) => {
       let ka
       let kb
-      if (sort.key === 'risk') {
-        ka = a.risk
-        kb = b.risk
-      } else if (sort.key === 'name') {
+      if (sort.key === 'name') {
         ka = a.int.name
         kb = b.int.name
-      } else if (sort.key === 'source') {
-        ka = a.sourceName
-        kb = b.sourceName
-      } else if (sort.key === 'target') {
-        ka = a.targetName
-        kb = b.targetName
-      } else if (sort.key === 'consumers') {
-        ka = a.int.consumerCount
-        kb = b.int.consumerCount
+      } else if (sort.key === 'criticality') {
+        ka = critOrder[a.int.criticality] || 0
+        kb = critOrder[b.int.criticality] || 0
+      } else if (sort.key === 'risk') {
+        ka = riskOrder[a.architectureRisk] || 0
+        kb = riskOrder[b.architectureRisk] || 0
+      } else if (sort.key === 'lifecycle') {
+        ka = lifeOrder[a.lifecycleStage] ?? 0
+        kb = lifeOrder[b.lifecycleStage] ?? 0
       } else {
-        ka = a.int[sort.key]
-        kb = b.int[sort.key]
+        ka = a.int.name
+        kb = b.int.name
       }
-      if (ka === kb) return 0
+      if (ka === kb) return a.int.name.localeCompare(b.int.name)
       const cmp = ka > kb ? 1 : -1
       return sort.dir === 'asc' ? cmp : -cmp
     })
     return list
   }, [filtered, sort])
 
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
-  const pageSafe = Math.min(page, pageCount - 1)
-  const pageRows = sorted.slice(pageSafe * PAGE_SIZE, pageSafe * PAGE_SIZE + PAGE_SIZE)
+  const matrixRows = useMemo(
+    () => (showAllMatrix ? filtered : matrixSample(filtered, 14)),
+    [filtered, showAllMatrix],
+  )
 
-  const topology = useMemo(() => {
-    if (!scenario) return { nodes: [], edges: [] }
-    const focusIds = scenario.topologyFocusIntegrationIds || []
-    const focusInts = focusIds.map((id) => repo.getIntegration(id)).filter(Boolean)
-    const appIds = new Set()
-    focusInts.forEach((i) => {
-      appIds.add(i.sourceApplicationId)
-      appIds.add(i.targetApplicationId)
-    })
-    const nodes = [...appIds]
-      .map((id) => repo.getApplication(id))
-      .filter(Boolean)
-      .map((a, idx) => {
-        const n = appIds.size
-        const angle = (idx / Math.max(n, 1)) * Math.PI * 2 - Math.PI / 2
-        const cx = 220
-        const cy = 160
-        const r = Math.min(120, 40 + n * 8)
-        return {
-          id: a.id,
-          name: a.name,
-          criticality: a.criticality,
-          x: cx + Math.cos(angle) * r,
-          y: cy + Math.sin(angle) * r,
-        }
-      })
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-    const edges = focusInts
-      .filter((i) => nodeMap.has(i.sourceApplicationId) && nodeMap.has(i.targetApplicationId))
-      .map((i) => ({
-        id: i.id,
-        name: i.name,
-        source: i.sourceApplicationId,
-        target: i.targetApplicationId,
-        p2p: isPointToPoint(i),
-        criticality: i.criticality,
-      }))
-    return { nodes, edges }
-  }, [scenario, repo])
-
-  const typeChart = useMemo(
-    () => ({
-      tooltip: { trigger: 'item' },
+  const patternChart = useMemo(() => {
+    const data = patterns.filter((p) => p.count > 0)
+    return {
+      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: {
+        orient: 'vertical',
+        right: 0,
+        top: 'middle',
+        textStyle: { color: '#55717a', fontSize: 12 },
+      },
       series: [
         {
           type: 'pie',
-          radius: ['42%', '68%'],
-          data: types.map((t, i) => ({
-            name: t.type,
-            value: t.count,
-            itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] },
+          radius: ['46%', '70%'],
+          center: ['36%', '50%'],
+          avoidLabelOverlap: true,
+          itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+          label: { show: false },
+          data: data.map((d) => ({
+            name: d.key,
+            value: d.count,
+            itemStyle: { color: PATTERN_COLORS[d.key] || '#6B7280' },
           })),
-          label: { fontSize: 11 },
-        },
-      ],
-    }),
-    [types],
-  )
-
-  const reuseChart = useMemo(() => {
-    const reusable = metrics.reusableApiCount
-    const p2p = metrics.pointToPointCount
-    const other = Math.max(0, metrics.totalIntegrations - reusable - p2p)
-    return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: 40, right: 16, top: 24, bottom: 32 },
-      xAxis: { type: 'category', data: ['Reusable API', 'Point-to-point', 'Other'] },
-      yAxis: { type: 'value', minInterval: 1 },
-      series: [
-        {
-          type: 'bar',
-          data: [
-            { value: reusable, itemStyle: { color: '#1E8CAA' } },
-            { value: p2p, itemStyle: { color: '#C47B2C' } },
-            { value: other, itemStyle: { color: '#6B7280' } },
-          ],
-          barWidth: 36,
         },
       ],
     }
-  }, [metrics])
+  }, [patterns])
 
-  const concentrationChart = useMemo(
-    () => ({
-      tooltip: { trigger: 'axis' },
-      grid: { left: 12, right: 16, top: 16, bottom: 64, containLabel: true },
+  const exposureReuseChart = useMemo(() => {
+    const categories = exposureReuse.exposure.map((e) => e.key)
+    const reuseKeys = exposureReuse.reuse.map((r) => r.key)
+    const reuseColors = {
+      'Enterprise Reusable': '#1E8CAA',
+      'Multi-Consumer': '#52CFE4',
+      'Single Consumer': '#C47B2C',
+    }
+    // Compact stacked view: for each exposure, approximate reuse split by filtering rows
+    const series = reuseKeys.map((rk) => ({
+      name: rk,
+      type: 'bar',
+      stack: 'total',
+      barWidth: 28,
+      itemStyle: { color: reuseColors[rk] },
+      data: categories.map((exp) =>
+        enriched.filter((r) => r.exposure === exp && r.reuseClassification === rk).length,
+      ),
+    }))
+    return {
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: {
+        bottom: 0,
+        textStyle: { color: '#55717a', fontSize: 11 },
+      },
+      grid: { left: 48, right: 12, top: 16, bottom: 48 },
       xAxis: {
         type: 'category',
-        data: concentration.map((c) => c.application.name),
-        axisLabel: { rotate: 28, fontSize: 10 },
+        data: categories,
+        axisLabel: { color: '#55717a', fontSize: 12 },
       },
-      yAxis: { type: 'value', minInterval: 1 },
-      series: [
-        {
-          type: 'bar',
-          data: concentration.map((c) => c.count),
-          itemStyle: { color: '#52CFE4' },
-          barWidth: 22,
-        },
-      ],
-    }),
-    [concentration],
-  )
+      yAxis: {
+        type: 'value',
+        minInterval: 1,
+        splitLine: { lineStyle: { type: 'dashed', opacity: 0.35 } },
+      },
+      series,
+    }
+  }, [exposureReuse, enriched])
 
-  const coverageChart = useMemo(() => {
-    const documented = integrations.filter((i) => i.documentationStatus === 'documented').length
-    const partialDoc = integrations.filter((i) => i.documentationStatus === 'partial').length
-    const missingDoc = integrations.filter((i) => i.documentationStatus === 'missing').length
-    const monitored = integrations.filter((i) => i.monitoringStatus === 'monitored').length
-    const partialMon = integrations.filter((i) => i.monitoringStatus === 'partial').length
-    const unmon = integrations.filter((i) => i.monitoringStatus === 'unmonitored').length
+  const matrixChart = useMemo(() => {
+    const data = matrixRows.map((r) => ({
+      name: r.int.apiOrInterfaceName || r.int.name,
+      value: [r.riskScore, r.criticalityScore, r.int.id],
+      decision: r.portfolioDecision,
+      itemStyle: { color: DECISION_COLORS[r.portfolioDecision] },
+    }))
     return {
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['Documented / Monitored', 'Partial', 'Missing / Unmonitored'], bottom: 0 },
-      grid: { left: 40, right: 16, top: 24, bottom: 48 },
-      xAxis: { type: 'category', data: ['Documentation', 'Monitoring'] },
-      yAxis: { type: 'value', minInterval: 1 },
+      grid: { left: 52, right: 16, top: 28, bottom: 44 },
+      tooltip: {
+        formatter: (p) => {
+          const row = matrixRows.find((r) => r.int.id === p.data.value[2])
+          if (!row) return p.name
+          return [
+            `<strong>${row.int.name}</strong>`,
+            `${row.portfolioDecision} · ${formatCriticality(row.int.criticality)}`,
+            `Integration risk: ${row.architectureRisk}`,
+            row.matrixQuadrant,
+          ].join('<br/>')
+        },
+      },
+      xAxis: {
+        name: 'Integration risk',
+        nameLocation: 'middle',
+        nameGap: 28,
+        min: 0.5,
+        max: 4.5,
+        interval: 1,
+        axisLabel: {
+          formatter: (v) => ({ 1: 'Low', 2: 'Med', 3: 'High', 4: 'Crit' }[v] || ''),
+        },
+        splitLine: { lineStyle: { type: 'dashed', opacity: 0.35 } },
+      },
+      yAxis: {
+        name: 'Business criticality',
+        nameLocation: 'middle',
+        nameGap: 36,
+        min: 0.5,
+        max: 4.5,
+        interval: 1,
+        axisLabel: {
+          formatter: (v) => ({ 1: 'Low', 2: 'Med', 3: 'High', 4: 'Crit' }[v] || ''),
+        },
+        splitLine: { lineStyle: { type: 'dashed', opacity: 0.35 } },
+      },
       series: [
         {
-          name: 'Documented / Monitored',
-          type: 'bar',
-          stack: 'cov',
-          data: [documented, monitored],
-          itemStyle: { color: '#1E8CAA' },
-        },
-        {
-          name: 'Partial',
-          type: 'bar',
-          stack: 'cov',
-          data: [partialDoc, partialMon],
-          itemStyle: { color: '#C47B2C' },
-        },
-        {
-          name: 'Missing / Unmonitored',
-          type: 'bar',
-          stack: 'cov',
-          data: [missingDoc, unmon],
-          itemStyle: { color: '#B42318' },
+          type: 'scatter',
+          symbolSize: 16,
+          data,
+          label: {
+            show: true,
+            formatter: (p) => {
+              const n = p.name || ''
+              return n.length > 14 ? `${n.slice(0, 12)}…` : n
+            },
+            position: 'top',
+            fontSize: 10,
+            color: '#55717a',
+          },
+          markArea: {
+            silent: true,
+            data: [
+              [
+                {
+                  name: 'Protect',
+                  xAxis: 0.5,
+                  yAxis: 2.5,
+                  itemStyle: { color: 'rgba(30,140,170,0.06)' },
+                  label: { show: true, position: 'insideTopLeft', color: '#55717a', fontSize: 11 },
+                },
+                { xAxis: 2.5, yAxis: 4.5 },
+              ],
+              [
+                {
+                  name: 'Prioritise',
+                  xAxis: 2.5,
+                  yAxis: 2.5,
+                  itemStyle: { color: 'rgba(180,35,24,0.06)' },
+                  label: { show: true, position: 'insideTopRight', color: '#55717a', fontSize: 11 },
+                },
+                { xAxis: 4.5, yAxis: 4.5 },
+              ],
+              [
+                {
+                  name: 'Simplify',
+                  xAxis: 2.5,
+                  yAxis: 0.5,
+                  itemStyle: { color: 'rgba(196,123,44,0.06)' },
+                  label: {
+                    show: true,
+                    position: 'insideBottomRight',
+                    color: '#55717a',
+                    fontSize: 11,
+                  },
+                },
+                { xAxis: 4.5, yAxis: 2.5 },
+              ],
+              [
+                {
+                  name: 'Monitor',
+                  xAxis: 0.5,
+                  yAxis: 0.5,
+                  itemStyle: { color: 'rgba(107,114,128,0.05)' },
+                  label: {
+                    show: true,
+                    position: 'insideBottomLeft',
+                    color: '#55717a',
+                    fontSize: 11,
+                  },
+                },
+                { xAxis: 2.5, yAxis: 2.5 },
+              ],
+            ],
+          },
         },
       ],
     }
-  }, [integrations])
+  }, [matrixRows])
 
-  function applyInsightFilter(filter) {
-    setPage(0)
-    setIntegrationFilters({
-      search: '',
-      integrationType: '',
-      criticality: '',
-      lifecycleStatus: '',
-      pointToPoint: '',
-      reusabilityStatus: '',
-      monitoringStatus: '',
-      missingOwner: '',
-      ...filter,
-    })
+  function patchFilters(patch) {
+    setFilters((f) => ({ ...f, ...patch }))
   }
 
-  function openIntegration(id) {
+  function clearFilters() {
+    setFilters(emptyIntFilters)
+  }
+
+  function openInt(id) {
     selectEntity({ id, type: 'integration' })
   }
 
-  function openApplication(id) {
-    selectEntity({ id, type: 'application' })
-  }
-
-  function openExplorer() {
-    if (scenario) {
-      setGraphRoot({ id: scenario.startingEntityId, type: scenario.startingEntityType })
-      setScenarioId(scenario.id)
-    }
-    setView('explorer')
-    window.location.hash = 'explorer'
-  }
-
   function toggleSort(key) {
-    setSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' },
+    setSort((s) =>
+      s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' },
     )
   }
 
-  const kpiCards = [
-    {
-      id: 'total',
-      label: 'Total integrations',
-      value: metrics.totalIntegrations,
-      filter: {},
-    },
-    {
-      id: 'p2p',
-      label: 'Point-to-point %',
-      value: `${metrics.pointToPointPercentage}%`,
-      filter: { pointToPoint: 'true' },
-    },
-    {
-      id: 'reuse',
-      label: 'API reuse rate',
-      value: `${metrics.apiReuseRate}%`,
-      filter: { reusabilityStatus: 'reusable' },
-    },
-    {
-      id: 'critical',
-      label: 'Critical / high',
-      value: metrics.criticalIntegrationCount,
-      filter: { criticality: 'critical' },
-    },
-    {
-      id: 'unmon',
-      label: 'Unmonitored',
-      value: metrics.unmonitoredIntegrationCount,
-      filter: { monitoringStatus: 'unmonitored' },
-    },
-    {
-      id: 'owners',
-      label: 'Missing owners',
-      value: metrics.missingOwnerCount,
-      filter: { missingOwner: 'true' },
-    },
-  ]
+  function applyMetricFilter(kind) {
+    if (kind === 'all') {
+      clearFilters()
+      return
+    }
+    if (kind === 'critical') {
+      setFilters({ ...emptyIntFilters, criticality: 'critical' })
+      return
+    }
+    if (kind === 'ownership') {
+      setFilters({ ...emptyIntFilters, ownership: 'unassigned' })
+      return
+    }
+    if (kind === 'compliance') {
+      setFilters({ ...emptyIntFilters, compliance: 'Non-Compliant' })
+      return
+    }
+    if (kind === 'reuse') {
+      setFilters({ ...emptyIntFilters, reuse: 'Single Consumer' })
+      return
+    }
+    if (kind === 'highRisk') {
+      setFilters({ ...emptyIntFilters, risk: 'elevated' })
+    }
+  }
+
+  function reviewOwnershipGaps() {
+    setFilters({
+      ...emptyIntFilters,
+      ownership: 'unassigned',
+      idSet: signal.ownershipGapIds,
+    })
+  }
+
+  function reviewCriticalDependencies() {
+    setFilters({
+      ...emptyIntFilters,
+      criticality: 'business-critical',
+      idSet: signal.criticalDependencyIds,
+    })
+  }
+
+  function goFindings() {
+    setView('findings')
+    window.location.hash = 'findings'
+  }
+
+  const hasFilters =
+    Boolean(filters.search) ||
+    Boolean(filters.assetType) ||
+    Boolean(filters.exposure) ||
+    Boolean(filters.criticality) ||
+    Boolean(filters.risk) ||
+    Boolean(filters.ownership) ||
+    Boolean(filters.lifecycle) ||
+    Boolean(filters.compliance) ||
+    Boolean(filters.reuse) ||
+    Boolean(filters.platform) ||
+    Boolean(filters.capabilityId) ||
+    (filters.idSet && filters.idSet.length > 0)
+
+  const capabilityOptions = useMemo(() => {
+    const ids = new Set(packInts.flatMap((i) => i.supportedCapabilityIds || []))
+    return caps.filter((c) => ids.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
+  }, [packInts, caps])
+
+  const platformOptions = useMemo(() => {
+    const set = new Set(enriched.map((r) => r.platform).filter(Boolean))
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [enriched])
+
+  const p2pShare = metrics.total
+    ? Math.round((metrics.pointToPoint / metrics.total) * 100)
+    : 0
 
   return (
-    <section className="view active">
+    <section className="view active app-portfolio-view int-portfolio-view">
       <div className="module">
-        <div className="module-header">
+        <div className="module-header app-portfolio-header">
           <div>
-            <div className="kicker">Diagnose · Integration Landscape</div>
-            <h1 className="page-title">Integration &amp; API intelligence</h1>
+            <div className="kicker">Portfolios · {orgName}</div>
+            <h1 className="page-title">Integrations & APIs</h1>
             <p>
-              Derived reuse, point-to-point concentration and monitoring coverage from synthetic GRA
-              interface records — with curated topology for the active decision scenario.
+              Understand how applications, services and data connect — and where integration risk,
+              duplication and reuse opportunities exist.
             </p>
           </div>
+          <div className="synthetic-pill" title="Illustrative seed data for demonstration">
+            SYNTHETIC DEMO DATA
+          </div>
         </div>
 
-        <div className="int-kpi-grid">
-          {kpiCards.map((k) => (
+        <div className="app-metric-strip" role="group" aria-label="Integration portfolio summary metrics">
+          <button type="button" className="app-metric" onClick={() => applyMetricFilter('all')}>
+            <span>Integration Assets</span>
+            <strong>{metrics.total}</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('critical')}
+          >
+            <span>Business-Critical</span>
+            <strong>{metrics.businessCritical}</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('ownership')}
+          >
+            <span>Ownership Coverage</span>
+            <strong>{metrics.ownershipCoverage}%</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('compliance')}
+          >
+            <span>Standards Compliance</span>
+            <strong>{metrics.standardsCompliance}%</strong>
+          </button>
+          <button type="button" className="app-metric" onClick={() => applyMetricFilter('reuse')}>
+            <span>Reuse Coverage</span>
+            <strong>{metrics.reuseCoverage}%</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('highRisk')}
+          >
+            <span>High-Risk Integrations</span>
+            <strong>{metrics.highRisk}</strong>
+          </button>
+        </div>
+
+        <div className="portfolio-signal">
+          <div>
+            <div className="kicker">Integration Signal</div>
+            <h2>
+              {signal.ownershipGapPct}% of enterprise APIs and interfaces do not have confirmed
+              accountable ownership.
+            </h2>
+            <p>
+              Business-critical services are disproportionately dependent on a small number of
+              integration platforms and point-to-point connections
+              {signal.topPlatform
+                ? ` — notably ${signal.topPlatform} (${signal.topPlatformCount} critical paths)`
+                : ''}
+              .
+            </p>
+          </div>
+          <div className="portfolio-signal-actions">
             <button
-              key={k.id}
               type="button"
-              className="int-kpi-card"
-              onClick={() => applyInsightFilter(k.filter)}
+              className="btn primary primary-button"
+              onClick={reviewOwnershipGaps}
             >
-              <span>{k.label}</span>
-              <strong>{k.value}</strong>
+              Review Ownership Gaps
             </button>
-          ))}
+            <button
+              type="button"
+              className="btn secondary-button"
+              onClick={reviewCriticalDependencies}
+            >
+              Review Critical Dependencies
+            </button>
+            <button type="button" className="btn secondary-button" onClick={goFindings}>
+              View Related Findings
+            </button>
+          </div>
         </div>
 
-        {insights.length > 0 && (
-          <div className="int-insight-row">
-            {insights.map((ins) => (
-              <button
-                key={ins.id}
-                type="button"
-                className="int-insight-card"
-                onClick={() => applyInsightFilter(ins.filter)}
-              >
-                <strong>{ins.title}</strong>
-                <span>{ins.body}</span>
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="viz-card topology-card" data-demo-target="integration-topology">
-          <div className="viz-head">
-            <div>
-              <h3 className="section-title">Curated scenario topology</h3>
-              <p>
-                {scenario
-                  ? `${scenario.name} — apps as nodes, focus integrations as edges.`
-                  : 'No scenario available.'}
-              </p>
+        <div className="app-health-layout int-health-layout">
+          <div className="app-health-card">
+            <div className="app-health-card-head">
+              <h2>Integration pattern mix</h2>
+              <p>How the enterprise actually connects systems.</p>
             </div>
-            <div className="topology-controls">
-              <label className="field">
-                <span>Scenario</span>
-                <select
-                  value={scenario?.id || ''}
-                  onChange={(e) => setScenarioId(e.target.value)}
-                  aria-label="Integration scenario"
+            <ReactECharts option={patternChart} style={{ height: 260 }} opts={{ renderer: 'svg' }} />
+            <p className="sub int-pattern-note">
+              Point-to-point accounts for {p2pShare}% of assets — context matters before treating
+              every instance as technical debt.
+            </p>
+            <div className="decision-legend">
+              {patterns.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className={`decision-leg${
+                    {
+                      'Managed API': 'API',
+                      'Event / Streaming': 'Event',
+                      'Service Integration': 'Service',
+                      'Point-to-Point': 'Point-to-Point',
+                      'Batch / File': 'Batch',
+                      'Database Integration': 'Database Integration',
+                    }[m.key] === filters.assetType
+                      ? ' active'
+                      : ''
+                  }`}
+                  onClick={() => {
+                    const patternToAsset = {
+                      'Managed API': 'API',
+                      'Event / Streaming': 'Event',
+                      'Service Integration': 'Service',
+                      'Point-to-Point': 'Point-to-Point',
+                      'Batch / File': 'Batch',
+                      'Database Integration': 'Database Integration',
+                    }
+                    const next = patternToAsset[m.key] || ''
+                    patchFilters({
+                      assetType: filters.assetType === next ? '' : next,
+                    })
+                  }}
                 >
-                  {scenarios.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" className="btn secondary-button" onClick={openExplorer}>
-                Open in Relationship Explorer
-              </button>
+                  <i style={{ background: PATTERN_COLORS[m.key] }} />
+                  {m.key} · {m.count}
+                </button>
+              ))}
             </div>
           </div>
-          {scenario && (
-            <div className="scenario-narrative">
-              <p>{scenario.summary}</p>
-              <p className="sub">
-                <strong>Key risk:</strong> {scenario.keyRisk}
-              </p>
-              <p className="sub">
-                <strong>Recommended action:</strong> {scenario.recommendedAction}
-              </p>
-            </div>
-          )}
-          <div className="topology-canvas" role="img" aria-label="Scenario integration topology">
-            {topology.nodes.length ? (
-              <svg viewBox="0 0 440 320" className="topology-svg">
-                {topology.edges.map((e) => {
-                  const s = topology.nodes.find((n) => n.id === e.source)
-                  const t = topology.nodes.find((n) => n.id === e.target)
-                  if (!s || !t) return null
-                  return (
-                    <g key={e.id}>
-                      <line
-                        x1={s.x}
-                        y1={s.y}
-                        x2={t.x}
-                        y2={t.y}
-                        className={`topo-edge${e.p2p ? ' p2p' : ''}`}
-                        onClick={() => openIntegration(e.id)}
-                      />
-                      <title>{e.name}</title>
-                    </g>
-                  )
-                })}
-                {topology.nodes.map((n) => (
-                  <g
-                    key={n.id}
-                    className="topo-node"
-                    onClick={() => openApplication(n.id)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <circle cx={n.x} cy={n.y} r={22} />
-                    <text x={n.x} y={n.y + 36} textAnchor="middle">
-                      {n.name.length > 18 ? `${n.name.slice(0, 16)}…` : n.name}
-                    </text>
-                    <title>{n.name}</title>
-                  </g>
-                ))}
-              </svg>
-            ) : (
-              <div className="empty-state">No topology integrations for this scenario.</div>
-            )}
-            <div className="topology-legend">
-              <span>
-                <i className="leg-line" /> Reusable / hub path
-              </span>
-              <span>
-                <i className="leg-line p2p" /> Point-to-point
-              </span>
-              <span>Click node → application · Click edge → integration</span>
-            </div>
-          </div>
-        </div>
 
-        <div className="overview-grid int-charts">
-          <div className="viz-card">
-            <div className="viz-head">
-              <div>
-                <h3 className="section-title">Integration type distribution</h3>
-                <p>Count by interface type across the GRA landscape.</p>
-              </div>
-            </div>
-            <ReactECharts option={typeChart} style={{ height: 280 }} />
-          </div>
-          <div className="viz-card">
-            <div className="viz-head">
-              <div>
-                <h3 className="section-title">Reusable API vs point-to-point</h3>
-                <p>Reuse rate {metrics.apiReuseRate}% · P2P {metrics.pointToPointPercentage}%.</p>
-              </div>
-            </div>
-            <ReactECharts option={reuseChart} style={{ height: 280 }} />
-          </div>
-          <div className="viz-card">
-            <div className="viz-head">
-              <div>
-                <h3 className="section-title">Applications with most dependencies</h3>
-                <p>Top 8 by source + target interface count.</p>
-              </div>
+          <div className="app-health-card">
+            <div className="app-health-card-head">
+              <h2>Exposure & reuse</h2>
+              <p>Reusable enterprise services versus rebuilt integrations.</p>
             </div>
             <ReactECharts
-              option={concentrationChart}
+              option={exposureReuseChart}
               style={{ height: 280 }}
+              opts={{ renderer: 'svg' }}
+            />
+          </div>
+
+          <div className="app-health-card app-matrix-card">
+            <div className="app-health-card-head">
+              <div>
+                <h2>Criticality vs integration risk</h2>
+                <p>Prioritise where business value and integration risk concentrate.</p>
+              </div>
+              {filtered.length > 14 && (
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => setShowAllMatrix((v) => !v)}
+                >
+                  {showAllMatrix ? 'Show sample' : 'View all'}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={matrixChart}
+              style={{ height: 320 }}
+              opts={{ renderer: 'svg' }}
               onEvents={{
                 click: (params) => {
-                  const row = concentration[params.dataIndex]
-                  if (row) openApplication(row.application.id)
+                  const id = params?.data?.value?.[2]
+                  if (id) openInt(id)
                 },
               }}
             />
           </div>
-          <div className="viz-card">
-            <div className="viz-head">
-              <div>
-                <h3 className="section-title">Documentation &amp; monitoring coverage</h3>
-                <p>
-                  Undocumented {metrics.undocumentedIntegrationCount} · Unmonitored{' '}
-                  {metrics.unmonitoredIntegrationCount}.
-                </p>
-              </div>
-            </div>
-            <ReactECharts option={coverageChart} style={{ height: 280 }} />
-          </div>
         </div>
 
-        <div className="intel-toolbar">
-          <label className="field grow">
-            <span>Search</span>
-            <input
-              type="search"
-              value={integrationFilters.search}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ search: e.target.value })
-              }}
-              placeholder="Search integrations"
-              aria-label="Search integrations"
-            />
-          </label>
-          <label className="field">
-            <span>Type</span>
-            <select
-              value={integrationFilters.integrationType}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ integrationType: e.target.value })
-              }}
-            >
-              <option value="">All</option>
-              {[...new Set(integrations.map((i) => i.integrationType))].map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Criticality</span>
-            <select
-              value={integrationFilters.criticality}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ criticality: e.target.value })
-              }}
-            >
-              <option value="">All</option>
-              {['critical', 'high', 'medium', 'low'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Lifecycle</span>
-            <select
-              value={integrationFilters.lifecycleStatus}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ lifecycleStatus: e.target.value })
-              }}
-            >
-              <option value="">All</option>
-              {['Planned', 'Active', 'Restricted', 'Deprecated', 'Retiring'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>P2P</span>
-            <select
-              value={integrationFilters.pointToPoint}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ pointToPoint: e.target.value })
-              }}
-            >
-              <option value="">All</option>
-              <option value="true">Point-to-point</option>
-              <option value="false">Not P2P</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Reuse</span>
-            <select
-              value={integrationFilters.reusabilityStatus}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ reusabilityStatus: e.target.value })
-              }}
-            >
-              <option value="">All</option>
-              {['reusable', 'candidate', 'point-to-point', 'unknown'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Monitoring</span>
-            <select
-              value={integrationFilters.monitoringStatus}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ monitoringStatus: e.target.value })
-              }}
-            >
-              <option value="">All</option>
-              {['monitored', 'partial', 'unmonitored'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Owners</span>
-            <select
-              value={integrationFilters.missingOwner}
-              onChange={(e) => {
-                setPage(0)
-                setIntegrationFilters({ missingOwner: e.target.value })
-              }}
-            >
-              <option value="">All</option>
-              <option value="true">Missing owner</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="viz-card">
-          <div className="viz-head">
-            <div>
-              <h3 className="section-title">Integration inventory</h3>
-              <p>
-                Showing {sorted.length} of {integrations.length} interfaces · avg risk{' '}
-                {metrics.averageIntegrationRisk}.
-              </p>
-            </div>
-          </div>
-
-          <div className="tablewrap portfolio-table-desktop int-table-desktop">
-            {!pageRows.length ? (
-              <div className="empty-state">No integrations match filters.</div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    {[
-                      ['name', 'Integration'],
-                      ['source', 'Source'],
-                      ['target', 'Target'],
-                      ['integrationType', 'Type'],
-                      ['criticality', 'Criticality'],
-                      ['lifecycleStatus', 'Lifecycle'],
-                      ['reusabilityStatus', 'Reuse'],
-                      ['consumers', 'Consumers'],
-                      ['risk', 'Risk'],
-                    ].map(([key, label]) => (
-                      <th key={key}>
-                        <button type="button" className="th-sort" onClick={() => toggleSort(key)}>
-                          {label}
-                          {sort.key === key ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''}
-                        </button>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageRows.map(({ int: i, risk, sourceName, targetName, p2p }) => (
-                    <tr
-                      key={i.id}
-                      className="row-click"
-                      onClick={() => openIntegration(i.id)}
-                    >
-                      <td>
-                        <strong>{i.name}</strong>
-                        <div className="sub">
-                          {i.apiOrInterfaceName}
-                          {p2p ? ' · P2P' : ''}
-                        </div>
-                      </td>
-                      <td>{sourceName}</td>
-                      <td>{targetName}</td>
-                      <td>{i.integrationType}</td>
-                      <td>{i.criticality}</td>
-                      <td>{i.lifecycleStatus}</td>
-                      <td>{i.reusabilityStatus}</td>
-                      <td>{i.consumerCount}</td>
-                      <td>{risk}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <div className="portfolio-mobile int-mobile">
-            {pageRows.map(({ int: i, risk, sourceName, targetName, p2p }) => (
-              <button
-                key={i.id}
-                type="button"
-                className="mobile-cap-card int-mobile-card"
-                onClick={() => openIntegration(i.id)}
-              >
-                <div>
-                  <strong>{i.name}</strong>
-                  <span>
-                    {i.integrationType} · Risk {risk}
-                    {p2p ? ' · P2P' : ''}
-                  </span>
-                  <span>
-                    {sourceName} → {targetName}
-                  </span>
-                </div>
-              </button>
+        <div className="intel-toolbar app-filters int-filters">
+          <input
+            type="search"
+            placeholder="Search APIs, interfaces, applications or owners"
+            value={filters.search}
+            onChange={(e) => patchFilters({ search: e.target.value })}
+            aria-label="Search integration assets"
+          />
+          <select
+            value={filters.assetType}
+            onChange={(e) => patchFilters({ assetType: e.target.value })}
+            aria-label="Asset type"
+          >
+            <option value="">Asset type</option>
+            <option value="API">API</option>
+            <option value="Event">Event</option>
+            <option value="Service">Service</option>
+            <option value="Batch">Batch</option>
+            <option value="Point-to-Point">Point-to-Point</option>
+            <option value="Database Integration">Database Integration</option>
+          </select>
+          <select
+            value={filters.exposure}
+            onChange={(e) => patchFilters({ exposure: e.target.value })}
+            aria-label="Exposure"
+          >
+            <option value="">Exposure</option>
+            <option value="Internal">Internal</option>
+            <option value="Partner">Partner</option>
+            <option value="Public">Public</option>
+          </select>
+          <select
+            value={filters.criticality}
+            onChange={(e) => patchFilters({ criticality: e.target.value })}
+            aria-label="Criticality"
+          >
+            <option value="">Criticality</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <select
+            value={filters.risk}
+            onChange={(e) => patchFilters({ risk: e.target.value })}
+            aria-label="Risk"
+          >
+            <option value="">Risk</option>
+            <option value="Critical">Critical</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+          <select
+            value={filters.ownership}
+            onChange={(e) => patchFilters({ ownership: e.target.value })}
+            aria-label="Ownership"
+          >
+            <option value="">Ownership</option>
+            <option value="assigned">Assigned</option>
+            <option value="unassigned">Unassigned</option>
+          </select>
+          <select
+            value={filters.lifecycle}
+            onChange={(e) => patchFilters({ lifecycle: e.target.value })}
+            aria-label="Lifecycle"
+          >
+            <option value="">Lifecycle</option>
+            {PORTFOLIO_LIFECYCLES.map((l) => (
+              <option key={l} value={l}>
+                {l}
+              </option>
             ))}
-            {!pageRows.length && <div className="empty-state">No integrations match filters.</div>}
-          </div>
+          </select>
+          <select
+            value={filters.compliance}
+            onChange={(e) => patchFilters({ compliance: e.target.value })}
+            aria-label="Compliance"
+          >
+            <option value="">Compliance</option>
+            <option value="Compliant">Compliant</option>
+            <option value="Partial">Partial</option>
+            <option value="Non-Compliant">Non-Compliant</option>
+          </select>
+          <select
+            value={filters.reuse}
+            onChange={(e) => patchFilters({ reuse: e.target.value })}
+            aria-label="Reuse"
+          >
+            <option value="">Reuse</option>
+            <option value="Enterprise Reusable">Enterprise Reusable</option>
+            <option value="Multi-Consumer">Multi-Consumer</option>
+            <option value="Single Consumer">Single Consumer</option>
+          </select>
+          <select
+            value={filters.platform}
+            onChange={(e) => patchFilters({ platform: e.target.value })}
+            aria-label="Platform"
+          >
+            <option value="">Platform</option>
+            {platformOptions.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filters.capabilityId}
+            onChange={(e) => patchFilters({ capabilityId: e.target.value })}
+            aria-label="Business capability"
+          >
+            <option value="">Business capability</option>
+            {capabilityOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="pager">
-            <button
-              type="button"
-              className="btn secondary-button"
-              disabled={pageSafe <= 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-            >
-              Previous
+        <div className="app-register-meta">
+          <span>
+            {sorted.length} of {enriched.length} integration assets
+          </span>
+          {hasFilters && (
+            <button type="button" className="text-link" onClick={clearFilters}>
+              Clear filters
             </button>
-            <span>
-              Page {pageSafe + 1} / {pageCount}
-            </span>
+          )}
+        </div>
+
+        <div className="tablewrap portfolio-table-desktop app-register">
+          <table className="portfolio-table">
+            <thead>
+              <tr>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('name')}>
+                    Integration / API
+                  </button>
+                </th>
+                <th>Type</th>
+                <th>Provider</th>
+                <th>Consumers</th>
+                <th>Exposure</th>
+                <th>
+                  <button
+                    type="button"
+                    className="th-sort"
+                    onClick={() => toggleSort('criticality')}
+                  >
+                    Criticality
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('risk')}>
+                    Risk
+                  </button>
+                </th>
+                <th>Owner</th>
+                <th>
+                  <button
+                    type="button"
+                    className="th-sort"
+                    onClick={() => toggleSort('lifecycle')}
+                  >
+                    Lifecycle
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((row) => (
+                <tr
+                  key={row.int.id}
+                  className="clickable-row"
+                  onClick={() => openInt(row.int.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      openInt(row.int.id)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="link"
+                >
+                  <td>
+                    <strong>{row.int.name}</strong>
+                    <div className="sub">{row.int.apiOrInterfaceName}</div>
+                  </td>
+                  <td>{row.assetType}</td>
+                  <td>{row.providerName}</td>
+                  <td>
+                    {row.consumerNames.length <= 2
+                      ? row.consumerNames.join(', ')
+                      : `${row.consumerNames.slice(0, 2).join(', ')} +${row.consumerNames.length - 2}`}
+                  </td>
+                  <td>{row.exposure}</td>
+                  <td>
+                    <StatusTag tone={critTone(row.int.criticality)}>
+                      {formatCriticality(row.int.criticality)}
+                    </StatusTag>
+                  </td>
+                  <td>
+                    <StatusTag tone={riskTone(row.architectureRisk)}>
+                      {row.architectureRisk}
+                    </StatusTag>
+                  </td>
+                  <td>
+                    {row.ownershipGap ? (
+                      <StatusTag tone="bad">Unassigned</StatusTag>
+                    ) : (
+                      row.integrationOwnerLabel || row.technicalOwnerLabel
+                    )}
+                  </td>
+                  <td>
+                    <StatusTag tone={row.lifecycleStage === 'Retire' || row.lifecycleStage === 'Deprecated' ? 'warn' : 'muted'}>
+                      {row.lifecycleStage}
+                    </StatusTag>
+                  </td>
+                </tr>
+              ))}
+              {sorted.length === 0 && (
+                <tr>
+                  <td colSpan={9}>
+                    <p className="sub">No integration assets match the current filters.</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="portfolio-mobile app-register-mobile int-mobile">
+          {sorted.map((row) => (
             <button
+              key={row.int.id}
               type="button"
-              className="btn secondary-button"
-              disabled={pageSafe >= pageCount - 1}
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              className="app-mobile-card"
+              onClick={() => openInt(row.int.id)}
             >
-              Next
+              <div className="app-mobile-card-head">
+                <strong>{row.int.name}</strong>
+                <StatusTag tone={riskTone(row.architectureRisk)}>{row.architectureRisk}</StatusTag>
+              </div>
+              <p className="sub">
+                {row.assetType} · {row.providerName} · {row.exposure}
+              </p>
+              <div className="chip-row">
+                <StatusTag tone={critTone(row.int.criticality)}>
+                  {formatCriticality(row.int.criticality)}
+                </StatusTag>
+                <StatusTag tone={complianceTone(row.standardsCompliance)}>
+                  {row.standardsCompliance}
+                </StatusTag>
+                <StatusTag tone="muted">{row.lifecycleStage}</StatusTag>
+              </div>
             </button>
-          </div>
+          ))}
         </div>
       </div>
     </section>

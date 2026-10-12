@@ -14,45 +14,41 @@ export const domains = [
 ]
 
 export const navGroups = [
-  ['Workspace', [['Overview', 'overview', '⌘']]],
+  ['Home', [['Executive Overview', 'executive', '⌘']]],
   [
-    'Assess',
+    'Portfolios',
     [
-      ['Assessment', 'assessment', '▣'],
-      ['Findings', 'findings', '⚑', '9'],
+      ['Applications', 'applications', '▦'],
+      ['Integrations & APIs', 'integrations', '⌁'],
+      ['Data & Information', 'data-information', '▤'],
+      ['Technology & Infrastructure', 'technology-infrastructure', '▣'],
+      ['AI & Automation', 'ai-automation', '✦'],
+    ],
+  ],
+  [
+    'Insights',
+    [
+      ['Architecture Health', 'assessment', '▣'],
+      ['Findings & Risks', 'findings', '⚑'],
       ['Evidence', 'evidence', '▤'],
-    ],
-  ],
-  [
-    'Improve',
-    [
       ['Recommendations', 'recommendations', '✓'],
+    ],
+  ],
+  [
+    'Transform',
+    [
       ['Roadmap', 'roadmap', '⌁'],
-    ],
-  ],
-  [
-    'Govern',
-    [
-      ['Architecture Reviews', 'reviews', '⚖'],
-      ['Decisions', 'decisions', '▧'],
-      ['Exceptions', 'exceptions', '◈'],
-      ['Standards', 'standards', '⌁'],
-    ],
-  ],
-  ['Capability', [['People & Skills', 'people', '♙']]],
-  [
-    'Measure',
-    [
+      ['Initiatives', 'initiatives', '⚑'],
       ['KPIs', 'kpis', '▥'],
-      ['Executive Report', 'report', '▤'],
     ],
   ],
   [
-    'Admin',
+    'Governance',
     [
-      ['Organisation', 'organisation', '▦'],
-      ['Assessment Model', 'assessment-model', '◔'],
-      ['Settings', 'settings', '⌘'],
+      ['Standards & Principles', 'standards', '⌁'],
+      ['Decision Register', 'decisions', '▧'],
+      ['Review Board', 'reviews', '⚖'],
+      ['AI & Data Governance', 'ai-data-governance', '◈'],
     ],
   ],
 ]

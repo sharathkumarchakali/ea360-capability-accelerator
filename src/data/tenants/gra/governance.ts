@@ -127,6 +127,88 @@ export const graDecisions = [
     expectedValue: 'Lower change cost; improved resilience',
     status: 'proposed' as const,
   },
+  {
+    ...decisionBase(
+      'dec-gra-05',
+      'Pending — Authoritative taxpayer system of record',
+      'ARB review of authoritative taxpayer identity system-of-record before Unified Taxpayer View cutover.',
+    ),
+    decisionType: 'Architecture',
+    decisionStatus: 'Pending',
+    decisionAuthority: 'Architecture Review Board',
+    reviewerIds: ['person-cio', 'person-chief-architect', 'person-cdo'],
+    requiredReviewerIds: ['person-cio', 'person-chief-architect'],
+    recommendationId: 'rec-gra-01',
+    optionsConsidered: [
+      'Domestic Tax Core as SoR with API facade',
+      'New taxpayer domain service as SoR',
+      'Retain TIN Registry as SoR temporarily',
+    ],
+    evidenceIds: ['ev-gra-01', 'ev-gra-08'],
+    affectedObjectIds: ['data-gra-01', 'app-gra-08', 'app-gra-01', 'init-gra-01'],
+    initiativeId: 'init-gra-01',
+    submittedAt: '2026-08-20',
+    decisionDeadline: '2026-10-15',
+    businessDomain: 'Taxpayer',
+    riskSeverity: 'critical' as const,
+    expectedValue: 'Identity coherence across channels',
+    status: 'proposed' as const,
+  },
+  {
+    ...decisionBase(
+      'dec-gra-06',
+      'Pending — Revenue assurance event integration model',
+      'ARB review of event-driven vs mediated API patterns for assurance matching services.',
+    ),
+    decisionType: 'Architecture',
+    decisionStatus: 'Pending',
+    decisionAuthority: 'Architecture Review Board',
+    reviewerIds: ['person-cro', 'person-chief-architect'],
+    requiredReviewerIds: ['person-cro', 'person-chief-architect'],
+    recommendationId: 'rec-gra-03',
+    optionsConsidered: [
+      'Consume payment events via hub',
+      'Batch mediated extracts with SLO',
+      'Direct DB integration (not preferred)',
+    ],
+    evidenceIds: ['ev-gra-03', 'ev-gra-06'],
+    affectedObjectIds: ['cap-gra-06', 'app-gra-06', 'int-gra-29', 'init-gra-03'],
+    initiativeId: 'init-gra-03',
+    submittedAt: '2026-08-28',
+    decisionDeadline: '2026-10-01',
+    businessDomain: 'Assurance',
+    riskSeverity: 'high' as const,
+    expectedValue: 'Same-day assurance exception path',
+    status: 'proposed' as const,
+  },
+  {
+    ...decisionBase(
+      'dec-gra-ai-009',
+      'ADR-AI-009 — Customer-facing generative AI requires human review',
+      'Architecture decision that customer-facing generative AI responses require human review before external delivery.',
+    ),
+    decisionType: 'Architecture',
+    decisionStatus: 'Approved',
+    decisionDate: '2026-04-10',
+    decisionAuthority: 'Architecture Review Board',
+    reviewerIds: ['person-cio', 'person-ciso', 'person-chief-architect'],
+    requiredReviewerIds: ['person-cio', 'person-ciso'],
+    recommendationId: 'rec-gra-01',
+    optionsConsidered: ['Fully automated responses', 'Human review before external response', 'Disable generative features'],
+    selectedOption: 'Human review before external response',
+    rationale: 'Citizen-facing channels require accountable human review for generative outputs.',
+    conditions: ['Copilots must log reviewer identity', 'Restricted use cases remain sandbox-only'],
+    exceptions: ['Internal-only drafting experiments'],
+    expiryReviewDate: '2027-04-10',
+    evidenceIds: ['ev-gra-05'],
+    affectedObjectIds: ['ai-gra-01', 'ai-gra-09', 'ai-gra-13', 'cap-gra-03'],
+    submittedAt: '2026-03-25',
+    decisionDeadline: '2026-04-15',
+    businessDomain: 'Taxpayer Services',
+    riskSeverity: 'high' as const,
+    expectedValue: 'Reduced reputational and compliance risk on external generative responses',
+    status: 'approved' as const,
+  },
 ]
 
 function decisionBase(id: string, name: string, description: string) {
@@ -301,8 +383,9 @@ const EXTRA_INITIATIVE = {
   riskReduction: 'Critical confirmation outage exposure',
   progressPercent: 18,
   decisionId: 'dec-gra-02',
+  decisionIds: ['dec-gra-02'],
   applicationIds: ['app-gra-05', 'app-gra-07'],
-  integrationIds: ['int-gra-05'],
+  integrationIds: ['int-gra-05', 'int-gra-29'],
   findingIds: ['find-gra-10'],
   kpiIds: ['kpi-gra-07', 'kpi-gra-08'],
   dependsOnInitiativeIds: ['init-gra-02'],
@@ -310,6 +393,66 @@ const EXTRA_INITIATIVE = {
   targetPeriod: 'FY2026 Q4',
   intendedOutcome: 'Resilient confirmation and faster reconciliation',
   effortBand: 'L',
+  isSynthetic: true,
+  initiativeStatus: 'In Progress' as const,
+  strategicPriority: 'Critical' as const,
+  architectureReadiness: 'Ready with Conditions' as const,
+  architectureRisk: 'High' as const,
+  executiveSponsorId: 'person-cio',
+  initiativeOwnerId: 'person-cto',
+  architectureOwnerId: 'person-cto',
+  businessProblem:
+    'Payment confirmation path lacks resilient event buffering and monitored recovery, creating peak-season outage exposure.',
+  expectedOutcome: 'Resilient confirmation and faster reconciliation with monitored lag SLOs.',
+  capabilityImpacts: [
+    { capabilityId: 'cap-gra-05', impact: 'Improve' as const },
+    { capabilityId: 'cap-gra-21', impact: 'Enable' as const },
+  ],
+  applicationImpacts: [
+    { applicationId: 'app-gra-05', impact: 'Change' as const },
+    { applicationId: 'app-gra-07', impact: 'Dependency' as const },
+  ],
+  integrationImpacts: [
+    { integrationId: 'int-gra-05', impact: 'Change' as const },
+    { integrationId: 'int-gra-29', impact: 'Introduce' as const },
+  ],
+  dataImpacts: [{ dataObjectId: 'data-gra-04', impact: 'Improve' as const }],
+  technologyImpacts: [
+    { technologyId: 'tech-gra-04', impact: 'Dependency' as const },
+    { technologyId: 'tech-gra-15', impact: 'Retain' as const },
+  ],
+  aiImpacts: [{ aiSolutionId: 'ai-gra-18', impact: 'Reuse' as const }],
+  standardIds: ['STD-EVT-001', 'STD-SEC-004'],
+  standardCompliance: [
+    { standardId: 'STD-EVT-001', compliance: 'Aligned' as const },
+    { standardId: 'STD-SEC-004', compliance: 'Aligned' as const },
+  ],
+  exceptionIds: ['EXC-INIT-03'],
+  exceptionsDetail: [
+    {
+      id: 'EXC-INIT-03',
+      name: 'Legacy bank file adapters may remain for two quarters',
+      standardId: 'STD-EVT-001',
+      expiryDate: '2026-11-30',
+    },
+  ],
+  dependencyReasons: [
+    {
+      initiativeId: 'init-gra-02',
+      reason: 'Event publication and consumer patterns depend on hub platform readiness.',
+    },
+  ],
+  risksReduced: ['Critical confirmation outage exposure'],
+  risksIntroduced: ['Dual-run complexity with bank file adapters'],
+  lastArchitectureReview: '2026-05-12',
+  nextArchitectureReview: '2026-11-30',
+  roadmapPhase: 'Wave 1 — Payment resilience',
+  startDate: '2026-05-15',
+  targetDate: '2026-12-15',
+  valueMeasureDefined: true,
+  baselineDefined: true,
+  targetDefined: true,
+  currentMeasurement: 'Available' as const,
 }
 
 const EXTRA_KPIS = [
@@ -510,19 +653,53 @@ export function applyPhase3Enrichment(pack: TenantPack): TenantPack {
     kpiIds: ['kpi-gra-03', 'kpi-gra-04'],
   })
 
+  const decisionLinks: Record<
+    string,
+    { decisionId?: string; decisionIds?: string[]; outstandingDecisionIds?: string[] }
+  > = {
+    'init-gra-01': {
+      decisionId: 'dec-gra-01',
+      decisionIds: ['dec-gra-01'],
+      outstandingDecisionIds: ['dec-gra-05'],
+    },
+    'init-gra-02': {
+      decisionId: 'dec-gra-04',
+      decisionIds: ['dec-gra-04'],
+      outstandingDecisionIds: ['dec-gra-04'],
+    },
+    'init-gra-03': {
+      decisionId: 'dec-gra-03',
+      decisionIds: ['dec-gra-03'],
+      outstandingDecisionIds: ['dec-gra-06'],
+    },
+    'init-gra-06': {
+      decisionId: 'dec-gra-02',
+      decisionIds: ['dec-gra-02'],
+      outstandingDecisionIds: [],
+    },
+  }
+
   next.initiatives = next.initiatives.map((i) => {
     const rec = next.recommendations.find((r) => i.recommendationIds.includes(r.id))
     const decision = next.decisions.find(
       (d) => d.initiativeId === i.id || (rec && d.recommendationId === rec.id),
     )
+    const links = decisionLinks[i.id] || {}
+    const enables =
+      i.id === 'init-gra-02'
+        ? [...new Set([...(i.enablesInitiativeIds || []), 'init-gra-06'])]
+        : i.enablesInitiativeIds ?? []
     return {
       ...i,
-      decisionId: i.decisionId ?? decision?.id,
+      decisionId: i.decisionId ?? links.decisionId ?? decision?.id,
+      decisionIds: i.decisionIds ?? links.decisionIds ?? (decision ? [decision.id] : []),
+      outstandingDecisionIds: i.outstandingDecisionIds ?? links.outstandingDecisionIds ?? [],
       applicationIds: i.applicationIds ?? rec?.affectedApplicationIds ?? [],
       integrationIds: i.integrationIds ?? rec?.affectedIntegrationIds ?? [],
       findingIds: i.findingIds ?? rec?.findingIds ?? [],
       kpiIds: i.kpiIds ?? rec?.kpiIds ?? [],
       dependsOnInitiativeIds: i.dependsOnInitiativeIds ?? [],
+      enablesInitiativeIds: enables,
       targetQuarter:
         i.targetQuarter ??
         (i.horizon === 'now' ? '2026-Q3' : i.horizon === 'next' ? '2026-Q4' : '2027-Q2'),

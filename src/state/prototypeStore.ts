@@ -6,6 +6,7 @@ import {
   getTenantConfig,
   listAvailableTenants,
   loadTenantPack,
+  mergeGraAiSeedIfMissing,
   type TenantCode,
   type TenantRepository,
 } from '../data/repositories/tenantRepository'
@@ -407,14 +408,28 @@ function pushAudit(pack: TenantPack, event: Omit<AuditFields, 'id' | 'timestamp'
 export const usePrototypeStore = create<PrototypeState>()(
   persist(
     (set, get) => {
+      const finalizePack = (pack: TenantPack, code: TenantCode): TenantPack => {
+        const hydrated = mergeGraAiSeedIfMissing(pack)
+        if (hydrated !== pack) {
+          set({
+            workingPack: hydrated,
+            workingPacks: { ...get().workingPacks, [code]: hydrated },
+          })
+        }
+        return hydrated
+      }
+
       const ensurePack = (): TenantPack => {
         const code = get().tenantCode
         const existing = get().workingPack
-        if (existing && existing.tenant.code === code) return existing
+        if (existing && existing.tenant.code === code) {
+          return finalizePack(existing, code)
+        }
         const fromMap = get().workingPacks[code]
         if (fromMap) {
-          set({ workingPack: fromMap })
-          return fromMap
+          const hydrated = finalizePack(fromMap, code)
+          if (hydrated === fromMap) set({ workingPack: fromMap })
+          return hydrated
         }
         const pack = loadTenantPack(code, { bypassCache: true })
         set({
@@ -608,7 +623,7 @@ export const usePrototypeStore = create<PrototypeState>()(
         presentationMode: false,
         guidedTour: null,
         toast: { message: '', show: false },
-        prototypeSchemaVersion: 7,
+        prototypeSchemaVersion: 8,
         setAskOpen: (askOpen) => set({ askOpen }),
         dismissLanding: () => set({ landingComplete: true }),
         showLanding: () => set({ landingComplete: false, guidedTour: null }),
@@ -749,7 +764,7 @@ export const usePrototypeStore = create<PrototypeState>()(
             graphRoot: null,
             impactMode: false,
             toast: { message: 'Demonstration restored for the active organisation.', show: true },
-            prototypeSchemaVersion: 7,
+            prototypeSchemaVersion: 8,
           })
         },
 
@@ -1325,15 +1340,16 @@ export const usePrototypeStore = create<PrototypeState>()(
       }
     },
     {
-      name: 'ea360-prototype-v7',
-      version: 7,
+      name: 'ea360-prototype-v8',
+      version: 8,
       migrate: (persisted: unknown) => {
         const state = (persisted || {}) as Record<string, unknown>
         const version = Number(state.prototypeSchemaVersion || 0)
+        const base = { ...state, prototypeSchemaVersion: 8 }
         // Discard incompatible Explorer / guided-demo hydration from older schemas
         if (version < 7) {
           return {
-            ...state,
+            ...base,
             graphRoot: null,
             guidedTour: null,
             impactMode: false,
@@ -1341,10 +1357,19 @@ export const usePrototypeStore = create<PrototypeState>()(
             entityTypeFilters: [],
             compareCapabilityIds: [],
             selectedEntity: null,
-            prototypeSchemaVersion: 7,
+            workingPack: undefined,
+            workingPacks: {},
           }
         }
-        return { ...state, prototypeSchemaVersion: 7 }
+        if (version < 8) {
+          // Stale persisted packs pre-date GRA AI & Automation seed data
+          return {
+            ...base,
+            workingPack: undefined,
+            workingPacks: {},
+          }
+        }
+        return base
       },
       partialize: (s) => ({
         tenantCode: s.tenantCode,
@@ -1356,7 +1381,7 @@ export const usePrototypeStore = create<PrototypeState>()(
         view: s.view,
         landingComplete: s.landingComplete,
         presentationMode: s.presentationMode,
-        prototypeSchemaVersion: s.prototypeSchemaVersion || 7,
+        prototypeSchemaVersion: s.prototypeSchemaVersion || 8,
         // Active flattened fields for immediate hydrate (also in tenantSlices)
         role: s.role,
         filters: s.filters,

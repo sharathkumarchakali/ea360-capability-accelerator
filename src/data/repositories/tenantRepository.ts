@@ -68,6 +68,37 @@ export function clearTenantCache() {
   validatedCache.clear()
 }
 
+/**
+ * Persisted demo packs from before the AI portfolio seed must receive GRA AI entities
+ * without discarding in-session workflow mutations on the rest of the pack.
+ */
+export function mergeGraAiSeedIfMissing(pack: TenantPack): TenantPack {
+  if (pack.tenant.code !== 'GRA') return pack
+  if ((pack.aiSolutions ?? []).length > 0) return pack
+
+  const fresh = loadTenantPack('GRA', { bypassCache: true })
+  const next = structuredClone(pack) as TenantPack
+  next.aiModels = fresh.aiModels ?? []
+  next.aiSolutions = fresh.aiSolutions ?? []
+
+  for (const f of fresh.findings) {
+    if (f.id.includes('-ai-') && !next.findings.some((x) => x.id === f.id)) {
+      next.findings.push(f)
+    }
+  }
+  for (const k of fresh.kpis) {
+    if (k.id.includes('-ai-') && !next.kpis.some((x) => x.id === k.id)) {
+      next.kpis.push(k)
+    }
+  }
+  for (const d of fresh.decisions ?? []) {
+    if (d.id.includes('-ai-') && !(next.decisions ?? []).some((x) => x.id === d.id)) {
+      next.decisions = [...(next.decisions ?? []), d]
+    }
+  }
+  return next
+}
+
 export function createTenantRepository(pack: TenantPack) {
   return {
     getPack: () => pack,
@@ -86,6 +117,10 @@ export function createTenantRepository(pack: TenantPack) {
     getDataObject: (id: string) => pack.dataObjects.find((d) => d.id === id),
     listTechnologies: () => pack.technologies,
     getTechnology: (id: string) => pack.technologies.find((t) => t.id === id),
+    listAiSolutions: () => pack.aiSolutions ?? [],
+    getAiSolution: (id: string) => (pack.aiSolutions ?? []).find((s) => s.id === id),
+    listAiModels: () => pack.aiModels ?? [],
+    getAiModel: (id: string) => (pack.aiModels ?? []).find((m) => m.id === id),
     resolveEntityName: (id: string) => {
       const hit =
         pack.capabilities.find((c) => c.id === id) ||
@@ -94,6 +129,8 @@ export function createTenantRepository(pack: TenantPack) {
         pack.processes.find((p) => p.id === id) ||
         pack.dataObjects.find((d) => d.id === id) ||
         pack.technologies.find((t) => t.id === id) ||
+        (pack.aiSolutions ?? []).find((s) => s.id === id) ||
+        (pack.aiModels ?? []).find((m) => m.id === id) ||
         pack.findings.find((f) => f.id === id) ||
         pack.evidence.find((e) => e.id === id) ||
         pack.recommendations.find((r) => r.id === id) ||
@@ -116,6 +153,18 @@ export function createTenantRepository(pack: TenantPack) {
       if (d) return { id: d.id, type: 'dataObject' as const, name: d.name, status: d.status }
       const t = pack.technologies.find((x) => x.id === id)
       if (t) return { id: t.id, type: 'technology' as const, name: t.name, status: t.lifecycle }
+      const ai = (pack.aiSolutions ?? []).find((x) => x.id === id)
+      if (ai) {
+        return {
+          id: ai.id,
+          type: 'aiSolution' as const,
+          name: ai.name,
+          criticality: ai.businessCriticality,
+          status: ai.status,
+        }
+      }
+      const aim = (pack.aiModels ?? []).find((x) => x.id === id)
+      if (aim) return { id: aim.id, type: 'aiModel' as const, name: aim.name, status: aim.status }
       const f = pack.findings.find((x) => x.id === id)
       if (f) return { id: f.id, type: 'finding' as const, name: f.name, criticality: f.severity, status: f.workflowStatus ?? f.status }
       const e = pack.evidence.find((x) => x.id === id)
@@ -218,11 +267,15 @@ export function createTenantRepository(pack: TenantPack) {
     initiativesForCapability: (capabilityId: string) =>
       pack.initiatives.filter((i) => i.capabilityIds.includes(capabilityId)),
     initiativesForApplication: (applicationId: string) =>
-      pack.initiatives.filter((i) =>
-        pack.recommendations.some(
-          (r) =>
-            i.recommendationIds.includes(r.id) && r.affectedApplicationIds.includes(applicationId),
-        ),
+      pack.initiatives.filter(
+        (i) =>
+          (i.applicationIds || []).includes(applicationId) ||
+          (i.applicationImpacts || []).some((x) => x.applicationId === applicationId) ||
+          pack.recommendations.some(
+            (r) =>
+              i.recommendationIds.includes(r.id) &&
+              r.affectedApplicationIds.includes(applicationId),
+          ),
       ),
     dataObjectsForApplication: (applicationId: string) => {
       const ids = new Set(
@@ -234,6 +287,16 @@ export function createTenantRepository(pack: TenantPack) {
           )
           .map((r) => (r.sourceId === applicationId ? r.targetId : r.sourceId)),
       )
+      for (const d of pack.dataObjects) {
+        if (
+          d.systemOfRecordApplicationId === applicationId ||
+          d.primaryApplicationId === applicationId ||
+          (d.sourceApplicationIds || []).includes(applicationId) ||
+          (d.consumerApplicationIds || []).includes(applicationId)
+        ) {
+          ids.add(d.id)
+        }
+      }
       return pack.dataObjects.filter((d) => ids.has(d.id))
     },
     technologiesForApplication: (applicationId: string) => {
@@ -247,7 +310,17 @@ export function createTenantRepository(pack: TenantPack) {
           )
           .map((r) => r.targetId),
       )
+      for (const t of pack.technologies) {
+        if ((t.applicationIds || []).includes(applicationId)) ids.add(t.id)
+      }
       return pack.technologies.filter((t) => ids.has(t.id))
+    },
+    findingsForTechnology: (technologyId: string) => {
+      const tech = pack.technologies.find((t) => t.id === technologyId)
+      const seeded = new Set(tech?.findingIds || [])
+      return pack.findings.filter(
+        (f) => f.linkedObjectIds.includes(technologyId) || seeded.has(f.id),
+      )
     },
     integrationsForApplications: (applicationIds: string[]) => {
       const set = new Set(applicationIds)

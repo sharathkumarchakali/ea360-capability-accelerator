@@ -31,6 +31,8 @@ export function collectEntityIds(pack: TenantPack): Map<string, string> {
   for (const d of pack.decisions ?? []) add(d.id, 'decision')
   for (const n of pack.initiatives) add(n.id, 'initiative')
   for (const k of pack.kpis) add(k.id, 'kpi')
+  for (const m of pack.aiModels ?? []) add(m.id, 'aiModel')
+  for (const s of pack.aiSolutions ?? []) add(s.id, 'aiSolution')
   return map
 }
 
@@ -129,11 +131,48 @@ export function validateTenantPack(pack: unknown): TenantPack {
     n.findingIds?.forEach((id) => ensure(id, `initiative ${n.id}.findingIds`))
     n.kpiIds?.forEach((id) => ensure(id, `initiative ${n.id}.kpiIds`))
     n.dependsOnInitiativeIds?.forEach((id) => ensure(id, `initiative ${n.id}.dependsOnInitiativeIds`))
+    n.enablesInitiativeIds?.forEach((id) => ensure(id, `initiative ${n.id}.enablesInitiativeIds`))
+    n.conflictInitiativeIds?.forEach((id) => ensure(id, `initiative ${n.id}.conflictInitiativeIds`))
+    n.overlapInitiativeIds?.forEach((id) => ensure(id, `initiative ${n.id}.overlapInitiativeIds`))
+    n.decisionIds?.forEach((id) => ensure(id, `initiative ${n.id}.decisionIds`))
+    n.outstandingDecisionIds?.forEach((id) => ensure(id, `initiative ${n.id}.outstandingDecisionIds`))
+    n.capabilityImpacts?.forEach((x) =>
+      ensure(x.capabilityId, `initiative ${n.id}.capabilityImpacts`),
+    )
+    n.applicationImpacts?.forEach((x) =>
+      ensure(x.applicationId, `initiative ${n.id}.applicationImpacts`),
+    )
+    n.integrationImpacts?.forEach((x) =>
+      ensure(x.integrationId, `initiative ${n.id}.integrationImpacts`),
+    )
+    n.dataImpacts?.forEach((x) => ensure(x.dataObjectId, `initiative ${n.id}.dataImpacts`))
+    n.technologyImpacts?.forEach((x) =>
+      ensure(x.technologyId, `initiative ${n.id}.technologyImpacts`),
+    )
+    n.aiImpacts?.forEach((x) => ensure(x.aiSolutionId, `initiative ${n.id}.aiImpacts`))
+    n.dependencyReasons?.forEach((x) =>
+      ensure(x.initiativeId, `initiative ${n.id}.dependencyReasons`),
+    )
     if (n.decisionId) ensure(n.decisionId, `initiative ${n.id}.decisionId`)
   }
 
   for (const k of data.kpis) {
     k.linkedObjectiveIds.forEach((id) => ensure(id, `kpi ${k.id}.linkedObjectiveIds`))
+  }
+
+  for (const s of data.aiSolutions ?? []) {
+    s.businessCapabilityIds.forEach((id) => ensure(id, `aiSolution ${s.id}.businessCapabilityIds`))
+    s.modelIds.forEach((id) => ensure(id, `aiSolution ${s.id}.modelIds`))
+    s.dataDomainIds.forEach((id) => ensure(id, `aiSolution ${s.id}.dataDomainIds`))
+    s.applicationIds.forEach((id) => ensure(id, `aiSolution ${s.id}.applicationIds`))
+    s.technologyIds.forEach((id) => ensure(id, `aiSolution ${s.id}.technologyIds`))
+    s.toolPermissions.forEach((tp) =>
+      ensure(tp.integrationId, `aiSolution ${s.id}.toolPermissions`),
+    )
+    s.findingIds.forEach((id) => ensure(id, `aiSolution ${s.id}.findingIds`))
+    s.decisionIds.forEach((id) => ensure(id, `aiSolution ${s.id}.decisionIds`))
+    s.initiativeIds.forEach((id) => ensure(id, `aiSolution ${s.id}.initiativeIds`))
+    if (s.outcomeKpiId) ensure(s.outcomeKpiId, `aiSolution ${s.id}.outcomeKpiId`)
   }
 
   for (const rel of data.relationships) {
