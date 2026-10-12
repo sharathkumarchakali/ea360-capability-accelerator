@@ -102,7 +102,7 @@ describe('Phase 2 integration metrics', () => {
   it('derives GRA portfolio metrics without hard-coded totals', () => {
     const pack = loadTenantPack('GRA')
     const metrics = deriveIntegrationMetrics(pack.integrations)
-    expect(pack.integrations.length).toBe(32)
+    expect(pack.integrations.length).toBe(42)
     expect(metrics.totalIntegrations).toBe(pack.integrations.length)
     expect(metrics.pointToPointCount).toBe(pack.integrations.filter(isPointToPoint).length)
     expect(metrics.reusableApiCount).toBe(pack.integrations.filter(isReusableApi).length)

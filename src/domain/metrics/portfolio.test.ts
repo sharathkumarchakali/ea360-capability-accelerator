@@ -8,7 +8,12 @@ import {
   heatmapValue,
   capabilityApplicationSupport,
 } from './portfolio'
-import { clearTenantCache, loadTenantPack, getTenantRepository } from '../../data/repositories/tenantRepository'
+import {
+  clearTenantCache,
+  loadTenantPack,
+  getTenantRepository,
+  mergeGraAiSeedIfMissing,
+} from '../../data/repositories/tenantRepository'
 import { usePrototypeStore } from '../../state/prototypeStore'
 
 describe('Phase 1B portfolio metrics', () => {
@@ -20,6 +25,23 @@ describe('Phase 1B portfolio metrics', () => {
     const pack = loadTenantPack('GRA')
     const errors = validateCapabilityHierarchy(pack.capabilities)
     expect(errors).toEqual([])
+  })
+
+  it('loads GRA AI & Automation synthetic seed', () => {
+    const pack = loadTenantPack('GRA')
+    expect(pack.aiSolutions?.length).toBe(31)
+    expect(pack.aiModels?.length).toBe(9)
+    expect(pack.aiSolutions?.every((s) => s.isSynthetic !== false)).toBe(true)
+  })
+
+  it('hydrates AI seed into stale persisted GRA packs', () => {
+    const fresh = loadTenantPack('GRA')
+    const stale = structuredClone(fresh) as typeof fresh
+    stale.aiSolutions = []
+    stale.aiModels = []
+    const merged = mergeGraAiSeedIfMissing(stale)
+    expect(merged.aiSolutions?.length).toBe(31)
+    expect(merged.aiModels?.length).toBe(9)
   })
 
   it('classifies TIME by documented rules', () => {

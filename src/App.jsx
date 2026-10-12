@@ -4,9 +4,11 @@ import Sidebar from './components/shell/Sidebar'
 import EntityDrawer from './components/enterprise/EntityDrawer'
 import SearchOverlay from './components/SearchOverlay'
 import ErrorBoundary from './components/shell/ErrorBoundary'
+import ModuleView from './components/ModuleView'
 import AskEA360Panel from './features/ai-assist/AskEA360Panel'
 import DemoLanding from './features/demo/DemoLanding'
 import GuidedDemoBar from './features/demo/GuidedDemoBar'
+import { moduleData } from './data'
 import { usePrototypeStore } from './state/prototypeStore'
 import { getTenantConfig, loadTenantPack } from './data/repositories/tenantRepository'
 
@@ -14,27 +16,46 @@ const ExecutiveCockpit = lazy(() => import('./features/executive/ExecutiveCockpi
 const CapabilitiesView = lazy(() => import('./features/capabilities/CapabilitiesView'))
 const ApplicationsView = lazy(() => import('./features/applications/ApplicationsView'))
 const IntegrationsView = lazy(() => import('./features/integrations/IntegrationsView'))
+const DataInformationView = lazy(() => import('./features/data-information/DataInformationView'))
+const TechnologyInfrastructureView = lazy(() =>
+  import('./features/technology-infrastructure/TechnologyInfrastructureView'),
+)
+const AIAutomationView = lazy(() => import('./features/ai-automation/AIAutomationView'))
 const RelationshipExplorer = lazy(() => import('./features/explorer/RelationshipExplorer'))
 const FindingsView = lazy(() => import('./features/findings/FindingsView'))
 const EvidenceView = lazy(() => import('./features/evidence/EvidenceView'))
 const RecommendationsView = lazy(() => import('./features/recommendations/RecommendationsView'))
 const GovernanceView = lazy(() => import('./features/governance/GovernanceView'))
 const RoadmapView = lazy(() => import('./features/roadmap/RoadmapView'))
+const InitiativesView = lazy(() => import('./features/initiatives/InitiativesView'))
 const ExecutiveReport = lazy(() => import('./features/reports/ExecutiveReport'))
 
+/** Implemented routes — future IA ids stay out of this set so they never open blank pages. */
 const VALID_VIEWS = new Set([
   'executive',
   'capabilities',
   'applications',
   'integrations',
+  'data-information',
+  'technology-infrastructure',
+  'ai-automation',
   'explorer',
+  'assessment',
   'findings',
   'evidence',
   'recommendations',
-  'governance',
   'roadmap',
+  'initiatives',
+  'kpis',
+  'standards',
+  'decisions',
+  'governance', // alias → Decision Register (existing GovernanceView)
+  'reviews',
   'reports',
 ])
+
+/** Legacy ModuleView screens preserved for renamed IA entries. */
+const LEGACY_MODULE_VIEWS = new Set(['assessment', 'standards', 'reviews', 'kpis'])
 
 function viewFromHash() {
   const hash = window.location.hash.replace('#', '').split('?')[0]
@@ -57,9 +78,9 @@ function InvalidRoute({ onRecover }) {
   return (
     <section className="view active error-boundary" role="alert">
       <h2>Page not found</h2>
-      <p>That deep link is not available in this prototype. Returning to the Executive Cockpit is safe.</p>
+      <p>That deep link is not available in this prototype. Returning to Executive Overview is safe.</p>
       <button type="button" className="btn primary primary-button" onClick={onRecover}>
-        Return to Executive Cockpit
+        Return to Executive Overview
       </button>
     </section>
   )
@@ -75,6 +96,7 @@ export default function App() {
   const presentationMode = usePrototypeStore((s) => s.presentationMode)
   const toast = usePrototypeStore((s) => s.toast)
   const clearToast = usePrototypeStore((s) => s.clearToast)
+  const showToast = usePrototypeStore((s) => s.showToast)
   const resetDemo = usePrototypeStore((s) => s.resetDemo)
   const showLanding = usePrototypeStore((s) => s.showLanding)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -175,13 +197,32 @@ export default function App() {
   else if (view === 'capabilities') content = <CapabilitiesView />
   else if (view === 'applications') content = <ApplicationsView />
   else if (view === 'integrations') content = <IntegrationsView />
+  else if (view === 'data-information') content = <DataInformationView />
+  else if (view === 'technology-infrastructure') content = <TechnologyInfrastructureView />
+  else if (view === 'ai-automation') content = <AIAutomationView />
   else if (view === 'explorer') content = <RelationshipExplorer onNavigate={navigate} />
   else if (view === 'findings') content = <FindingsView />
   else if (view === 'evidence') content = <EvidenceView />
   else if (view === 'recommendations') content = <RecommendationsView />
-  else if (view === 'governance') content = <GovernanceView />
+  else if (view === 'governance' || view === 'decisions') content = <GovernanceView />
   else if (view === 'roadmap') content = <RoadmapView />
+  else if (view === 'initiatives') content = <InitiativesView />
   else if (view === 'reports') content = <ExecutiveReport onNavigate={navigate} />
+  else if (LEGACY_MODULE_VIEWS.has(view) && moduleData[view]) {
+    content = (
+      <ModuleView
+        id={view}
+        data={moduleData[view]}
+        onAction={(kind) =>
+          showToast(
+            kind === 'export'
+              ? 'Export is available in the next implementation phase.'
+              : 'Create / Add is available in the next implementation phase.',
+          )
+        }
+      />
+    )
+  }
 
   return (
     <>

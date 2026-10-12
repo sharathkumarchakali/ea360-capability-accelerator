@@ -1,15 +1,16 @@
 import { usePrototypeStore } from '../../state/prototypeStore'
-import {
-  buildP2PCounts,
-  classifyTIME,
-  explainTIME,
-} from '../../domain/metrics/portfolio'
-import {
-  integrationRiskScore,
-  isPointToPoint,
-  isReusableApi,
-  missingOwner,
-} from '../../domain/metrics/integration'
+import ApplicationDetailPanel from '../../features/applications/ApplicationDetailPanel'
+import { enrichApplication } from '../../features/applications/portfolioModel'
+import IntegrationDetailPanel from '../../features/integrations/IntegrationDetailPanel'
+import { enrichIntegration } from '../../features/integrations/portfolioModel'
+import DataDetailPanel from '../../features/data-information/DataDetailPanel'
+import { enrichDataDomain } from '../../features/data-information/portfolioModel'
+import TechnologyDetailPanel from '../../features/technology-infrastructure/TechnologyDetailPanel'
+import { enrichTechnology } from '../../features/technology-infrastructure/portfolioModel'
+import AIDetailPanel from '../../features/ai-automation/AIDetailPanel'
+import { enrichAiSolution } from '../../features/ai-automation/portfolioModel'
+import InitiativeDetailPanel from '../../features/initiatives/InitiativeDetailPanel'
+import { enrichInitiative } from '../../features/initiatives/portfolioModel'
 import EvidencePanel, { deriveTrustStatus } from '../../features/evidence/EvidencePanel'
 import { callStoreAction } from '../../features/workflow/callStoreAction'
 
@@ -21,6 +22,11 @@ function Section({ title, children }) {
       {children}
     </div>
   )
+}
+
+function formatCritLabel(c) {
+  if (!c) return '—'
+  return String(c).charAt(0).toUpperCase() + String(c).slice(1)
 }
 
 function LinkChip({ id, type, label, onOpen }) {
@@ -147,208 +153,159 @@ export default function EntityDrawer() {
   if (selected.type === 'application') {
     const a = repo.getApplication(selected.id)
     if (!a) return null
-    const ctx = { p2pIntegrationCountByApp: buildP2PCounts(repo.listIntegrations()) }
-    const time = classifyTIME(a, ctx)
+    const capsAll = repo.listCapabilities()
+    const initsAll = repo.listInitiatives()
+    const row = enrichApplication(a, { capabilities: capsAll, initiatives: initsAll })
     title = a.name
-    subtitle = `Application · TIME ${time} · ${a.lifecycle}`
-    const ints = repo.integrationsForApplications([a.id])
-    const caps = repo.capabilitiesForApplication(a.id)
-    const findings = repo.findingsForApplication(a.id)
-    const recs = repo.recommendationsForApplication(a.id)
-    const inits = repo.initiativesForApplication(a.id)
-    const dataObjs = repo.dataObjectsForApplication(a.id)
-    const techs = repo.technologiesForApplication(a.id)
-    const upstream = ints.filter((i) => i.targetApplicationId === a.id)
-    const downstream = ints.filter((i) => i.sourceApplicationId === a.id)
+    subtitle = `Application · ${row.portfolioDecision} · ${row.lifecycleStage}`
     body = (
-      <>
-        <p>{a.description}</p>
-        <div className="drawer-metrics">
-          <div><span>Business value</span><strong>{a.businessValue}</strong></div>
-          <div><span>Technical health</span><strong>{a.technicalHealth}</strong></div>
-          <div><span>Criticality</span><strong>{a.criticality}</strong></div>
-          <div><span>Cost band</span><strong>{a.annualCostBand}</strong></div>
-          <div><span>User reach</span><strong>{a.userReach}</strong></div>
-          <div><span>Alignment</span><strong>{a.strategicAlignment}</strong></div>
-        </div>
-        <p className="sub">
-          Business owner {a.businessOwnerId.replace('person-', '')} · Tech owner{' '}
-          {a.technologyOwnerId.replace('person-', '')} · {a.deploymentModel} · {a.vendorProduct}
-          {a.endOfSupportDate ? ` · EOS ${a.endOfSupportDate}` : ''}
-        </p>
-        <Section title="TIME classification">
-          <p>
-            <span className={`time-pill time-${time.toLowerCase()}`}>{time}</span> —{' '}
-            {explainTIME(a, time, ctx)}
-          </p>
-        </Section>
-        <Section title="Supported capabilities">
-          <div className="chip-row">
-            {caps.map((c) => (
-              <LinkChip key={c.id} id={c.id} type="capability" label={c.name} onOpen={open} />
-            ))}
-          </div>
-          <button type="button" className="text-link" onClick={() => goView('capabilities')}>
-            Open capability intelligence
-          </button>
-        </Section>
-        <Section title="Integrations">
-          <div className="chip-row">
-            {ints.map((i) => (
-              <LinkChip key={i.id} id={i.id} type="integration" label={i.name} onOpen={open} />
-            ))}
-          </div>
-          <button type="button" className="text-link" onClick={() => goView('integrations')}>
-            Open integration landscape
-          </button>
-        </Section>
-        <Section title="Upstream / downstream summary">
-          <p className="sub">
-            Upstream feeds: {upstream.length || 'none'} · Downstream consumers:{' '}
-            {downstream.length || 'none'}
-          </p>
-          <button
-            type="button"
-            className="btn secondary-button"
-            onClick={() => {
-              setGraphRoot({ id: a.id, type: 'application' })
-              goView('explorer')
-            }}
-          >
-            Open in Relationship Explorer
-          </button>
-        </Section>
-        <Section title="Data objects">
-          <ul className="drawer-list">
-            {dataObjs.map((d) => (
-              <li key={d.id}>{d.name} · {d.classification}</li>
-            ))}
-          </ul>
-        </Section>
-        <Section title="Technology components">
-          <ul className="drawer-list">
-            {techs.map((t) => (
-              <li key={t.id}>{t.name} · {t.lifecycle}</li>
-            ))}
-          </ul>
-        </Section>
-        <Section title="Findings and evidence">
-          <div className="chip-row">
-            {findings.map((f) => (
-              <LinkChip key={f.id} id={f.id} type="finding" label={f.name} onOpen={open} />
-            ))}
-          </div>
-        </Section>
-        <Section title="Recommendations">
-          <div className="chip-row">
-            {recs.map((r) => (
-              <LinkChip key={r.id} id={r.id} type="recommendation" label={r.name} onOpen={open} />
-            ))}
-          </div>
-        </Section>
-        <Section title="Roadmap initiatives">
-          <div className="chip-row">
-            {inits.map((i) => (
-              <LinkChip key={i.id} id={i.id} type="initiative" label={i.name} onOpen={open} />
-            ))}
-          </div>
-        </Section>
-      </>
+      <ApplicationDetailPanel
+        row={row}
+        repo={repo}
+        onOpenEntity={open}
+        onNavigateFindings={() => goView('findings')}
+        onFuturePortfolio={(key) => {
+          if (key === 'integrations') {
+            goView('integrations')
+            return
+          }
+          if (key === 'data') {
+            goView('data-information')
+            return
+          }
+          if (key === 'technology') {
+            goView('technology-infrastructure')
+            return
+          }
+          if (key === 'ai') {
+            goView('ai-automation')
+            return
+          }
+          usePrototypeStore.getState().showToast('Module scheduled for a subsequent phase.')
+        }}
+      />
     )
   }
 
   if (selected.type === 'integration') {
     const i = repo.getIntegration(selected.id)
     if (!i) return null
-    const source = repo.getApplication(i.sourceApplicationId)
-    const target = repo.getApplication(i.targetApplicationId)
-    const findings = repo.findingsForIntegration(i.id)
-    const recs = repo.recommendationsForIntegration(i.id)
-    const caps = i.supportedCapabilityIds
-      .map((id) => repo.getCapability(id))
-      .filter(Boolean)
-    const dataObjs = i.dataObjectIds
-      .map((id) => repo.listDataObjects().find((d) => d.id === id))
-      .filter(Boolean)
+    const appsAll = repo.listApplications()
+    const capsAll = repo.listCapabilities()
+    const initsAll = repo.listInitiatives()
+    const row = enrichIntegration(i, {
+      applications: appsAll,
+      capabilities: capsAll,
+      initiatives: initsAll,
+    })
     title = i.name
-    subtitle = `Integration · ${i.integrationType} · ${i.lifecycleStatus}`
+    subtitle = `Integration · ${row.portfolioDecision} · ${row.lifecycleStage}`
     body = (
-      <>
-        <p>{i.description}</p>
-        <div className="drawer-metrics">
-          <div><span>Criticality</span><strong>{i.criticality}</strong></div>
-          <div><span>Risk score</span><strong>{integrationRiskScore(i)}</strong></div>
-          <div><span>Consumers</span><strong>{i.consumerCount}</strong></div>
-          <div><span>Reuse</span><strong>{i.reusabilityStatus}</strong></div>
-          <div><span>Monitoring</span><strong>{i.monitoringStatus}</strong></div>
-          <div><span>Documentation</span><strong>{i.documentationStatus}</strong></div>
-        </div>
-        <p className="sub">
-          {i.apiOrInterfaceName} · {i.protocol} · {i.dataFormat} · {i.authenticationMethod}
-          {isPointToPoint(i) ? ' · Point-to-point' : ''}
-          {isReusableApi(i) ? ' · Reusable API' : ''}
-          {missingOwner(i) ? ' · Ownership gap' : ''}
-        </p>
-        <Section title="Source and target applications">
-          <div className="chip-row">
-            {source && (
-              <LinkChip id={source.id} type="application" label={`Source: ${source.name}`} onOpen={open} />
-            )}
-            {target && (
-              <LinkChip id={target.id} type="application" label={`Target: ${target.name}`} onOpen={open} />
-            )}
-          </div>
-        </Section>
-        <Section title="Supported capabilities">
-          <div className="chip-row">
-            {caps.map((c) => (
-              <LinkChip key={c.id} id={c.id} type="capability" label={c.name} onOpen={open} />
-            ))}
-          </div>
-        </Section>
-        <Section title="Data objects">
-          <ul className="drawer-list">
-            {dataObjs.map((d) => (
-              <li key={d.id}>{d.name} · {d.classification}</li>
-            ))}
-          </ul>
-        </Section>
-        <Section title="Ownership">
-          <p className="sub">
-            Business {i.businessOwnerId.replace('person-', '')} · Technology{' '}
-            {i.technologyOwnerId.replace('person-', '')} · Last review {i.lastReviewDate}
-          </p>
-        </Section>
-        <Section title="Findings">
-          <div className="chip-row">
-            {findings.map((f) => (
-              <LinkChip key={f.id} id={f.id} type="finding" label={f.name} onOpen={open} />
-            ))}
-          </div>
-        </Section>
-        <Section title="Recommendations">
-          <div className="chip-row">
-            {recs.map((r) => (
-              <LinkChip key={r.id} id={r.id} type="recommendation" label={r.name} onOpen={open} />
-            ))}
-          </div>
-        </Section>
-        <div className="chip-row" style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className="btn primary primary-button"
-            onClick={() => {
-              setGraphRoot({ id: i.id, type: 'integration' })
-              goView('explorer')
-            }}
-          >
-            Explore relationships
-          </button>
-          <button type="button" className="btn secondary-button" onClick={() => goView('integrations')}>
-            Open integration landscape
-          </button>
-        </div>
-      </>
+      <IntegrationDetailPanel
+        row={row}
+        repo={repo}
+        onOpenEntity={open}
+        onNavigateFindings={() => goView('findings')}
+        onFuturePortfolio={(key) => {
+          if (key === 'data') {
+            goView('data-information')
+            return
+          }
+          if (key === 'technology') {
+            goView('technology-infrastructure')
+            return
+          }
+          if (key === 'ai') {
+            goView('ai-automation')
+            return
+          }
+          usePrototypeStore.getState().showToast('Module scheduled for a subsequent phase.')
+        }}
+      />
+    )
+  }
+
+  if (selected.type === 'dataObject') {
+    const d = repo.getDataObject(selected.id)
+    if (!d) return null
+    const appsAll = repo.listApplications()
+    const capsAll = repo.listCapabilities()
+    const initsAll = repo.listInitiatives()
+    const intsAll = repo.listIntegrations()
+    const row = enrichDataDomain(d, {
+      applications: appsAll,
+      capabilities: capsAll,
+      initiatives: initsAll,
+      integrations: intsAll,
+    })
+    title = d.name
+    subtitle = `Data · ${row.authoritativeSourceStatus} · ${formatCritLabel(row.criticality)}`
+    body = (
+      <DataDetailPanel
+        row={row}
+        repo={repo}
+        onOpenEntity={open}
+        onNavigateFindings={() => goView('findings')}
+        onNavigateGovernance={() => goView('governance')}
+        onFuturePortfolio={(key) => {
+          if (key === 'ai') {
+            goView('ai-automation')
+            return
+          }
+          usePrototypeStore.getState().showToast('Module scheduled for a subsequent phase.')
+        }}
+      />
+    )
+  }
+
+  if (selected.type === 'aiSolution') {
+    const ai = repo.getAiSolution(selected.id)
+    if (!ai) return null
+    const row = enrichAiSolution(ai, {
+      capabilities: repo.listCapabilities(),
+      models: repo.listAiModels(),
+      integrations: repo.listIntegrations(),
+      applications: repo.listApplications(),
+      technologies: repo.listTechnologies(),
+    })
+    title = ai.name
+    subtitle = `AI · ${ai.solutionType} · ${ai.lifecycle}`
+    body = (
+      <AIDetailPanel
+        row={row}
+        repo={repo}
+        onOpenEntity={open}
+        onNavigateFindings={() => goView('findings')}
+        onNavigateGovernance={() => goView('governance')}
+        onNavigateAiGovernance={() =>
+          usePrototypeStore.getState().showToast('AI & Data Governance is scheduled for a subsequent phase.')
+        }
+      />
+    )
+  }
+
+  if (selected.type === 'technology') {
+    const t = repo.getTechnology(selected.id)
+    if (!t) return null
+    const appsAll = repo.listApplications()
+    const intsAll = repo.listIntegrations()
+    const initsAll = repo.listInitiatives()
+    const row = enrichTechnology(t, {
+      applications: appsAll,
+      integrations: intsAll,
+      initiatives: initsAll,
+    })
+    title = t.name
+    subtitle = `Technology · ${row.portfolioDecision} · ${row.lifecycleLabel}`
+    body = (
+      <TechnologyDetailPanel
+        row={row}
+        repo={repo}
+        onOpenEntity={open}
+        onNavigateFindings={() => goView('findings')}
+        onNavigateIntegrations={() => goView('integrations')}
+        onNavigateData={() => goView('data-information')}
+      />
     )
   }
 
@@ -417,9 +374,11 @@ export default function EntityDrawer() {
               const cap = repo.getCapability(id)
               const app = repo.getApplication(id)
               const int = repo.getIntegration?.(id)
+              const tech = repo.getTechnology?.(id)
               if (cap) return <LinkChip key={id} id={id} type="capability" label={cap.name} onOpen={open} />
               if (app) return <LinkChip key={id} id={id} type="application" label={app.name} onOpen={open} />
               if (int) return <LinkChip key={id} id={id} type="integration" label={int.name} onOpen={open} />
+              if (tech) return <LinkChip key={id} id={id} type="technology" label={tech.name} onOpen={open} />
               return <span key={id} className="link-chip static">{id}</span>
             })}
           </div>
@@ -552,61 +511,21 @@ export default function EntityDrawer() {
   if (selected.type === 'initiative') {
     const i = repo.getInitiative(selected.id)
     if (!i) return null
+    const row = enrichInitiative(i, {
+      capabilities: repo.listCapabilities(),
+      objectives: repo.listObjectives(),
+    })
     title = i.name
-    subtitle = `Initiative · ${i.horizon} · ${i.progressPercent}%`
+    subtitle = `Initiative · ${row.architectureReadiness} · ${row.horizonLabel}`
     body = (
-      <>
-        <p>{i.description}</p>
-        <div className="drawer-metrics">
-          <div><span>Progress</span><strong>{i.progressPercent}%</strong></div>
-          <div><span>Cost band</span><strong>{i.costBand}</strong></div>
-          <div><span>Risk reduction</span><strong>{i.riskReduction}</strong></div>
-          <div><span>Expected value</span><strong>{i.expectedValue}</strong></div>
-        </div>
-        <Section title="From recommendations">
-          <div className="chip-row">
-            {i.recommendationIds.map((id) => {
-              const r = repo.getRecommendation(id)
-              return r ? <LinkChip key={id} id={id} type="recommendation" label={r.name} onOpen={open} /> : null
-            })}
-          </div>
-        </Section>
-        <Section title="Affected capabilities">
-          <div className="chip-row">
-            {i.capabilityIds.map((id) => {
-              const c = repo.getCapability(id)
-              return c ? <LinkChip key={id} id={id} type="capability" label={c.name} onOpen={open} /> : null
-            })}
-          </div>
-        </Section>
-        <Section title="Roadmap actions">
-          <div className="toolbar wrap-actions">
-            {['now', 'next', 'later'].filter((h) => h !== i.horizon).map((h) => (
-              <button
-                key={h}
-                type="button"
-                className="btn secondary-button"
-                onClick={() => callStoreAction('moveInitiativeHorizon', { initiativeId: i.id, horizon: h })}
-              >
-                Move to {h}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="btn secondary-button"
-              onClick={() => {
-                setGraphRoot({ id: i.id, type: 'initiative' })
-                goView('explorer')
-              }}
-            >
-              Explore
-            </button>
-            <button type="button" className="btn secondary-button" onClick={() => goView('roadmap')}>
-              Open roadmap
-            </button>
-          </div>
-        </Section>
-      </>
+      <InitiativeDetailPanel
+        row={row}
+        repo={repo}
+        onOpenEntity={open}
+        onNavigateRoadmap={() => goView('roadmap')}
+        onNavigateGovernance={() => goView('governance')}
+        onNavigateFindings={() => goView('findings')}
+      />
     )
   }
 

@@ -1,247 +1,543 @@
 import { useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { usePrototypeStore } from '../../state/prototypeStore'
+import { getTenantConfig, usePrototypeStore } from '../../state/prototypeStore'
 import {
-  classifyTIME,
-  costBandWeight,
-  explainTIME,
-  portfolioInsights,
-} from '../../domain/metrics/portfolio'
-import ExplainButton from '../ai-assist/ExplainButton'
+  DECISION_COLORS,
+  PORTFOLIO_DECISIONS,
+  PORTFOLIO_LIFECYCLES,
+  computePortfolioMetrics,
+  decisionMix,
+  emptyAppFilters,
+  enrichApplication,
+  filterPortfolioApps,
+  formatCriticality,
+  lifecycleMix,
+  matrixSample,
+  portfolioSignal,
+} from './portfolioModel'
 
-const PAGE_SIZE = 8
+function StatusTag({ children, tone }) {
+  return <span className={`status-tag tone-${tone || 'muted'}`}>{children}</span>
+}
 
-const TIME_COLORS = {
-  Invest: '#1E8CAA',
-  Tolerate: '#6B7280',
-  Migrate: '#C47B2C',
-  Eliminate: '#B42318',
+function decisionTone(d) {
+  if (d === 'Invest') return 'accent'
+  if (d === 'Modernise') return 'warn'
+  if (d === 'Consolidate') return 'info'
+  if (d === 'Retire') return 'bad'
+  return 'muted'
+}
+
+function riskTone(r) {
+  if (r === 'Critical' || r === 'High') return 'bad'
+  if (r === 'Medium') return 'warn'
+  return 'good'
+}
+
+function critTone(c) {
+  if (c === 'critical') return 'bad'
+  if (c === 'high') return 'warn'
+  return 'muted'
 }
 
 export default function ApplicationsView() {
   const repo = usePrototypeStore((s) => s.getRepo)()
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
-  const portfolioFilters = usePrototypeStore((s) => s.portfolioFilters)
-  const setPortfolioFilters = usePrototypeStore((s) => s.setPortfolioFilters)
-  const [page, setPage] = useState(0)
-  const [sort, setSort] = useState({ key: 'businessValue', dir: 'desc' })
+  const setView = usePrototypeStore((s) => s.setView)
+  const tenantCode = usePrototypeStore((s) => s.tenantCode)
+  const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
+  const [filters, setFilters] = useState(emptyAppFilters)
+  const [sort, setSort] = useState({ key: 'name', dir: 'asc' })
+  const [showAllMatrix, setShowAllMatrix] = useState(false)
 
   const packApps = repo.listApplications()
   const caps = repo.listCapabilities()
-  const integrations = repo.listIntegrations()
-  const findings = repo.listFindings()
-
-  const insights = useMemo(
-    () =>
-      portfolioInsights({
-        applications: packApps,
-        integrations,
-        findings,
-        capabilities: caps,
-      }),
-    [packApps, integrations, findings, caps],
-  )
-
-  const ctx = insights.ctx
+  const initiatives = repo.listInitiatives()
+  const orgName = config.shortName || config.displayName || tenantCode || 'Organisation'
 
   const enriched = useMemo(
     () =>
-      packApps.map((app) => {
-        const time = classifyTIME(app, ctx)
-        return {
-          app,
-          time,
-          explain: explainTIME(app, time, ctx),
-          findingCount: repo.findingsForApplication(app.id).length,
-          action:
-            time === 'Invest'
-              ? 'Scale / strengthen'
-              : time === 'Migrate'
-                ? 'Plan migration'
-                : time === 'Eliminate'
-                  ? 'Retire / consolidate'
-                  : 'Monitor',
-        }
-      }),
-    [packApps, ctx, repo],
+      packApps.map((app) =>
+        enrichApplication(app, { capabilities: caps, initiatives }),
+      ),
+    [packApps, caps, initiatives],
   )
 
-  const filtered = useMemo(() => {
-    const q = portfolioFilters.search.trim().toLowerCase()
-    return enriched.filter(({ app, time }) => {
-      if (portfolioFilters.capabilityId && !app.supportedCapabilityIds.includes(portfolioFilters.capabilityId)) {
-        return false
-      }
-      if (portfolioFilters.criticality && app.criticality !== portfolioFilters.criticality) return false
-      if (portfolioFilters.lifecycle && app.lifecycle !== portfolioFilters.lifecycle) return false
-      if (portfolioFilters.timeClass && time !== portfolioFilters.timeClass) return false
-      if (q) {
-        const hay = `${app.name} ${app.vendorProduct} ${app.businessOwnerId}`.toLowerCase()
-        if (!hay.includes(q)) return false
-      }
-      return true
-    })
-  }, [enriched, portfolioFilters])
+  const metrics = useMemo(() => computePortfolioMetrics(enriched), [enriched])
+  const mix = useMemo(() => decisionMix(enriched), [enriched])
+  const lifeMix = useMemo(() => lifecycleMix(enriched), [enriched])
+  const signal = useMemo(() => portfolioSignal(enriched), [enriched])
+
+  const filtered = useMemo(() => filterPortfolioApps(enriched, filters), [enriched, filters])
 
   const sorted = useMemo(() => {
     const list = [...filtered]
+    const critOrder = { critical: 4, high: 3, medium: 2, low: 1 }
+    const riskOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 }
+    const lifeOrder = Object.fromEntries(PORTFOLIO_LIFECYCLES.map((k, i) => [k, i]))
     list.sort((a, b) => {
       let ka
       let kb
-      if (sort.key === 'time') {
-        ka = a.time
-        kb = b.time
-      } else if (sort.key === 'findingCount') {
-        ka = a.findingCount
-        kb = b.findingCount
-      } else if (sort.key === 'name') {
+      if (sort.key === 'name') {
         ka = a.app.name
         kb = b.app.name
+      } else if (sort.key === 'criticality') {
+        ka = critOrder[a.app.criticality] || 0
+        kb = critOrder[b.app.criticality] || 0
+      } else if (sort.key === 'risk') {
+        ka = riskOrder[a.architectureRisk] || 0
+        kb = riskOrder[b.architectureRisk] || 0
+      } else if (sort.key === 'lifecycle') {
+        ka = lifeOrder[a.lifecycleStage] ?? 0
+        kb = lifeOrder[b.lifecycleStage] ?? 0
       } else {
-        ka = a.app[sort.key]
-        kb = b.app[sort.key]
+        ka = a.app.name
+        kb = b.app.name
       }
-      if (ka === kb) return 0
+      if (ka === kb) return a.app.name.localeCompare(b.app.name)
       const cmp = ka > kb ? 1 : -1
       return sort.dir === 'asc' ? cmp : -cmp
     })
     return list
   }, [filtered, sort])
 
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
-  const pageSafe = Math.min(page, pageCount - 1)
-  const pageRows = sorted.slice(pageSafe * PAGE_SIZE, pageSafe * PAGE_SIZE + PAGE_SIZE)
+  const matrixRows = useMemo(
+    () => (showAllMatrix ? filtered : matrixSample(filtered, 15)),
+    [filtered, showAllMatrix],
+  )
 
-  const bubbleOption = useMemo(() => {
-    const data = filtered.map(({ app, time }) => ({
-      name: app.name,
-      value: [
-        app.technicalHealth,
-        app.businessValue,
-        costBandWeight(app.annualCostBand) * 12 + app.userReach * 4,
-        app.id,
+  const decisionChart = useMemo(() => {
+    const data = mix.filter((m) => m.count > 0)
+    return {
+      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: {
+        orient: 'vertical',
+        right: 0,
+        top: 'middle',
+        textStyle: { color: '#55717a', fontSize: 12 },
+      },
+      series: [
+        {
+          type: 'pie',
+          radius: ['48%', '72%'],
+          center: ['38%', '50%'],
+          avoidLabelOverlap: true,
+          itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+          label: { show: false },
+          data: data.map((d) => ({
+            name: d.key,
+            value: d.count,
+            itemStyle: { color: d.color },
+          })),
+        },
       ],
-      time,
-      itemStyle: { color: TIME_COLORS[time] },
+    }
+  }, [mix])
+
+  const matrixChart = useMemo(() => {
+    const data = matrixRows.map((r) => ({
+      name: r.app.name,
+      value: [r.riskScore, r.criticalityScore, r.app.id],
+      decision: r.portfolioDecision,
+      itemStyle: { color: DECISION_COLORS[r.portfolioDecision] },
     }))
     return {
-      grid: { left: 48, right: 24, top: 24, bottom: 48 },
+      grid: { left: 52, right: 16, top: 28, bottom: 44 },
       tooltip: {
         formatter: (p) => {
-          const row = filtered.find((f) => f.app.id === p.data.value[3])
+          const row = matrixRows.find((r) => r.app.id === p.data.value[2])
           if (!row) return p.name
           return [
             `<strong>${row.app.name}</strong>`,
-            `TIME: ${row.time}`,
-            `Value ${row.app.businessValue} · Health ${row.app.technicalHealth}`,
-            `Cost ${row.app.annualCostBand} · Reach ${row.app.userReach}`,
-            row.explain,
+            `${row.portfolioDecision} · ${formatCriticality(row.app.criticality)}`,
+            `Architecture risk: ${row.architectureRisk}`,
+            row.matrixQuadrant,
           ].join('<br/>')
         },
       },
       xAxis: {
-        name: 'Technical health (1–5)',
+        name: 'Architecture / technology risk',
         nameLocation: 'middle',
         nameGap: 28,
-        min: 1,
-        max: 5,
+        min: 0.5,
+        max: 4.5,
+        interval: 1,
+        axisLabel: {
+          formatter: (v) => ({ 1: 'Low', 2: 'Med', 3: 'High', 4: 'Crit' }[v] || ''),
+        },
         splitLine: { lineStyle: { type: 'dashed', opacity: 0.35 } },
       },
       yAxis: {
-        name: 'Business value (1–5)',
+        name: 'Business criticality',
         nameLocation: 'middle',
         nameGap: 36,
-        min: 1,
-        max: 5,
+        min: 0.5,
+        max: 4.5,
+        interval: 1,
+        axisLabel: {
+          formatter: (v) => ({ 1: 'Low', 2: 'Med', 3: 'High', 4: 'Crit' }[v] || ''),
+        },
         splitLine: { lineStyle: { type: 'dashed', opacity: 0.35 } },
       },
       series: [
         {
           type: 'scatter',
-          symbolSize: (val) => Math.max(12, Math.min(42, val[2])),
+          symbolSize: 16,
           data,
+          label: {
+            show: true,
+            formatter: (p) => {
+              const n = p.name || ''
+              return n.length > 14 ? `${n.slice(0, 12)}…` : n
+            },
+            position: 'top',
+            fontSize: 10,
+            color: '#55717a',
+          },
+          markArea: {
+            silent: true,
+            data: [
+              [
+                {
+                  name: 'Protect',
+                  xAxis: 0.5,
+                  yAxis: 2.5,
+                  itemStyle: { color: 'rgba(15, 138, 106, 0.06)' },
+                  label: { show: true, position: 'insideTopLeft', color: '#0f8a6a', fontSize: 11 },
+                },
+                { xAxis: 2.5, yAxis: 4.5 },
+              ],
+              [
+                {
+                  name: 'Prioritise',
+                  xAxis: 2.5,
+                  yAxis: 2.5,
+                  itemStyle: { color: 'rgba(192, 57, 43, 0.06)' },
+                  label: { show: true, position: 'insideTopRight', color: '#c0392b', fontSize: 11 },
+                },
+                { xAxis: 4.5, yAxis: 4.5 },
+              ],
+              [
+                {
+                  name: 'Monitor',
+                  xAxis: 0.5,
+                  yAxis: 0.5,
+                  itemStyle: { color: 'rgba(30, 140, 170, 0.05)' },
+                  label: { show: true, position: 'insideBottomLeft', color: '#1e8caa', fontSize: 11 },
+                },
+                { xAxis: 2.5, yAxis: 2.5 },
+              ],
+              [
+                {
+                  name: 'Simplify',
+                  xAxis: 2.5,
+                  yAxis: 0.5,
+                  itemStyle: { color: 'rgba(183, 121, 31, 0.06)' },
+                  label: {
+                    show: true,
+                    position: 'insideBottomRight',
+                    color: '#b7791f',
+                    fontSize: 11,
+                  },
+                },
+                { xAxis: 4.5, yAxis: 2.5 },
+              ],
+            ],
+          },
         },
       ],
     }
-  }, [filtered])
+  }, [matrixRows])
 
-  const timeSummary = useMemo(() => {
-    return (['Invest', 'Tolerate', 'Migrate', 'Eliminate']).map((key) => {
-      const list = insights.timeBuckets[key]
-      const cost = list.reduce((s, a) => s + costBandWeight(a.annualCostBand), 0)
-      const critical = list.filter((a) => a.criticality === 'critical' || a.criticality === 'high')
-      return { key, count: list.length, cost, critical, action: recommendedAction(key) }
-    })
-  }, [insights])
+  const lifeMax = Math.max(1, ...lifeMix.map((x) => x.count))
+
+  function patchFilters(partial) {
+    setFilters((prev) => ({ ...prev, ...partial }))
+  }
+
+  function clearFilters() {
+    setFilters({ ...emptyAppFilters })
+  }
+
+  function toggleSort(key) {
+    setSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' },
+    )
+  }
 
   function openApp(id) {
     selectEntity({ id, type: 'application' })
   }
 
-  function toggleSort(key) {
-    setSort((prev) =>
-      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'desc' },
-    )
+  function applyMetricFilter(kind) {
+    if (kind === 'all') {
+      clearFilters()
+      return
+    }
+    if (kind === 'critical') {
+      setFilters({ ...emptyAppFilters, criticality: 'critical' })
+      return
+    }
+    if (kind === 'highRisk') {
+      setFilters({
+        ...emptyAppFilters,
+        idSet: enriched
+          .filter(
+            (r) =>
+              r.architectureRisk === 'Critical' ||
+              r.architectureRisk === 'High' ||
+              r.lifecycleRisk ||
+              r.securityRisk === 'Critical' ||
+              r.securityRisk === 'High',
+          )
+          .map((r) => r.app.id),
+      })
+      return
+    }
+    if (kind === 'modernise') {
+      setFilters({ ...emptyAppFilters, portfolioDecision: 'modernise-replace' })
+      return
+    }
+    if (kind === 'ownership') {
+      setFilters({ ...emptyAppFilters, ownership: 'unassigned' })
+      return
+    }
+    if (kind === 'lifecycle') {
+      setFilters({ ...emptyAppFilters, lifecycle: 'lifecycle-attention' })
+    }
   }
 
+  function reviewPriority() {
+    setFilters({
+      ...emptyAppFilters,
+      criticality: 'business-critical',
+      idSet: signal.ids,
+    })
+  }
+
+  function goFindings() {
+    setView('findings')
+    window.location.hash = 'findings'
+  }
+
+  const hasFilters =
+    Boolean(filters.search) ||
+    Boolean(filters.criticality) ||
+    Boolean(filters.portfolioDecision) ||
+    Boolean(filters.lifecycle) ||
+    Boolean(filters.risk) ||
+    Boolean(filters.ownership) ||
+    Boolean(filters.capabilityId) ||
+    Boolean(filters.transformation) ||
+    (filters.idSet && filters.idSet.length > 0)
+
+  const capabilityOptions = useMemo(() => {
+    const ids = new Set(packApps.flatMap((a) => a.supportedCapabilityIds))
+    return caps.filter((c) => ids.has(c.id)).sort((a, b) => a.name.localeCompare(b.name))
+  }, [packApps, caps])
+
   return (
-    <section className="view active">
+    <section className="view active app-portfolio-view">
       <div className="module">
-        <div className="module-header">
+        <div className="module-header app-portfolio-header">
           <div>
-            <div className="kicker">Understand · Application Portfolio</div>
-            <h1 className="page-title">Application portfolio intelligence</h1>
+            <div className="kicker">Portfolios · {orgName}</div>
+            <h1 className="page-title">Applications</h1>
             <p>
-              TIME classification, value-versus-health positioning and evidence-based duplication /
-              obsolescence insights from synthetic GRA records.
+              Understand the applications that run the enterprise, the capabilities they support,
+              the risks they create and the decisions required.
             </p>
+          </div>
+          <div className="synthetic-pill" title="Illustrative seed data for demonstration">
+            SYNTHETIC DEMO DATA
           </div>
         </div>
 
-        <div className="intel-toolbar">
+        <div className="app-metric-strip" role="group" aria-label="Portfolio summary metrics">
+          <button type="button" className="app-metric" onClick={() => applyMetricFilter('all')}>
+            <span>Applications</span>
+            <strong>{metrics.total}</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('critical')}
+          >
+            <span>Business Critical</span>
+            <strong>{metrics.businessCritical}</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('highRisk')}
+          >
+            <span>High Risk</span>
+            <strong>{metrics.highRisk}</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('modernise')}
+          >
+            <span>Modernise / Replace</span>
+            <strong>{metrics.moderniseReplace}</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('ownership')}
+          >
+            <span>Ownership Coverage</span>
+            <strong>{metrics.ownershipCoverage}%</strong>
+          </button>
+          <button
+            type="button"
+            className="app-metric"
+            onClick={() => applyMetricFilter('lifecycle')}
+          >
+            <span>Lifecycle Risk</span>
+            <strong>{metrics.lifecycleRisk}</strong>
+          </button>
+        </div>
+
+        <div className="app-health-layout">
+          <div className="app-health-card">
+            <div className="app-health-card-head">
+              <h2>Application portfolio decision mix</h2>
+              <p>Where the estate requires investment, change or retirement.</p>
+            </div>
+            <ReactECharts option={decisionChart} style={{ height: 260 }} opts={{ renderer: 'svg' }} />
+            <div className="decision-legend">
+              {mix.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className={`decision-leg${filters.portfolioDecision === m.key ? ' active' : ''}`}
+                  onClick={() =>
+                    patchFilters({
+                      portfolioDecision: filters.portfolioDecision === m.key ? '' : m.key,
+                    })
+                  }
+                >
+                  <i style={{ background: m.color }} />
+                  {m.key} · {m.count}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="app-health-card app-matrix-card">
+            <div className="app-health-card-head">
+              <div>
+                <h2>Business criticality vs architecture risk</h2>
+                <p>Prioritise change where value and risk concentrate.</p>
+              </div>
+              {filtered.length > 15 && (
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => setShowAllMatrix((v) => !v)}
+                >
+                  {showAllMatrix ? 'Show sample' : 'View all'}
+                </button>
+              )}
+            </div>
+            <ReactECharts
+              option={matrixChart}
+              style={{ height: 320 }}
+              opts={{ renderer: 'svg' }}
+              onEvents={{
+                click: (params) => {
+                  const id = params?.data?.value?.[2]
+                  if (id) openApp(id)
+                },
+              }}
+            />
+          </div>
+
+          <div className="app-health-card">
+            <div className="app-health-card-head">
+              <h2>Lifecycle exposure</h2>
+              <p>How much of the application estate needs lifecycle attention.</p>
+            </div>
+            <div className="lifecycle-bars">
+              {lifeMix.map((row) => (
+                <button
+                  key={row.key}
+                  type="button"
+                  className={`lifecycle-row${filters.lifecycle === row.key ? ' active' : ''}`}
+                  onClick={() =>
+                    patchFilters({ lifecycle: filters.lifecycle === row.key ? '' : row.key })
+                  }
+                >
+                  <span className="lifecycle-label">{row.key}</span>
+                  <span className="lifecycle-track" aria-hidden="true">
+                    <span style={{ width: `${(row.count / lifeMax) * 100}%` }} />
+                  </span>
+                  <strong>{row.count}</strong>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="portfolio-signal">
+          <div>
+            <div className="kicker">Portfolio signal</div>
+            <h2>
+              {signal.count} business-critical applications carry high architecture or lifecycle
+              risk.
+            </h2>
+            <p>
+              {signal.withInit} are associated with active transformation initiatives, while{' '}
+              {signal.eos} depend on technologies approaching retirement.
+            </p>
+          </div>
+          <div className="portfolio-signal-actions">
+            <button type="button" className="btn primary primary-button" onClick={reviewPriority}>
+              Review priority applications
+            </button>
+            <button type="button" className="btn secondary-button" onClick={goFindings}>
+              View related findings
+            </button>
+          </div>
+        </div>
+
+        <div className="intel-toolbar app-filters">
           <label className="field grow">
             <span>Search</span>
             <input
               type="search"
-              value={portfolioFilters.search}
-              onChange={(e) => {
-                setPage(0)
-                setPortfolioFilters({ search: e.target.value })
-              }}
-              placeholder="Search applications"
-              aria-label="Search applications"
+              value={filters.search}
+              onChange={(e) => patchFilters({ search: e.target.value })}
+              placeholder="Search applications, owners or capabilities"
+              aria-label="Search applications, owners or capabilities"
             />
           </label>
           <label className="field">
-            <span>Capability</span>
+            <span>Business criticality</span>
             <select
-              value={portfolioFilters.capabilityId}
-              onChange={(e) => {
-                setPage(0)
-                setPortfolioFilters({ capabilityId: e.target.value })
-              }}
+              value={filters.criticality}
+              onChange={(e) => patchFilters({ criticality: e.target.value })}
             >
               <option value="">All</option>
-              {caps.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              {['critical', 'high', 'medium', 'low'].map((c) => (
+                <option key={c} value={c}>
+                  {formatCriticality(c)}
                 </option>
               ))}
             </select>
           </label>
           <label className="field">
-            <span>Criticality</span>
+            <span>Portfolio decision</span>
             <select
-              value={portfolioFilters.criticality}
-              onChange={(e) => {
-                setPage(0)
-                setPortfolioFilters({ criticality: e.target.value })
-              }}
+              value={filters.portfolioDecision}
+              onChange={(e) => patchFilters({ portfolioDecision: e.target.value })}
             >
               <option value="">All</option>
-              {['critical', 'high', 'medium', 'low'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {PORTFOLIO_DECISIONS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>
@@ -249,320 +545,182 @@ export default function ApplicationsView() {
           <label className="field">
             <span>Lifecycle</span>
             <select
-              value={portfolioFilters.lifecycle}
-              onChange={(e) => {
-                setPage(0)
-                setPortfolioFilters({ lifecycle: e.target.value })
-              }}
+              value={filters.lifecycle}
+              onChange={(e) => patchFilters({ lifecycle: e.target.value })}
             >
               <option value="">All</option>
-              {['invest', 'tolerate', 'migrate', 'eliminate', 'strategic', 'legacy'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {PORTFOLIO_LIFECYCLES.map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>
           </label>
           <label className="field">
-            <span>TIME</span>
-            <select
-              value={portfolioFilters.timeClass}
-              onChange={(e) => {
-                setPage(0)
-                setPortfolioFilters({ timeClass: e.target.value })
-              }}
-            >
+            <span>Risk</span>
+            <select value={filters.risk} onChange={(e) => patchFilters({ risk: e.target.value })}>
               <option value="">All</option>
-              {['Invest', 'Tolerate', 'Migrate', 'Eliminate'].map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {['Critical', 'High', 'Medium', 'Low'].map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>
           </label>
+          <label className="field">
+            <span>Ownership</span>
+            <select
+              value={filters.ownership}
+              onChange={(e) => patchFilters({ ownership: e.target.value })}
+            >
+              <option value="">All</option>
+              <option value="assigned">Assigned</option>
+              <option value="unassigned">Unassigned</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Business capability</span>
+            <select
+              value={filters.capabilityId}
+              onChange={(e) => patchFilters({ capabilityId: e.target.value })}
+            >
+              <option value="">All</option>
+              {capabilityOptions.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Transformation</span>
+            <select
+              value={filters.transformation}
+              onChange={(e) => patchFilters({ transformation: e.target.value })}
+            >
+              <option value="">All</option>
+              <option value="in">In transformation</option>
+              <option value="none">No active transformation</option>
+            </select>
+          </label>
         </div>
 
-        <div className="time-grid">
-          {timeSummary.map((t) => (
+        <div className="app-register-meta">
+          <span>
+            {sorted.length} of {enriched.length} applications
+          </span>
+          {hasFilters ? (
+            <button type="button" className="text-link" onClick={clearFilters}>
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+
+        <div className="table-wrap portfolio-table-desktop app-register">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('name')}>
+                    Application
+                  </button>
+                </th>
+                <th>Business capability</th>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('criticality')}>
+                    Criticality
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('lifecycle')}>
+                    Lifecycle
+                  </button>
+                </th>
+                <th>
+                  <button type="button" className="th-sort" onClick={() => toggleSort('risk')}>
+                    Risk
+                  </button>
+                </th>
+                <th>Portfolio decision</th>
+                <th>Owner</th>
+                <th>Transformation</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((row) => (
+                <tr
+                  key={row.app.id}
+                  className="clickable-row"
+                  onClick={() => openApp(row.app.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      openApp(row.app.id)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="link"
+                >
+                  <td>
+                    <strong>{row.app.name}</strong>
+                    <div className="sub">{row.app.vendorProduct}</div>
+                  </td>
+                  <td>{row.primaryCapability}</td>
+                  <td>
+                    <StatusTag tone={critTone(row.app.criticality)}>
+                      {formatCriticality(row.app.criticality)}
+                    </StatusTag>
+                  </td>
+                  <td>{row.lifecycleStage}</td>
+                  <td>
+                    <StatusTag tone={riskTone(row.architectureRisk)}>
+                      {row.architectureRisk}
+                    </StatusTag>
+                  </td>
+                  <td>
+                    <StatusTag tone={decisionTone(row.portfolioDecision)}>
+                      {row.portfolioDecision}
+                    </StatusTag>
+                  </td>
+                  <td>
+                    {row.ownershipGap ? (
+                      <StatusTag tone="bad">Ownership gap</StatusTag>
+                    ) : (
+                      row.businessOwnerLabel
+                    )}
+                  </td>
+                  <td>{row.inTransformation ? 'In transformation' : '—'}</td>
+                </tr>
+              ))}
+              {sorted.length === 0 && (
+                <tr>
+                  <td colSpan={8}>No applications match the current filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="portfolio-mobile app-register-mobile">
+          {sorted.map((row) => (
             <button
-              key={t.key}
+              key={row.app.id}
               type="button"
-              className={`time-card time-${t.key.toLowerCase()}${portfolioFilters.timeClass === t.key ? ' active' : ''}`}
-              onClick={() =>
-                setPortfolioFilters({
-                  timeClass: portfolioFilters.timeClass === t.key ? '' : t.key,
-                })
-              }
+              className="app-mobile-card"
+              onClick={() => openApp(row.app.id)}
             >
-              <div className="time-label">{t.key}</div>
-              <strong>{t.count}</strong>
-              <span>apps · cost weight {t.cost}</span>
-              <span>{t.critical.length} critical/high</span>
-              <em>{t.action}</em>
+              <strong>{row.app.name}</strong>
+              <span>
+                {row.primaryCapability} · {formatCriticality(row.app.criticality)}
+              </span>
+              <span>
+                {row.portfolioDecision} · Risk {row.architectureRisk}
+              </span>
             </button>
           ))}
-        </div>
-        <div className="chip-row" style={{ marginBottom: '0.75rem' }}>
-          <ExplainButton
-            metricKey="time"
-            query="Explain TIME classification"
-            contextEntityIds={
-              portfolioFilters.timeClass
-                ? enriched
-                    .filter((r) => r.time === portfolioFilters.timeClass)
-                    .slice(0, 1)
-                    .map((r) => r.app.id)
-                : enriched.slice(0, 1).map((r) => r.app.id)
-            }
-            label="Explain TIME"
-          />
-        </div>
-
-        <div className="overview-grid">
-          <div className="viz-card">
-            <div className="viz-head">
-              <div>
-                <h3 className="section-title">Which high-value applications are technically weak?</h3>
-                <p>
-                  X = technical health (1–5), Y = business value (1–5). Bubble size = cost band × reach.
-                  Colour = TIME. Click a bubble for application detail.
-                </p>
-              </div>
-              <div className="heatmap-legend">
-                {Object.entries(TIME_COLORS).map(([k, c]) => (
-                  <span key={k} className="leg" style={{ borderColor: c, color: c }}>
-                    {k}
-                  </span>
-                ))}
-              </div>
-            </div>
-            {filtered.length ? (
-              <ReactECharts
-                option={bubbleOption}
-                style={{ height: 360 }}
-                onEvents={{
-                  click: (params) => {
-                    const id = params?.data?.value?.[3]
-                    if (id) openApp(id)
-                  },
-                }}
-              />
-            ) : (
-              <div className="empty-state">No applications match the current filters.</div>
-            )}
-          </div>
-
-          <div className="viz-card">
-            <div className="viz-head">
-              <div>
-                <h3 className="section-title">Portfolio insights from records</h3>
-                <p>Evidence-linked duplication, EOS and cost/value pressures — not generic narrative.</p>
-              </div>
-            </div>
-            <ul className="insight-list">
-              <InsightBlock
-                title="Likely duplicate clusters"
-                items={insights.duplicates.flatMap((d) => d.applications)}
-                onOpen={openApp}
-                empty="No duplication clusters in seed."
-              />
-              <InsightBlock
-                title="End-of-support within 24 months"
-                items={insights.endOfSupport}
-                onOpen={openApp}
-                empty="No near-term EOS records."
-              />
-              <InsightBlock
-                title="High-cost / low-value"
-                items={insights.highCostLowValue}
-                onOpen={openApp}
-                empty="None in current seed."
-              />
-              <InsightBlock
-                title="Critical apps with weak health"
-                items={insights.weakCritical}
-                onOpen={openApp}
-                empty="None in current seed."
-              />
-              <InsightBlock
-                title="Heavy point-to-point integrations"
-                items={insights.heavyP2P}
-                onOpen={openApp}
-                empty="None in current seed."
-              />
-            </ul>
-            <button
-              type="button"
-              className="btn secondary-button"
-              style={{ marginTop: '0.75rem' }}
-              onClick={() => {
-                setView('capabilities')
-                window.location.hash = 'capabilities'
-              }}
-            >
-              Open capability intelligence
-            </button>
-          </div>
-        </div>
-
-        <div className="viz-card" style={{ marginTop: '1rem' }}>
-          <div className="viz-head">
-            <div>
-              <h3 className="section-title">Portfolio table</h3>
-              <p>
-                Sortable inventory with TIME and recommended action. Showing {sorted.length} of{' '}
-                {packApps.length} applications.
-              </p>
-            </div>
-          </div>
-
-          <div className="tablewrap portfolio-table-desktop" data-demo-target="application-portfolio">
-            {!pageRows.length ? (
-              <div className="empty-state">No rows match filters.</div>
-            ) : (
-              <table>
-                <thead>
-                  <tr>
-                    {[
-                      ['name', 'Application'],
-                      ['businessOwnerId', 'Business owner'],
-                      ['businessValue', 'Value'],
-                      ['technicalHealth', 'Health'],
-                      ['criticality', 'Criticality'],
-                      ['lifecycle', 'Lifecycle'],
-                      ['time', 'TIME'],
-                      ['findingCount', 'Findings'],
-                    ].map(([key, label]) => (
-                      <th key={key}>
-                        <button type="button" className="th-sort" onClick={() => toggleSort(key)}>
-                          {label}
-                          {sort.key === key ? (sort.dir === 'asc' ? ' ↑' : ' ↓') : ''}
-                        </button>
-                      </th>
-                    ))}
-                    <th>Capabilities</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pageRows.map(({ app, time, findingCount, action }) => (
-                    <tr
-                      key={app.id}
-                      className="row-click"
-                      onClick={() => openApp(app.id)}
-                    >
-                      <td>
-                        <strong>{app.name}</strong>
-                        <div className="sub">{app.vendorProduct}</div>
-                      </td>
-                      <td>{app.businessOwnerId.replace('person-', '')}</td>
-                      <td>{app.businessValue}</td>
-                      <td>{app.technicalHealth}</td>
-                      <td>{app.criticality}</td>
-                      <td>{app.lifecycle}</td>
-                      <td>
-                        <span className={`time-pill time-${time.toLowerCase()}`}>{time}</span>
-                      </td>
-                      <td>{findingCount}</td>
-                      <td>
-                        {app.supportedCapabilityIds
-                          .slice(0, 2)
-                          .map((id) => caps.find((c) => c.id === id)?.name || id)
-                          .join(', ')}
-                        {app.supportedCapabilityIds.length > 2 ? '…' : ''}
-                      </td>
-                      <td>{action}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <div className="portfolio-mobile">
-            {pageRows.map(({ app, time, action, findingCount }) => (
-              <button
-                key={app.id}
-                type="button"
-                className="mobile-cap-card"
-                onClick={() => openApp(app.id)}
-              >
-                <div>
-                  <strong>{app.name}</strong>
-                  <span>
-                    {time} · Value {app.businessValue} · Health {app.technicalHealth}
-                  </span>
-                  <span>
-                    {findingCount} findings · {action}
-                  </span>
-                </div>
-              </button>
-            ))}
-            {!pageRows.length && <div className="empty-state">No applications match filters.</div>}
-          </div>
-
-          <div className="pager">
-            <button
-              type="button"
-              className="btn secondary-button"
-              disabled={pageSafe <= 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-            >
-              Previous
-            </button>
-            <span>
-              Page {pageSafe + 1} / {pageCount}
-            </span>
-            <button
-              type="button"
-              className="btn secondary-button"
-              disabled={pageSafe >= pageCount - 1}
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-            >
-              Next
-            </button>
-          </div>
         </div>
       </div>
     </section>
   )
 }
 
-function InsightBlock({ title, items, onOpen, empty }) {
-  return (
-    <li>
-      <strong>{title}</strong>
-      {items.length ? (
-        <div className="chip-row">
-          {items.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              className="link-chip"
-              onClick={() => onOpen(a.id)}
-            >
-              {a.name}
-            </button>
-          ))}
-        </div>
-      ) : (
-        <span className="sub">{empty}</span>
-      )}
-    </li>
-  )
-}
-
-function recommendedAction(time) {
-  switch (time) {
-    case 'Invest':
-      return 'Fund modernisation / scale'
-    case 'Tolerate':
-      return 'Maintain with monitoring'
-    case 'Migrate':
-      return 'Plan target-state move'
-    case 'Eliminate':
-      return 'Retire or consolidate'
-    default:
-      return ''
-  }
-}

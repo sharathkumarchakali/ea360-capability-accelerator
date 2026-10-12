@@ -5,7 +5,13 @@ export function isPointToPoint(i: Integration): boolean {
 }
 
 export function isReusableApi(i: Integration): boolean {
-  return i.reusabilityStatus === 'reusable' && (i.integrationType === 'REST API' || i.pattern === 'api')
+  return (
+    i.reusabilityStatus === 'reusable' &&
+    (i.integrationType === 'REST API' ||
+      i.integrationType === 'GraphQL API' ||
+      i.integrationType === 'ESB / mediation' ||
+      i.pattern === 'api')
+  )
 }
 
 export function isActiveIntegration(i: Integration): boolean {
