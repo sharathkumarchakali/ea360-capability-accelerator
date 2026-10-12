@@ -28,6 +28,7 @@ const RecommendationsView = lazy(() => import('./features/recommendations/Recomm
 const GovernanceView = lazy(() => import('./features/governance/GovernanceView'))
 const RoadmapView = lazy(() => import('./features/roadmap/RoadmapView'))
 const InitiativesView = lazy(() => import('./features/initiatives/InitiativesView'))
+const AIDataGovernanceView = lazy(() => import('./features/ai-data-governance/AIDataGovernanceView'))
 const ExecutiveReport = lazy(() => import('./features/reports/ExecutiveReport'))
 
 /** Implemented routes — future IA ids stay out of this set so they never open blank pages. */
@@ -51,6 +52,7 @@ const VALID_VIEWS = new Set([
   'decisions',
   'governance', // alias → Decision Register (existing GovernanceView)
   'reviews',
+  'ai-data-governance',
   'reports',
 ])
 
@@ -205,6 +207,7 @@ export default function App() {
   else if (view === 'evidence') content = <EvidenceView />
   else if (view === 'recommendations') content = <RecommendationsView />
   else if (view === 'governance' || view === 'decisions') content = <GovernanceView />
+  else if (view === 'ai-data-governance') content = <AIDataGovernanceView />
   else if (view === 'roadmap') content = <RoadmapView />
   else if (view === 'initiatives') content = <InitiativesView />
   else if (view === 'reports') content = <ExecutiveReport onNavigate={navigate} />

@@ -296,7 +296,7 @@ export default function AIDetailPanel({
           Overall: <strong>Governance status: {s.governanceStatus}</strong>
         </p>
         <button type="button" className="text-link" onClick={onNavigateAiGovernance}>
-          AI & Data Governance workspace (next phase)
+          Open AI & Data Governance workspace
         </button>
       </Section>
 
