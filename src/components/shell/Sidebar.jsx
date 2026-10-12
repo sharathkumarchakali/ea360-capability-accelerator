@@ -86,7 +86,6 @@ const NAV = [
         label: 'AI & Data Governance',
         id: 'ai-data-governance',
         Icon: ShieldCheck,
-        comingNext: true,
       },
     ],
   ],
