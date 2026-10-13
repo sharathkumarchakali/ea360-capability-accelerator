@@ -3711,6 +3711,27 @@ button.metric {
 
 .explorer-segmented button:last-child { border-right: 0; }
 
+.ai-gov-tabs {
+  margin: 1rem 0 1.25rem;
+}
+
+.ai-gov-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.ai-gov-inline-detail h4 {
+  margin: 1rem 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 960px) {
+  .ai-gov-policy-layout.gov-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .explorer-segmented button.is-active {
   background: color-mix(in srgb, var(--kulana-teal) 12%, #fff);
   color: var(--heading, #053642);

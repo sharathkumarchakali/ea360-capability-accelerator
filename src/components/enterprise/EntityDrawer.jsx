@@ -277,9 +277,7 @@ export default function EntityDrawer() {
         onOpenEntity={open}
         onNavigateFindings={() => goView('findings')}
         onNavigateGovernance={() => goView('governance')}
-        onNavigateAiGovernance={() =>
-          usePrototypeStore.getState().showToast('AI & Data Governance is scheduled for a subsequent phase.')
-        }
+        onNavigateAiGovernance={() => goView('ai-data-governance')}
       />
     )
   }

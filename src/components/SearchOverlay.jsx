@@ -22,6 +22,7 @@ const MODULES = [
   { label: 'Standards & Principles', id: 'standards', type: 'Module' },
   { label: 'Decision Register', id: 'decisions', type: 'Module' },
   { label: 'Review Board', id: 'reviews', type: 'Module' },
+  { label: 'AI & Data Governance', id: 'ai-data-governance', type: 'Module' },
 ]
 
 export default function SearchOverlay({ open, onClose, onNavigate }) {

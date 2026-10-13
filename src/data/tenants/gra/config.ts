@@ -54,6 +54,7 @@ export const graConfig: TenantConfig = {
     'relationship-explorer',
     'ai-assist',
     'governance',
+    'ai-data-governance',
     'evidence',
   ],
   syntheticDisclaimer:
