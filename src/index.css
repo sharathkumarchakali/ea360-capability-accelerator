@@ -5985,3 +5985,1002 @@ select.ea-control {
     grid-template-columns: 1fr;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   Responsive & consistency layer
+   Final overrides: breakpoints 1439 / 1100 / 1024 / 760 / 560.
+   Uses only existing tokens: no new colours, fonts or shadows.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  --page-gutter: 36px;
+  --control-h: 40px;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* --- Shell: sidebar becomes an off-canvas drawer on tablet and below --- */
+@media (max-width: 1024px) {
+  :root {
+    --page-gutter: 24px;
+  }
+  .mobile-menu {
+    display: grid;
+  }
+  .topbar {
+    padding: 0 16px;
+    gap: 10px;
+  }
+  .tenant-select-wrap {
+    max-width: none;
+    flex: 1 1 140px;
+  }
+  .synthetic-badge span:last-child {
+    display: none;
+  }
+  .sidebar,
+  .sidebar.is-collapsed {
+    position: fixed;
+    left: -90vw;
+    top: 0;
+    bottom: 0;
+    z-index: 80;
+    width: min(300px, 86vw);
+    padding-top: env(safe-area-inset-top, 0);
+    box-shadow: var(--shadow-soft);
+    transition: left 0.2s;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .sidebar.is-collapsed .sidebar-collapse-label,
+  .sidebar.is-collapsed .group-title,
+  .sidebar.is-collapsed .nav-label {
+    display: inline;
+  }
+  .sidebar.is-collapsed .nav {
+    padding: 8px 12px 20px;
+  }
+  .sidebar.is-collapsed .navitem {
+    justify-content: space-between;
+    padding: 10px 12px;
+  }
+  .sidebar.is-collapsed .navitem .left {
+    justify-content: flex-start;
+    gap: 11px;
+  }
+  .sidebar-collapse-btn {
+    display: none;
+  }
+  .overlay.show {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(7, 54, 66, 0.28);
+    z-index: 70;
+  }
+}
+
+/* --- Page gutters stay consistent across every view --- */
+.module,
+.report-view {
+  padding-inline: var(--page-gutter);
+}
+
+.report-view {
+  padding-block: 32px 40px;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --page-gutter: 16px;
+  }
+  .report-view {
+    padding-block: 24px 28px;
+  }
+}
+
+/* --- Top bar: two tidy rows on phones instead of a crushed single row --- */
+@media (max-width: 560px) {
+  .topbar {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .topbar .brand {
+    flex: 0 0 auto;
+  }
+  .top-actions {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+  .top-actions .pill,
+  .top-actions .iconbtn,
+  .top-actions .demo-controls-trigger,
+  .mobile-menu {
+    width: 36px;
+    height: 36px;
+  }
+  .tenant-select-wrap {
+    order: 4;
+    flex: 1 1 100%;
+  }
+  .orgselect.tenant-select {
+    height: 36px;
+  }
+}
+
+/* --- Popovers, search, dialogs and toasts always fit the viewport --- */
+.popover {
+  width: min(300px, calc(100vw - 24px));
+}
+
+.search-results {
+  max-height: min(330px, 50dvh);
+}
+
+.searchbox {
+  width: min(680px, calc(100vw - 24px));
+}
+
+@media (max-width: 560px) {
+  .search-overlay {
+    padding-top: calc(env(safe-area-inset-top, 0px) + 72px);
+  }
+}
+
+.confirm-dialog,
+.initiative-modal {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.toast {
+  right: max(20px, env(safe-area-inset-right, 0px));
+  bottom: max(20px, env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 560px) {
+  .toast {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+  .confirm-actions .btn {
+    flex: 1 1 auto;
+  }
+}
+
+.entity-drawer,
+.briefing-drawer {
+  max-width: 100vw;
+}
+
+.drawer-body {
+  overflow-wrap: anywhere;
+}
+
+/* --- Page headers --- */
+.module-header > div {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .module-header {
+    flex-wrap: wrap;
+  }
+}
+
+/* --- Filter bars: one consistent control size and wrap behaviour --- */
+.intel-toolbar {
+  align-items: flex-end;
+}
+
+.intel-toolbar .field {
+  flex: 1 1 160px;
+  max-width: 260px;
+  min-width: 0;
+}
+
+.intel-toolbar .field.grow {
+  flex: 2 1 220px;
+  max-width: none;
+}
+
+.intel-toolbar .field.tiny-field,
+.intel-toolbar .field.inline-check {
+  flex: 0 0 auto;
+}
+
+.intel-toolbar input,
+.intel-toolbar select {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h);
+  padding-block: 0;
+}
+
+@media (max-width: 760px) {
+  .intel-toolbar {
+    gap: 10px;
+  }
+  .intel-toolbar .field {
+    flex: 1 1 calc(50% - 5px);
+    max-width: none;
+  }
+  .intel-toolbar .field.grow {
+    flex: 1 1 100%;
+  }
+}
+
+
+/* --- Card and KPI grids --- */
+.cards3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+
+@media (max-width: 520px) {
+  .int-kpi-grid,
+  .app-metric-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .int-kpi-card,
+  .app-metric {
+    padding: 12px;
+  }
+}
+
+/* --- Tables scroll inside their card; consistent gutters on phones --- */
+.tablewrap {
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 760px) {
+  .tablewrap {
+    margin-right: 0;
+    border-radius: var(--radius);
+  }
+}
+
+/* --- Executive Report --- */
+.report-config-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+
+.report-config input:not([type="checkbox"]),
+.report-config select {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h);
+  padding-block: 0;
+}
+
+.report-config input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.report-section-toggles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 10px 14px;
+}
+
+.report-section-toggles .demo-check {
+  grid-column: auto;
+}
+
+.report-toolbar > div:first-child {
+  min-width: 0;
+}
+
+@media screen {
+  .report-page {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .report-toolbar {
+    flex-direction: column;
+  }
+  .report-toolbar-actions .btn {
+    flex: 1 1 auto;
+  }
+  .report-cover h1 {
+    font-size: 1.5rem;
+  }
+}
+
+/* --- Executive Cockpit: content sets height, nothing is clipped --- */
+.executive-cockpit .cockpit-kpi-strip {
+  height: auto;
+  min-height: 92px;
+}
+
+.executive-cockpit .cockpit-posture,
+.executive-cockpit .cockpit-priority,
+.executive-cockpit .cockpit-journey,
+.executive-cockpit .cockpit-brief {
+  max-height: none;
+}
+
+.executive-cockpit .cockpit-header {
+  flex-wrap: wrap;
+}
+
+.executive-cockpit .cockpit-header > div:first-child {
+  min-width: 0;
+}
+
+@media (max-width: 1439px) {
+  .executive-cockpit .cockpit-journey,
+  .executive-cockpit .cockpit-brief {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1024px) {
+  .executive-cockpit .cockpit-workspace {
+    padding: var(--page-gutter);
+  }
+  .executive-cockpit .cockpit-kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .executive-cockpit .journey-chain {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+  }
+  .executive-cockpit .journey-chain-cell,
+  .executive-cockpit .journey-chain-cell:first-child {
+    padding-left: 0;
+  }
+  .executive-cockpit .journey-chain-connector {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .executive-cockpit .cockpit-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .executive-cockpit .cockpit-kpi:last-child {
+    grid-column: 1 / -1;
+  }
+  .executive-cockpit .cockpit-header-aside .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* --- Relationship Explorer header never overlaps its toolbar --- */
+.explorer-page-header {
+  max-height: none;
+  flex-wrap: wrap;
+}
+
+.explorer-page-header-left {
+  flex: 1 1 200px;
+}
+
+.explorer-page-header h1,
+.explorer-context-line {
+  overflow-wrap: anywhere;
+}
+
+/* --- Demo landing and guided bar --- */
+@media (max-width: 560px) {
+  .demo-landing {
+    padding: 12px;
+  }
+  .demo-landing-panel {
+    padding: 20px 16px;
+    max-height: calc(100dvh - 24px);
+  }
+}
+
+.guided-demo-bar {
+  flex-wrap: wrap;
+}
+
+.report-config .demo-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ═══ Spacing, forms, tables and detail panels (shared patterns) ═══ */
+
+/* Generic labelled field — used by filters, notes and modal forms */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.field > span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.field input:not([type="checkbox"]):not([type="radio"]),
+.field select,
+.field textarea,
+.app-filters > input,
+.app-filters > select,
+.app-filter-panel input,
+.app-filter-panel select {
+  width: 100%;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.field textarea {
+  height: auto;
+  min-height: 88px;
+  padding: 10px 12px;
+}
+
+.field input::placeholder,
+.app-filters > input::placeholder,
+.app-filter-panel input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+/* Filters without an .intel-toolbar wrapper (Technology, Data, AI) */
+.app-filter-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+.app-filter-panel > input[type="search"] {
+  grid-column: 1 / -1;
+}
+
+.app-filter-panel {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+.app-filter-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Technology register table (matches .tablewrap / table) */
+.app-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  overflow: auto;
+  max-width: 100%;
+}
+
+.app-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 760px;
+}
+
+.app-table th,
+.app-table td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.875rem;
+}
+
+.app-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.app-table-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.sort-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sort-head:hover {
+  color: var(--heading);
+}
+
+/* Tags and chips sit on one centred line with even gaps */
+.chip-row {
+  align-items: center;
+}
+
+.chip-row .tag,
+.chip-row .wf-status,
+.chip-row .ageing-pill {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+/* Finding / recommendation / governance detail panels */
+.findings-detail,
+.recs-detail,
+.gov-detail,
+.roadmap-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+.findings-detail > *,
+.recs-detail > *,
+.gov-detail > *,
+.roadmap-detail > * {
+  margin-block: 0;
+}
+
+.findings-detail h3,
+.recs-detail h3,
+.gov-detail h3,
+.roadmap-detail h3 {
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+
+.findings-detail .drawer-section-title,
+.recs-detail .drawer-section-title,
+.gov-detail .drawer-section-title,
+.roadmap-detail .drawer-section-title {
+  margin: 8px 0 0;
+  font-size: 0.9375rem;
+  font-family: var(--font-display);
+  color: var(--kulana-teal);
+}
+
+.findings-detail p strong {
+  color: var(--heading);
+}
+
+.findings-detail .sub {
+  margin-top: 0;
+}
+
+/* Evidence cards */
+.evidence-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.evidence-card > p {
+  margin: 0;
+}
+
+.evidence-actions {
+  margin-top: 0;
+}
+
+.evidence-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+  margin-top: 0;
+}
+
+.evidence-note .field {
+  flex: 1 1 220px;
+}
+
+.evidence-note .btn {
+  flex: 0 0 auto;
+}
+
+/* Detail drawers share one rhythm */
+.app-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-drawer-section {
+  margin-top: 16px;
+}
+
+.app-detail-dl {
+  display: grid;
+  grid-template-columns: minmax(110px, 38%) minmax(0, 1fr);
+  gap: 8px 16px;
+  margin: 0;
+}
+
+.app-detail-dl dt {
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+.app-detail-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-mobile-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Chart cards: consistent header gap and plot spacing */
+.viz-card .viz-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.viz-card .viz-head > div {
+  min-width: 0;
+}
+
+.viz-card .viz-head h3 {
+  margin: 0;
+}
+
+.viz-card .viz-head p {
+  margin: 4px 0 0;
+}
+
+.viz-card {
+  min-width: 0;
+}
+
+.viz-card .echarts-for-react {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .app-detail-dl {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .app-detail-dl dd {
+    margin-bottom: 8px;
+  }
+  .findings-detail,
+  .recs-detail,
+  .gov-detail,
+  .roadmap-detail {
+    padding: 16px;
+  }
+}
+
+/* ═══ Chart cards: one header pattern and even vertical rhythm ═══ */
+.app-health-layout {
+  gap: 16px;
+  align-items: stretch;
+}
+
+.app-health-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+.app-health-card > * {
+  margin-block: 0;
+}
+
+.app-health-card p,
+.app-health-card .sub,
+.app-health-card .int-pattern-note {
+  margin: 0;
+  max-width: none;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.app-health-card-head {
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 0;
+}
+
+.app-health-card-head h2,
+.app-health-card-head h3 {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--heading);
+}
+
+.app-health-card-head p {
+  flex: 1 1 100%;
+}
+
+.app-health-card-head .text-link {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.app-health-card .echarts-for-react {
+  width: 100%;
+}
+
+.decision-legend {
+  gap: 8px;
+  margin-top: 0;
+}
+
+.decision-leg {
+  min-height: 28px;
+}
+
+/* Insight chips and filter rows keep one spacing scale */
+.data-insights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.app-filters.intel-toolbar,
+.app-filters {
+  margin-bottom: 12px;
+}
+
+/* Bare filter controls (no wrapping label) flow in a grid */
+.app-filters:not(:has(> .field)) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
+  gap: 12px;
+}
+
+.app-filters:not(:has(> .field)) > input[type="search"] {
+  grid-column: 1 / -1;
+}
+
+.app-health-card-head h2,
+.app-health-card-head h3 {
+  flex: 1 1 0;
+}
+
+.app-table {
+  min-width: 880px;
+}
+
+.app-table th:first-child,
+.app-table td:first-child {
+  min-width: 180px;
+}
+
+.app-table th {
+  white-space: nowrap;
+}
+
+.app-health-card-head h2,
+.app-health-card-head h3 {
+  order: 1;
+}
+
+.app-health-card-head .text-link {
+  order: 2;
+}
+
+.app-health-card-head p {
+  order: 3;
+}
+
+.intel-toolbar .field {
+  max-width: none;
+}
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  overflow: auto;
+  max-width: 100%;
+}
+
+.table-wrap table.data {
+  min-width: 880px;
+}
+
+@media (max-width: 760px) {
+  .app-health-card {
+    padding: 16px;
+  }
+}
+
+.btn,
+.secondary-button {
+  height: auto;
+  min-height: var(--control-h);
+  padding-block: 8px;
+  line-height: 1.25;
+  text-align: center;
+}
+
+/* ═══ Executive Cockpit lower rows ═══ */
+.executive-cockpit .cockpit-journey,
+.executive-cockpit .cockpit-brief {
+  grid-column: 1 / -1;
+}
+
+/* Priority list fills the panel evenly instead of leaving dead space */
+.executive-cockpit .cockpit-priority-list {
+  justify-content: space-between;
+}
+
+.executive-cockpit .cockpit-priority-list > li {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+}
+
+.executive-cockpit .cockpit-priority-item {
+  align-self: stretch;
+}
+
+/* Value chain: arrows live in the gap between cards, cards size to content */
+.executive-cockpit .journey-chain {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 28px;
+  flex: none;
+  overflow: visible;
+}
+
+.executive-cockpit .journey-chain-cell,
+.executive-cockpit .journey-chain-cell:first-child {
+  padding-left: 0;
+}
+
+.executive-cockpit .journey-chain-connector {
+  left: -14px;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  background: transparent;
+}
+
+.executive-cockpit .journey-node {
+  padding: 12px 14px;
+  gap: 6px;
+}
+
+.executive-cockpit .journey-node-label {
+  overflow-wrap: anywhere;
+}
+
+.executive-cockpit .journey-node-value {
+  -webkit-line-clamp: 3;
+}
+
+/* Action brief: three readable columns, text wraps rather than overflowing */
+.executive-cockpit .cockpit-brief-stack {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0 24px;
+}
+
+.executive-cockpit .cockpit-brief-row,
+.executive-cockpit .cockpit-brief-row:first-child {
+  padding: 0;
+  border-top: 0;
+}
+
+.executive-cockpit .cockpit-brief-row + .cockpit-brief-row {
+  padding-left: 24px;
+  border-left: 1px solid var(--line-soft);
+}
+
+.executive-cockpit .cockpit-brief-conclusion {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.executive-cockpit .cockpit-brief-support {
+  -webkit-line-clamp: unset;
+  display: block;
+  overflow: visible;
+}
+
+@media (max-width: 1100px) {
+  .executive-cockpit .journey-chain {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .executive-cockpit .journey-chain-connector {
+    display: none;
+  }
+  .executive-cockpit .cockpit-brief-stack {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .executive-cockpit .cockpit-brief-row + .cockpit-brief-row {
+    padding-left: 0;
+    padding-top: 14px;
+    border-left: 0;
+    border-top: 1px solid var(--line-soft);
+  }
+}
+
+.executive-cockpit .cockpit-priority-copy strong,
+.executive-cockpit .cockpit-priority-impact,
+.executive-cockpit .cockpit-priority-meta {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.ai-gov-tabs button {
+  height: auto;
+  min-height: 36px;
+  padding: 6px 8px;
+  line-height: 1.25;
+}
+
+@media (max-width: 560px) {
+  .ai-gov-tabs {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ai-gov-tabs button {
+    border-bottom: 1px solid var(--border);
+  }
+}

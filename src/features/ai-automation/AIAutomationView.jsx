@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import ReactECharts from 'echarts-for-react'
+import ReactECharts from '../../components/charts/ThemedChart'
 import { getTenantConfig, usePrototypeStore } from '../../state/prototypeStore'
 import {
   agentsAndAutomations,
