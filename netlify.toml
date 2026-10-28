@@ -5,10 +5,10 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# SPA deep-link / hash fallback for Netlify previews
+# Prototype SPA lives under /app — hash routes and deep paths fall back to the app shell
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/app/*"
+  to = "/app/index.html"
   status = 200
 
 # Private / controlled preview guidance: do not auto-publish publicly.
