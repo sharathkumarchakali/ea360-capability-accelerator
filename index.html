@@ -3,22 +3,197 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EA360 — Know Your Enterprise. Shape What’s Next.</title>
+    <title>EA360 — Know Your Enterprise. Shape What's Next.</title>
     <meta
       name="description"
-      content="EA360 Enterprise Intelligence and Transformation Governance by Kulana. Synthetic demonstration prototype."
+      content="EA360 Enterprise Intelligence and Transformation Governance by Kulana. Explore the synthetic demonstration prototype."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="theme-color" content="#0e7c66" />
+    <meta name="theme-color" content="#006B73" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <meta property="og:title" content="EA360 — Enterprise Intelligence and Transformation Governance" />
+    <meta
+      property="og:description"
+      content="One trusted enterprise view for capabilities, applications, data, technology, risk and transformation — synthetic demo by Kulana."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+  <body class="landing-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="landing-header" data-landing-header>
+      <div class="landing-header-inner">
+        <a class="landing-brand" href="/" aria-label="EA360 home">
+          <img src="/brand/kulana-logo.png" width="132" height="36" alt="Kulana" />
+          <span class="landing-brand-product">EA360</span>
+        </a>
+        <nav class="landing-nav" aria-label="Primary">
+          <a href="#capabilities">Capabilities</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#faq">FAQ</a>
+        </nav>
+        <a class="btn landing-cta" href="/app/">Open prototype</a>
+        <button type="button" class="landing-menu-btn" aria-expanded="false" aria-controls="landing-mobile-nav" data-menu-toggle>
+          <span class="sr-only">Menu</span>
+          <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 7h16v2H4V7Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z"/></svg>
+        </button>
+      </div>
+      <div class="landing-mobile-nav" id="landing-mobile-nav" hidden data-mobile-nav>
+        <a href="#capabilities">Capabilities</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#faq">FAQ</a>
+        <a class="btn landing-cta" href="/app/">Open prototype</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="landing-hero">
+        <div class="landing-container landing-hero-grid">
+          <div class="landing-hero-copy">
+          <p class="landing-kicker">Enterprise Intelligence and Transformation Governance</p>
+          <h1>Know your enterprise. Shape what&rsquo;s next.</h1>
+          <p class="landing-lead">
+            EA360 connects strategy, capabilities, applications, integrations, data, technology,
+            risks and initiatives into one decision-ready view for executives and architects.
+          </p>
+          <div class="landing-hero-actions">
+            <a class="btn landing-cta" href="/app/">Open prototype</a>
+            <p class="landing-reassurance">Synthetic illustrative data only — no live institutional systems.</p>
+          </div>
+        </div>
+        <div class="landing-hero-panel" aria-hidden="true">
+          <div class="landing-hero-panel-head">
+            <span>Executive cockpit</span>
+            <span class="landing-pill">Illustrative data</span>
+          </div>
+          <ul class="landing-hero-metrics">
+            <li><strong>4</strong><span>Tenant packs</span></li>
+            <li><strong>12</strong><span>Portfolio domains</span></li>
+            <li><strong>360&deg;</strong><span>Relationship explorer</span></li>
+          </ul>
+          <p class="landing-hero-caption">Explore guided demos, governance workflows and AI-assisted briefing in the interactive prototype.</p>
+        </div>
+        </div>
+      </section>
+
+      <section class="landing-strip" aria-label="Trust">
+        <div class="landing-container landing-strip-inner">
+        <p>Built for public-sector and regulated enterprise transformation programmes in Ghana and across Africa.</p>
+        <span class="landing-pill">Illustrative demonstration environment</span>
+        </div>
+      </section>
+
+      <section class="landing-section" id="problem">
+        <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>When the enterprise picture is fragmented, decisions slow down</h2>
+          <p>Leaders need a single, evidence-backed narrative — not another static repository.</p>
+        </div>
+        <ul class="landing-cards three">
+          <li>
+            <h3>Dependencies stay hidden</h3>
+            <p>Applications, data and integrations change faster than architecture artefacts can keep up.</p>
+          </li>
+          <li>
+            <h3>Governance lacks context</h3>
+            <p>Review boards need impact, risk and ownership in one place before they approve change.</p>
+          </li>
+          <li>
+            <h3>Transformation loses traceability</h3>
+            <p>Investments, initiatives and outcomes must link back to the capabilities they improve.</p>
+          </li>
+        </ul>
+        </div>
+      </section>
+
+      <section class="landing-section landing-section-tint" id="how-it-works">
+        <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>How EA360 supports better decisions</h2>
+        </div>
+        <ol class="landing-steps">
+          <li>
+            <span class="landing-step-label">Discover</span>
+            <p class="landing-step-copy">Map the enterprise from executive metrics to portfolio registers and relationship graphs.</p>
+          </li>
+          <li>
+            <span class="landing-step-label">Diagnose</span>
+            <p class="landing-step-copy">Surface risks, duplications, governance gaps and evidence-backed findings.</p>
+          </li>
+          <li>
+            <span class="landing-step-label">Decide</span>
+            <p class="landing-step-copy">Prioritise recommendations, ARB decisions and roadmap initiatives with clear ownership.</p>
+          </li>
+        </ol>
+        </div>
+      </section>
+
+      <section class="landing-section" id="capabilities">
+        <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>What you can explore in the prototype</h2>
+          <p>Each area uses synthetic tenant packs — switch organisations without leaving the product.</p>
+        </div>
+        <ul class="landing-cards six">
+          <li><h3>Executive cockpit</h3><p>Portfolio health, heatmaps and briefing-ready narratives.</p></li>
+          <li><h3>Portfolios</h3><p>Applications, integrations, data, technology and AI automation intelligence.</p></li>
+          <li><h3>Relationship explorer</h3><p>Trace dependencies across capabilities, apps and data.</p></li>
+          <li><h3>Governance</h3><p>ARB queue, decisions, AI and data governance catalogues.</p></li>
+          <li><h3>Transformation</h3><p>Findings, recommendations, initiatives and roadmap views.</p></li>
+          <li><h3>Ask EA360</h3><p>Deterministic, tenant-grounded assistance for demo scenarios.</p></li>
+        </ul>
+        </div>
+      </section>
+
+      <section class="landing-section landing-final-cta">
+        <div class="landing-container landing-final-cta-inner">
+        <h2>Walk through the synthetic demonstration</h2>
+        <p>Experience tenant switching, guided demos and portfolio intelligence in the full EA360 prototype.</p>
+        <a class="btn landing-cta" href="/app/">Open prototype</a>
+        </div>
+      </section>
+
+      <section class="landing-section" id="faq">
+        <div class="landing-container">
+        <div class="landing-section-head">
+          <h2>Frequently asked questions</h2>
+        </div>
+        <div class="landing-faq" data-faq>
+          <details>
+            <summary>Is this production software?</summary>
+            <p>No. EA360 here is a Kulana product prototype with synthetic data for demonstrations and discovery workshops.</p>
+          </details>
+          <details>
+            <summary>Does the prototype use real customer data?</summary>
+            <p>No institutional data is loaded. All metrics, entities and narratives are illustrative and labelled accordingly.</p>
+          </details>
+          <details>
+            <summary>Which organisations are included?</summary>
+            <p>Demonstration tenant packs cover Ghana Revenue Authority, Bank of Ghana, Fidelity Bank Ghana and a generic enterprise profile.</p>
+          </details>
+          <details>
+            <summary>How do I start the demo?</summary>
+            <p>Select <strong>Open prototype</strong>, choose a tenant and role, then follow the guided demo bar or explore modules freely.</p>
+          </details>
+        </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="landing-footer">
+      <div class="landing-footer-inner">
+        <img src="/brand/kulana-logo.png" width="120" height="32" alt="Kulana" />
+        <p>EA360 Enterprise Intelligence and Transformation Governance</p>
+        <p class="landing-footer-note">Illustrative data · Prototype demonstration · &copy; Kulana</p>
+        <a class="btn landing-cta landing-cta-secondary" href="/app/">Open prototype</a>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/landing/main.js"></script>
   </body>
 </html>

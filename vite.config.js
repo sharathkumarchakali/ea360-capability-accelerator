@@ -14,6 +14,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        landing: path.resolve(rootDir, 'index.html'),
+        app: path.resolve(rootDir, 'app/index.html'),
+      },
       output: {
         manualChunks: {
           echarts: ['echarts', 'echarts-for-react'],
