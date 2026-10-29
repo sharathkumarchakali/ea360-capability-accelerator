@@ -2,6 +2,13 @@ import {
   Activity,
   BarChart3,
   BookMarked,
+  Building2,
+  Clapperboard,
+  FileText,
+  Gauge,
+  Network,
+  Settings,
+  Upload,
   CircleCheck,
   Database,
   FileCheck,
@@ -36,6 +43,7 @@ const NAV = [
   [
     'Portfolios',
     [
+      { label: 'Capabilities', id: 'capabilities', Icon: Gauge },
       { label: 'Applications', id: 'applications', Icon: LayoutGrid },
       { label: 'Integrations & APIs', id: 'integrations', Icon: Waypoints },
       {
@@ -59,6 +67,7 @@ const NAV = [
     'Insights',
     [
       { label: 'Architecture Health', id: 'assessment', Icon: Activity },
+      { label: 'Relationship Explorer', id: 'explorer', Icon: Network },
       { label: 'Findings & Risks', id: 'findings', Icon: TriangleAlert },
       { label: 'Evidence', id: 'evidence', Icon: FileCheck },
       { label: 'Recommendations', id: 'recommendations', Icon: Lightbulb },
@@ -74,6 +83,7 @@ const NAV = [
         Icon: Rocket,
       },
       { label: 'KPIs', id: 'kpis', Icon: BarChart3 },
+      { label: 'Reports', id: 'reports', Icon: FileText },
     ],
   ],
   [
@@ -87,6 +97,15 @@ const NAV = [
         id: 'ai-data-governance',
         Icon: ShieldCheck,
       },
+    ],
+  ],
+  [
+    'Workspace',
+    [
+      { label: 'Demo Studio', id: 'demo-studio', Icon: Clapperboard },
+      { label: 'Customer Onboarding', id: 'onboarding', Icon: Building2 },
+      { label: 'Data Ingestion', id: 'data-ingestion', Icon: Upload },
+      { label: 'Workspace Settings', id: 'workspace-settings', Icon: Settings },
     ],
   ],
 ]

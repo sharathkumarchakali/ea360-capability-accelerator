@@ -1,0 +1,5 @@
+id,name,capabilityId,criticality
+app-sample-201,Case intake portal (sample),cap-gra-01,high
+app-sample-202,Records archive (sample),cap-does-not-exist,medium
+app-sample-203,,cap-gra-02,medium
+app-sample-201,Duplicate identifier (sample),cap-gra-01,urgent

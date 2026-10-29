@@ -2,14 +2,13 @@
 
 **Product:** EA360 — Enterprise Intelligence and Transformation Governance  
 **Prototype:** Synthetic demonstration (Phases 1-6)  
-**Last updated:** 7 September 2026  
+**Last updated:** 28 October 2026  
 
 ---
 
 ## Pre-demo preparation
 
-1. Use a private Netlify Deploy Preview or 
-pm run build && npm run preview locally.
+1. Use a private Netlify Deploy Preview, or run `npm run build && npm run preview` locally.
 2. Open a clean browser profile (or Incognito) to avoid stale localStorage keys from older persist versions.
 3. Hard-refresh once after deploy.
 4. Click **Demo home** (or load the landing overlay) and confirm the synthetic disclaimer is visible.
@@ -159,3 +158,54 @@ Landing -> Executive Cockpit -> Findings -> Capabilities -> Recommendations -> R
 - Demonstrate one connected story.
 - Use Ask EA360 selectively.
 - End with a proposed discovery engagement or pilot.
+
+---
+
+## Guided journeys (J1–J8)
+
+Use **Demo Studio** to pick the organisation, journey and as-of date. Each journey shows a preflight status:
+
+| Status | Meaning | What to do |
+|---|---|---|
+| Ready | Every bound record, route and question resolves. | Start. |
+| Needs setup | A synthetic example is required (J6, J7). | Click **Prepare synthetic example**, then start. Safe to repeat. |
+| Unavailable | No validated data for this sector (J4–J6 outside GRA). | Choose another journey or organisation. |
+
+Journey, playlist and workspace details: `DEMO_JOURNEYS.md`. Ask EA360 questions per journey: `ASK_EA360_DEMO_QUESTIONS.md`.
+
+### Before a journey demo
+
+1. Confirm the as-of date in Demo Studio (default 7 September 2026). Changing it marks earlier Ask answers stale.
+2. For J6 or J7, prepare the synthetic example in advance and check the status turns **Ready**.
+3. For J8, decide the workspace code in advance; clear runtime workspaces by clearing site data for the demo browser profile.
+4. **Reset demo** restores the active organisation, including removing prepared fixtures.
+
+### During a journey
+
+- Steps that need a human action (J7 gates, J8 commit) keep **Next** disabled until the action is done. Do the action on screen; do not skip it.
+- **Retry** re-applies the current step; **Restart** returns to step one; **Exit** closes the guided bar and Ask.
+- Ask EA360 answers come from the active workspace. If an answer shows a *stale* banner, use **Ask again**.
+- AI drafts are proposals. **Save for review** then **Create recommendation draft** are explicit clicks; the result is a *Draft* recommendation, never an approval.
+
+### J8 onboarding and ingestion script (about 8 minutes)
+
+1. Customer Onboarding: fill the profile, tick the synthetic-data confirmation, choose the starter, review the clone preview, **Create synthetic workspace**.
+2. Data Ingestion: **Load sample with errors**, map columns, **Validate**; show the blocking lines and that **Commit import** is disabled; ask Q32.
+3. **Load clean sample**, **Validate**, **Commit import**; show the audit entry and the new applications.
+4. Ask Q33 for readiness; open Workspace settings for export and isolation.
+
+### Recovery for journeys
+
+| Issue | Action |
+|---|---|
+| Journey shows Needs setup | Prepare synthetic example. |
+| Step highlight missing | Retry; if it persists, Restart. |
+| Ask answer looks out of date | Use **Ask again** on the stale banner. |
+| Imported rows look wrong | Reset demo (seed workspaces) or create a new workspace code (runtime workspaces). |
+| Runtime workspace disappeared | Browser storage was cleared or blocked; recreate it. The app returns to GRA. |
+
+### Journey limitations
+
+- Runtime workspaces and ingestion audit entries are stored in browser `localStorage`.
+- Ask EA360 is a prototype assistant: deterministic, pattern-based, answering from the active workspace.
+- J4–J6 are validated for GRA only.

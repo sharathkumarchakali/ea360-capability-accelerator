@@ -1,5 +1,5 @@
 import type { TenantPack } from '../../domain/schemas'
-import type { TenantCode, TenantConfig } from '../../domain/tenants/config'
+import type { SeedTenantCode, TenantCode, TenantConfig } from '../../domain/tenants/config'
 import { deriveExecutiveMetrics } from '../../domain/metrics'
 import { assertValidInDev } from '../validators/validateTenant'
 import graPack from '../tenants/gra/pack'
@@ -10,11 +10,28 @@ import fidelityPack from '../tenants/fidelity/pack'
 import { applyFidelityEnrichment } from '../tenants/fidelity/governance'
 import genericPack from '../tenants/generic/pack'
 import { applyGenericEnrichment } from '../tenants/generic/governance'
-import { getTenantConfig as getConfigFromRegistry, listTenantConfigs } from '../tenants/registry'
+import {
+  getRuntimeWorkspace,
+  getTenantConfig as getConfigFromRegistry,
+  isKnownTenant,
+  isSeedCode,
+  listTenantConfigs,
+  registerRuntimeWorkspace,
+  type RuntimeWorkspaceRecord,
+} from '../tenants/registry'
+import {
+  STARTER_OPTIONS,
+  WORKSPACE_CODE_PATTERN,
+  buildRuntimeConfig,
+  cloneStarterPack,
+  type RuntimeWorkspaceProfile,
+} from '../tenants/runtimeWorkspaces'
+import { validateTenantPack } from '../validators/validateTenant'
 
 export type { TenantCode }
+export { isKnownTenant }
 
-const seedFactories: Record<TenantCode, () => TenantPack> = {
+const seedFactories: Record<SeedTenantCode, () => TenantPack> = {
   GRA: () => applyPhase3Enrichment(structuredClone(graPack) as TenantPack),
   BOG: () => applyBogEnrichment(structuredClone(bogPack) as TenantPack),
   FIDELITY: () => applyFidelityEnrichment(structuredClone(fidelityPack) as TenantPack),
@@ -31,9 +48,11 @@ export type AvailableTenant = {
   storyline: string
   lettermark: string
   synthetic: true
+  /** true for prospect workspaces created at runtime through onboarding. */
+  runtime: boolean
 }
 
-/** Available tenants that have seed packs, sourced from TenantConfig. */
+/** Available tenants (seed packs first, then runtime workspaces), sourced from TenantConfig. */
 export function listAvailableTenants(): AvailableTenant[] {
   return listTenantConfigs().map((c) => ({
     code: c.code,
@@ -43,7 +62,65 @@ export function listAvailableTenants(): AvailableTenant[] {
     storyline: c.storyline,
     lettermark: c.lettermark,
     synthetic: true as const,
+    runtime: Boolean(c.runtime),
   }))
+}
+
+export type CreateRuntimeWorkspaceResult =
+  | { ok: true; code: string; record: RuntimeWorkspaceRecord; persisted: boolean; remappedIds: number }
+  | { ok: false; errors: string[] }
+
+/** Validate an onboarding profile. Returns blocking messages (empty array = valid). */
+export function validateWorkspaceProfile(profile: RuntimeWorkspaceProfile, starterCode: string): string[] {
+  const errors: string[] = []
+  const code = profile.code.trim().toUpperCase()
+  if (!profile.name.trim()) errors.push('Enter the organisation name.')
+  if (!WORKSPACE_CODE_PATTERN.test(code)) {
+    errors.push('Code must be 2–15 characters: letters, digits or underscore, starting with a letter.')
+  } else if (isKnownTenant(code)) {
+    errors.push(`Code “${code}” is already used by another workspace. Choose a different code.`)
+  }
+  if (!profile.country.trim()) errors.push('Enter the country.')
+  if (!profile.synthetic) errors.push('Confirm that this workspace will contain synthetic data only.')
+  if (!STARTER_OPTIONS.some((s) => s.code === starterCode)) errors.push('Choose a starter workspace.')
+  return errors
+}
+
+/**
+ * Create a runtime prospect workspace by cloning a seed starter with ID remapping.
+ * Atomic: any validation failure leaves the registry (and the seeds) untouched.
+ */
+export function createRuntimeWorkspace(
+  profile: RuntimeWorkspaceProfile,
+  starterCode: string,
+): CreateRuntimeWorkspaceResult {
+  const errors = validateWorkspaceProfile(profile, starterCode)
+  if (errors.length) return { ok: false, errors }
+  const starter = STARTER_OPTIONS.find((s) => s.code === starterCode)!
+  try {
+    const code = profile.code.trim().toUpperCase()
+    const starterPack = loadTenantPack(starter.code, { bypassCache: true })
+    const { pack, idMap } = cloneStarterPack(starterPack, { ...profile, code }, starter.label)
+    const validated = validateTenantPack(pack)
+    const config = buildRuntimeConfig(
+      getConfigFromRegistry(starter.code),
+      { ...profile, code },
+      idMap,
+      starter.label,
+    )
+    const record: RuntimeWorkspaceRecord = {
+      code,
+      starterCode: starter.code,
+      createdAt: config.createdAt ?? new Date().toISOString(),
+      config,
+      pack: validated,
+    }
+    const { persisted } = registerRuntimeWorkspace(record)
+    return { ok: true, code, record, persisted, remappedIds: idMap.size }
+  } catch (e) {
+    const details = (e as { details?: string[] }).details
+    return { ok: false, errors: [(e as Error).message, ...(details ?? []).slice(0, 5)] }
+  }
 }
 
 export function getTenantConfig(code: TenantCode): TenantConfig {
@@ -54,7 +131,12 @@ export function loadTenantPack(code: TenantCode, { bypassCache = false } = {}): 
   if (!bypassCache && validatedCache.has(code)) {
     return structuredClone(validatedCache.get(code)!) as TenantPack
   }
-  const factory = seedFactories[code]
+  const runtimeRecord = isSeedCode(code) ? undefined : getRuntimeWorkspace(code)
+  if (runtimeRecord) {
+    // Runtime workspaces were validated at creation; always hand out an isolated clone.
+    return structuredClone(runtimeRecord.pack) as TenantPack
+  }
+  const factory = isSeedCode(code) ? seedFactories[code] : undefined
   if (!factory) {
     throw new Error(`No seed pack registered for tenant ${code}`)
   }

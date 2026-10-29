@@ -1,4 +1,12 @@
-import type { EA360AIResponse, AIIntent, EntityReference, SuggestedAction, CalculationReference } from './types'
+import type {
+  EA360AIResponse,
+  AIIntent,
+  EntityReference,
+  SuggestedAction,
+  CalculationReference,
+  StructuredClaim,
+  RecommendationDraftPayload,
+} from './types'
 
 let seq = 0
 
@@ -22,6 +30,11 @@ export function baseResponse(partial: {
   suggestedActions?: SuggestedAction[]
   facts?: string[]
   inferences?: string[]
+  asOfDate?: string
+  dataRevision?: number
+  questionId?: string
+  claims?: StructuredClaim[]
+  recommendationDraft?: RecommendationDraftPayload
 }): Omit<EA360AIResponse, 'grounded' | 'groundingErrors'> {
   return {
     id: nextResponseId(),
@@ -41,6 +54,11 @@ export function baseResponse(partial: {
     tenantId: partial.tenantId,
     facts: partial.facts || [],
     inferences: partial.inferences || [],
+    asOfDate: partial.asOfDate,
+    dataRevision: partial.dataRevision,
+    questionId: partial.questionId,
+    claims: partial.claims,
+    recommendationDraft: partial.recommendationDraft,
   }
 }
 

@@ -9,6 +9,21 @@ export { validateGrounding, collectKnownIds } from './groundingValidator'
 export { buildAIContext } from './contextBuilder'
 export { matchEntitiesInQuery } from './queryParser'
 export { createDeterministicAdapter } from './deterministicAdapter'
+export {
+  availableFollowUps,
+  followUpSubject,
+  matchFollowUpKind,
+  resolveFollowUp,
+  FOLLOW_UP_LABELS,
+  type FollowUpKind,
+  type ResolvedFollowUp,
+} from './followUps'
+export {
+  QUESTION_CATALOG,
+  QUESTION_BY_ID,
+  resolveQuestionDefinition,
+  suggestedQuestionsForContext,
+} from './questionCatalog'
 
 type ServiceFactory = () => EA360AIService
 
