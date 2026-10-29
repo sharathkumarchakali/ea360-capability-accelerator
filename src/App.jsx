@@ -4,11 +4,10 @@ import Sidebar from './components/shell/Sidebar'
 import EntityDrawer from './components/enterprise/EntityDrawer'
 import SearchOverlay from './components/SearchOverlay'
 import ErrorBoundary from './components/shell/ErrorBoundary'
-import ModuleView from './components/ModuleView'
 import AskEA360Panel from './features/ai-assist/AskEA360Panel'
 import DemoLanding from './features/demo/DemoLanding'
 import GuidedDemoBar from './features/demo/GuidedDemoBar'
-import { moduleData } from './data'
+import { VALID_VIEWS } from './config/routes'
 import { usePrototypeStore } from './state/prototypeStore'
 import { getTenantConfig, loadTenantPack } from './data/repositories/tenantRepository'
 
@@ -30,34 +29,14 @@ const RoadmapView = lazy(() => import('./features/roadmap/RoadmapView'))
 const InitiativesView = lazy(() => import('./features/initiatives/InitiativesView'))
 const AIDataGovernanceView = lazy(() => import('./features/ai-data-governance/AIDataGovernanceView'))
 const ExecutiveReport = lazy(() => import('./features/reports/ExecutiveReport'))
-
-/** Implemented routes — future IA ids stay out of this set so they never open blank pages. */
-const VALID_VIEWS = new Set([
-  'executive',
-  'capabilities',
-  'applications',
-  'integrations',
-  'data-information',
-  'technology-infrastructure',
-  'ai-automation',
-  'explorer',
-  'assessment',
-  'findings',
-  'evidence',
-  'recommendations',
-  'roadmap',
-  'initiatives',
-  'kpis',
-  'standards',
-  'decisions',
-  'governance', // alias → Decision Register (existing GovernanceView)
-  'reviews',
-  'ai-data-governance',
-  'reports',
-])
-
-/** Legacy ModuleView screens preserved for renamed IA entries. */
-const LEGACY_MODULE_VIEWS = new Set(['assessment', 'standards', 'reviews', 'kpis'])
+const DemoStudio = lazy(() => import('./features/demo/DemoStudio'))
+const ArchitectureHealthView = lazy(() => import('./features/assessment/ArchitectureHealthView'))
+const StandardsView = lazy(() => import('./features/standards/StandardsView'))
+const ReviewBoardView = lazy(() => import('./features/reviews/ReviewBoardView'))
+const KpisView = lazy(() => import('./features/kpis/KpisView'))
+const CustomerOnboardingWizard = lazy(() => import('./features/onboarding/CustomerOnboardingWizard'))
+const DataIngestionCenter = lazy(() => import('./features/data-ingestion/DataIngestionCenter'))
+const WorkspaceSettings = lazy(() => import('./features/settings/WorkspaceSettings'))
 
 function viewFromHash() {
   const hash = window.location.hash.replace('#', '').split('?')[0]
@@ -211,21 +190,14 @@ export default function App() {
   else if (view === 'roadmap') content = <RoadmapView />
   else if (view === 'initiatives') content = <InitiativesView />
   else if (view === 'reports') content = <ExecutiveReport onNavigate={navigate} />
-  else if (LEGACY_MODULE_VIEWS.has(view) && moduleData[view]) {
-    content = (
-      <ModuleView
-        id={view}
-        data={moduleData[view]}
-        onAction={(kind) =>
-          showToast(
-            kind === 'export'
-              ? 'Export is available in the next implementation phase.'
-              : 'Create / Add is available in the next implementation phase.',
-          )
-        }
-      />
-    )
-  }
+  else if (view === 'assessment') content = <ArchitectureHealthView onNavigate={navigate} />
+  else if (view === 'standards') content = <StandardsView />
+  else if (view === 'reviews') content = <ReviewBoardView />
+  else if (view === 'kpis') content = <KpisView />
+  else if (view === 'demo-studio') content = <DemoStudio onNavigate={navigate} />
+  else if (view === 'onboarding') content = <CustomerOnboardingWizard onNavigate={navigate} />
+  else if (view === 'data-ingestion') content = <DataIngestionCenter />
+  else if (view === 'workspace-settings') content = <WorkspaceSettings onNavigate={navigate} />
 
   return (
     <>
@@ -282,7 +254,7 @@ export default function App() {
         onNavigate={navigate}
       />
 
-      <AskEA360Panel />
+      <AskEA360Panel onNavigate={navigate} />
     </>
   )
 }

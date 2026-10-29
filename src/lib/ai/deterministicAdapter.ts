@@ -1,8 +1,9 @@
 import type { TenantRepository } from '../../data/repositories/tenantRepository'
 import { deriveExecutiveMetrics } from '../../domain/metrics'
-import { classifyTIME } from '../../domain/metrics/portfolio'
+import { buildP2PCounts, classifyTIME } from '../../domain/metrics/portfolio'
 import { deriveIntegrationMetrics } from '../../domain/metrics/integration'
 import { analyseImpact } from '../../domain/metrics/graph'
+import { getDemoAsOfDate, classifySupportDate } from '../../domain/demo/demoClock'
 import {
   calculateFindingConfidence,
   coerceFindingWorkflowStatus,
@@ -13,6 +14,7 @@ import type { AIContext } from './contextBuilder'
 import { buildAIContext } from './contextBuilder'
 import { classifyConfidence } from './confidence'
 import { validateGrounding } from './groundingValidator'
+import { resolveQuestionDefinition } from './questionCatalog'
 import { baseResponse, refsFromIds } from './responseComposer'
 import type {
   EA360AIRequest,
@@ -22,6 +24,29 @@ import type {
   RecommendationDraftPayload,
 } from './types'
 import { INSUFFICIENT_EVIDENCE_MESSAGE } from './types'
+import {
+  answerExplainFinding,
+  answerEvidenceForFinding,
+  answerRecommendationOptions,
+  answerInitiativeKpiSummary,
+  answerDataGovernanceGaps,
+  answerDataLineage,
+  answerDataAiReadiness,
+  answerDataControlsMissing,
+  answerTechnologyDependents,
+  answerTechnologyPriority,
+  answerTechnologyCtoSummary,
+  answerAiGovernanceAttention,
+  answerAiAgentExplain,
+  answerAiAgentPermissions,
+  answerAiModelDependencies,
+  answerAiAgentKpi,
+  answerImportValidation,
+  answerWorkspaceReadiness,
+  answerApprovalAuthority,
+  answerApprovedItems,
+  answerUnknownEntity,
+} from './answerHandlers'
 
 export type DeterministicAdapterOptions = {
   getRepo: () => TenantRepository
@@ -50,7 +75,25 @@ function openFindingStatuses(status: string, workflowStatus?: string) {
 }
 
 export function createDeterministicAdapter(opts: DeterministicAdapterOptions): EA360AIService {
+  /** Every response records the as-of date, data revision and catalogue question it answered. */
   const run = (request: EA360AIRequest): EA360AIResponse => {
+    const response = runInner(request)
+    return {
+      ...response,
+      asOfDate: response.asOfDate ?? request.asOfDate ?? getDemoAsOfDate(),
+      dataRevision: request.dataRevision ?? response.dataRevision,
+      questionId: response.questionId ?? request.questionId ?? resolveQuestionDefinition(request.query)?.id,
+      request: {
+        query: request.query,
+        intent: request.intent,
+        questionId: request.questionId,
+        contextEntityIds: request.contextEntityIds,
+        followUpOf: request.followUpOf,
+      },
+    }
+  }
+
+  const runInner = (request: EA360AIRequest): EA360AIResponse => {
     const repo = opts.getRepo()
     const pack = repo.getPack()
     const tenantId = pack.tenant.id
@@ -60,12 +103,13 @@ export function createDeterministicAdapter(opts: DeterministicAdapterOptions): E
       { mutations: opts.getMutations?.() },
     )
 
-    if (ctx.intent === 'cross_tenant_refused') {
+    if (ctx.tenantGuardError || ctx.intent === 'cross_tenant_refused') {
       return finalize(
         baseResponse({
-          intent: ctx.intent,
+          intent: 'cross_tenant_refused',
           tenantId,
           summary:
+            ctx.tenantGuardError ||
             'Cross-tenant questions are not supported. EA360 answers only from the active tenant dataset.',
           explanation: `This prototype isolates each tenant. Other organisation packs are out of scope while ${pack.tenant.shortName} is active.`,
           confidence: 'high',
@@ -73,10 +117,15 @@ export function createDeterministicAdapter(opts: DeterministicAdapterOptions): E
           facts: ['Active tenant only: ' + pack.tenant.shortName],
           inferences: [],
           assumptions: [],
+          asOfDate: ctx.asOfDate,
         }),
         repo,
         tenantId,
       )
+    }
+
+    if (ctx.intent === 'unknown_entity') {
+      return finalize(answerUnknownEntity(ctx), repo, tenantId)
     }
 
     if (ctx.intent === 'refuse_approval') {
@@ -91,9 +140,12 @@ export function createDeterministicAdapter(opts: DeterministicAdapterOptions): E
           confidenceReason: 'Hard governance guardrail.',
           suggestedActions: [
             { id: 'gov', label: 'Open Governance & Decisions', action: 'navigate', view: 'governance' },
+            { id: 'reviews', label: 'Open Review Board', action: 'navigate', view: 'reviews' },
           ],
           facts: [],
           inferences: [],
+          asOfDate: ctx.asOfDate,
+          questionId: 'Q29',
         }),
         repo,
         tenantId,
@@ -186,6 +238,66 @@ export function createDeterministicAdapter(opts: DeterministicAdapterOptions): E
         break
       case 'evidence_gaps':
         draft = answerEvidenceGaps(ctx)
+        break
+      case 'explain_finding':
+        draft = answerExplainFinding(ctx)
+        break
+      case 'evidence_for_finding':
+        draft = answerEvidenceForFinding(ctx)
+        break
+      case 'recommendation_options':
+        draft = answerRecommendationOptions(ctx)
+        break
+      case 'initiative_kpi_summary':
+        draft = answerInitiativeKpiSummary(ctx)
+        break
+      case 'data_governance_gaps':
+        draft = answerDataGovernanceGaps(ctx)
+        break
+      case 'data_lineage':
+        draft = answerDataLineage(ctx)
+        break
+      case 'data_ai_readiness':
+        draft = answerDataAiReadiness(ctx)
+        break
+      case 'data_controls_missing':
+        draft = answerDataControlsMissing(ctx)
+        break
+      case 'technology_dependents':
+        draft = answerTechnologyDependents(ctx)
+        break
+      case 'technology_priority':
+        draft = answerTechnologyPriority(ctx)
+        break
+      case 'technology_cto_summary':
+        draft = answerTechnologyCtoSummary(ctx)
+        break
+      case 'ai_governance_attention':
+        draft = answerAiGovernanceAttention(ctx)
+        break
+      case 'ai_agent_explain':
+        draft = answerAiAgentExplain(ctx)
+        break
+      case 'ai_agent_permissions':
+        draft = answerAiAgentPermissions(ctx)
+        break
+      case 'ai_model_dependencies':
+        draft = answerAiModelDependencies(ctx)
+        break
+      case 'ai_agent_kpi':
+        draft = answerAiAgentKpi(ctx)
+        break
+      case 'import_validation':
+        draft = answerImportValidation(ctx)
+        break
+      case 'workspace_readiness':
+        draft = answerWorkspaceReadiness(ctx)
+        break
+      case 'approval_authority':
+        draft = answerApprovalAuthority(ctx)
+        break
+      case 'approved_items':
+        draft = answerApprovedItems(ctx)
         break
       case 'demo_changes':
         draft = answerDemoChanges(ctx)
@@ -353,12 +465,8 @@ function answerMaturityGaps(ctx: AIContext) {
 }
 
 function answerTime(ctx: AIContext) {
-  const p2p: Record<string, number> = {}
-  for (const i of ctx.pack.integrations) {
-    if (!i.pointToPoint) continue
-    p2p[i.sourceApplicationId] = (p2p[i.sourceApplicationId] || 0) + 1
-    p2p[i.targetApplicationId] = (p2p[i.targetApplicationId] || 0) + 1
-  }
+  // Same P2P definition as the portfolio views (pattern === 'point-to-point'), so Ask and the UI agree on TIME classes.
+  const p2p = buildP2PCounts(ctx.pack.integrations)
   const classified = ctx.pack.applications.map((a) => ({
     a,
     time: classifyTIME(a, { p2pIntegrationCountByApp: p2p }),
@@ -677,19 +785,31 @@ function answerP2P(ctx: AIContext) {
 }
 
 function answerEos(ctx: AIContext) {
-  const tech = ctx.pack.technologies.filter((t) =>
-    ['deprecated', 'retire', 'tolerated'].includes(t.lifecycle),
-  )
+  const asOf = ctx.asOfDate || getDemoAsOfDate()
+  const expired: typeof ctx.pack.technologies = []
+  const approaching: typeof ctx.pack.technologies = []
+  const unknownDates: typeof ctx.pack.technologies = []
+  for (const t of ctx.pack.technologies) {
+    const supportEnd =
+      (t as { supportEndDate?: string }).supportEndDate ||
+      (t as { endOfSupportDate?: string }).endOfSupportDate
+    const horizon = classifySupportDate(supportEnd, asOf)
+    if (horizon === 'expired') expired.push(t)
+    else if (horizon === 'approaching') approaching.push(t)
+    else if (horizon === 'unknown' && ['deprecated', 'retire', 'tolerated'].includes(t.lifecycle)) {
+      unknownDates.push(t)
+    }
+  }
   const apps = ctx.pack.applications.filter((a) => {
     if (!a.endOfSupportDate) return false
-    const months =
-      (Date.parse(a.endOfSupportDate) - Date.parse('2026-09-07')) / (1000 * 60 * 60 * 24 * 30)
-    return months <= 18
+    const h = classifySupportDate(a.endOfSupportDate, asOf)
+    return h === 'expired' || h === 'approaching'
   })
-  const evidence = evidenceForEntities(
-    ctx.repo,
-    [...tech.map((t) => t.id), ...apps.map((a) => a.id)],
-  )
+  const tech = [...expired, ...approaching]
+  const evidence = evidenceForEntities(ctx.repo, [
+    ...tech.map((t) => t.id),
+    ...apps.map((a) => a.id),
+  ])
   const conf = classifyConfidence({
     evidence,
     metricComplete: true,
@@ -698,24 +818,38 @@ function answerEos(ctx: AIContext) {
   return baseResponse({
     intent: 'eos_technologies',
     tenantId: ctx.tenantId,
-    summary: `${tech.length} technology record(s) on deprecated/retire/tolerated lifecycles; ${apps.length} application(s) with end-of-support within 18 months of the demo as-of date.`,
+    questionId: 'Q20',
+    asOfDate: asOf,
+    summary: `${expired.length} technology(ies) past support, ${approaching.length} approaching within 18 months of ${asOf}; ${unknownDates.length} with unknown dates on retire/deprecated lifecycles; ${apps.length} application EOS hit(s).`,
     explanation: [
-      ...tech.slice(0, 6).map((t) => `${t.name}: lifecycle ${t.lifecycle}`),
-      ...apps.slice(0, 6).map((a) => `${a.name}: EOS ${a.endOfSupportDate}`),
+      ...expired.slice(0, 4).map((t) => `${t.name}: EXPIRED support`),
+      ...approaching.slice(0, 4).map((t) => `${t.name}: approaching EOS`),
+      ...unknownDates.slice(0, 3).map((t) => `${t.name}: lifecycle ${t.lifecycle}, support date unknown`),
+      ...apps.slice(0, 4).map((a) => `${a.name}: EOS ${a.endOfSupportDate}`),
     ].join('\n'),
     whyItMatters: 'Approaching EOS raises operational and security exposure for critical services.',
     evidenceIds: evidence.map((e) => e.id),
     entityRefs: [
-      ...tech.map((t) => ({ id: t.id, type: 'technology', name: t.name })),
-      ...apps.map((a) => ({ id: a.id, type: 'application', name: a.name })),
+      ...tech.slice(0, 10).map((t) => ({ id: t.id, type: 'technology', name: t.name })),
+      ...apps.slice(0, 6).map((a) => ({ id: a.id, type: 'application', name: a.name })),
     ],
-    assumptions: ['As-of date for EOS window is 2026-09-07.'],
+    assumptions: [`As-of date for EOS window is ${asOf}. Support dates are seed metadata.`],
     confidence: conf.confidence,
     confidenceReason: conf.reason,
-    facts: [`tech=${tech.length}`, `appsEos=${apps.length}`],
+    facts: [
+      `expired=${expired.length}`,
+      `approaching=${approaching.length}`,
+      `unknownDates=${unknownDates.length}`,
+      `appsEos=${apps.length}`,
+    ],
     inferences: [],
     suggestedActions: [
-      { id: 'apps', label: 'Review applications', action: 'navigate', view: 'applications' },
+      {
+        id: 'tech',
+        label: 'Open Technology portfolio',
+        action: 'navigate',
+        view: 'technology-infrastructure',
+      },
     ],
   })
 }
@@ -1168,19 +1302,27 @@ function answerExplainMetric(ctx: AIContext) {
 }
 
 function answerRecommendationDraft(ctx: AIContext): Omit<EA360AIResponse, 'grounded' | 'groundingErrors'> {
+  // Never silently substitute another critical finding for a missing/selected one
   const finding =
     (ctx.primaryEntity?.type === 'finding' && ctx.repo.getFinding(ctx.primaryEntity.id)) ||
-    ctx.pack.findings.find((f) => ctx.matchedEntities.some((m) => m.id === f.id && m.type === 'finding')) ||
-    ctx.pack.findings.find((f) => f.severity === 'critical' && openFindingStatuses(f.status, f.workflowStatus))
+    ctx.pack.findings.find((f) =>
+      ctx.matchedEntities.some((m) => m.id === f.id && m.type === 'finding'),
+    ) ||
+    null
 
   if (!finding) {
     return baseResponse({
       intent: 'insufficient_evidence',
       tenantId: ctx.tenantId,
-      summary: INSUFFICIENT_EVIDENCE_MESSAGE,
-      explanation: 'Select a validated finding before drafting a recommendation.',
+      questionId: 'Q28',
+      asOfDate: ctx.asOfDate,
+      summary: 'Select a specific finding before drafting a recommendation. No other finding was substituted.',
+      explanation: 'Drafting requires an explicitly selected or named finding in this workspace.',
       confidence: 'low',
       confidenceReason: 'No finding context.',
+      suggestedActions: [
+        { id: 'findings', label: 'Open Findings', action: 'navigate', view: 'findings' },
+      ],
     })
   }
 
@@ -1200,16 +1342,21 @@ function answerRecommendationDraft(ctx: AIContext): Omit<EA360AIResponse, 'groun
     }
   }
 
-  if (isInsufficientlyEvidenced(finding, ctx.pack.evidence)) {
+  if (isInsufficientlyEvidenced(finding, ctx.pack.evidence) || !(finding.evidenceIds?.length > 0)) {
     return baseResponse({
       intent: 'insufficient_evidence',
       tenantId: ctx.tenantId,
+      questionId: 'Q28',
+      asOfDate: ctx.asOfDate,
       summary: INSUFFICIENT_EVIDENCE_MESSAGE,
-      explanation: `Finding “${finding.name}” lacks sufficient verified evidence for a reliable draft.`,
+      explanation: `Finding “${finding.name}” lacks sufficient verified evidence for a reliable draft. No unrelated finding was used.`,
       confidence: 'low',
       confidenceReason: 'Insufficient evidence on finding.',
       entityRefs: [{ id: finding.id, type: 'finding', name: finding.name }],
-      evidenceIds: finding.evidenceIds,
+      evidenceIds: finding.evidenceIds ?? [],
+      suggestedActions: [
+        { id: 'gaps', label: 'Review evidence gaps', action: 'navigate', view: 'evidence' },
+      ],
     })
   }
 
@@ -1271,6 +1418,9 @@ function answerRecommendationDraft(ctx: AIContext): Omit<EA360AIResponse, 'groun
     assumptions: draft.assumptions,
     confidence: conf.confidence,
     confidenceReason: conf.reason,
+    questionId: 'Q28',
+    asOfDate: ctx.asOfDate,
+    recommendationDraft: draft,
     facts: [`finding=${finding.id}`, `evidence=${finding.evidenceIds.length}`],
     inferences: ['Draft wording is templated from finding fields — not an autonomous decision.'],
     suggestedActions: [

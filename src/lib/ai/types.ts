@@ -18,6 +18,26 @@ export type AIIntent =
   | 'initiatives_for_objective'
   | 'executive_review'
   | 'evidence_gaps'
+  | 'evidence_for_finding'
+  | 'explain_finding'
+  | 'recommendation_options'
+  | 'initiative_kpi_summary'
+  | 'data_governance_gaps'
+  | 'data_lineage'
+  | 'data_ai_readiness'
+  | 'data_controls_missing'
+  | 'technology_dependents'
+  | 'technology_priority'
+  | 'technology_cto_summary'
+  | 'ai_governance_attention'
+  | 'ai_agent_explain'
+  | 'ai_agent_permissions'
+  | 'ai_model_dependencies'
+  | 'ai_agent_kpi'
+  | 'import_validation'
+  | 'workspace_readiness'
+  | 'approval_authority'
+  | 'approved_items'
   | 'demo_changes'
   | 'explain_metric'
   | 'recommendation_draft'
@@ -28,6 +48,7 @@ export type AIIntent =
   | 'refuse_approval'
   | 'refuse_guaranteed_finance'
   | 'cross_tenant_refused'
+  | 'unknown_entity'
 
 export type EntityReference = {
   id: string
@@ -71,6 +92,27 @@ export type EA360AIRequest = {
   metricKey?: string
   briefingRole?: string
   briefingEmphasis?: string
+  /** Demo as-of date (ISO); defaults to shared demo clock. */
+  asOfDate?: string
+  /** Workspace data revision for cache invalidation labels. */
+  dataRevision?: number
+  /** Staged import validation result for Q32 (not committed pack). */
+  importValidation?: {
+    draftId: string
+    errors: Array<{ row?: number; field?: string; message: string; severity?: string }>
+    validCount?: number
+    warningCount?: number
+  }
+  questionId?: string
+  followUpOf?: string
+}
+
+export type ClaimKind = 'recorded' | 'computed' | 'inference' | 'proposal'
+
+export type StructuredClaim = {
+  text: string
+  kind: ClaimKind
+  sourceIds?: string[]
 }
 
 export type EA360AIResponse = {
@@ -93,6 +135,20 @@ export type EA360AIResponse = {
   inferences: string[]
   grounded: boolean
   groundingErrors?: string[]
+  asOfDate?: string
+  dataRevision?: number
+  questionId?: string
+  claims?: StructuredClaim[]
+  stale?: boolean
+  recommendationDraft?: RecommendationDraftPayload
+  /** The request this answer was generated for (lets the UI re-run a stale answer). */
+  request?: {
+    query: string
+    intent?: AIIntent
+    questionId?: string
+    contextEntityIds?: string[]
+    followUpOf?: string
+  }
 }
 
 export type AIFeedback = {

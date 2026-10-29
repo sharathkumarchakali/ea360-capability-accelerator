@@ -61,6 +61,28 @@ export function validateGrounding(
 
 export function collectKnownIds(repo: TenantRepository): Set<string> {
   const pack = repo.getPack()
+  const catalogueIds: string[] = []
+  const gov = pack.aiDataGovernance as
+    | {
+        policies?: Array<{ id: string }>
+        standards?: Array<{ id: string }>
+        controls?: Array<{ id: string }>
+        exceptions?: Array<{ id: string }>
+        approvals?: Array<{ id: string }>
+      }
+    | undefined
+  if (gov) {
+    for (const list of [
+      gov.policies,
+      gov.standards,
+      gov.controls,
+      gov.exceptions,
+      gov.approvals,
+    ]) {
+      for (const item of list ?? []) catalogueIds.push(item.id)
+    }
+  }
+
   return new Set<string>([
     pack.tenant.id,
     ...pack.strategicObjectives.map((x) => x.id),
@@ -76,18 +98,29 @@ export function collectKnownIds(repo: TenantRepository): Set<string> {
     ...(pack.decisions ?? []).map((x) => x.id),
     ...pack.initiatives.map((x) => x.id),
     ...pack.kpis.map((x) => x.id),
+    ...(pack.aiSolutions ?? []).map((x) => x.id),
+    ...(pack.aiModels ?? []).map((x) => x.id),
+    ...catalogueIds,
   ])
 }
 
+/**
+ * Strict request-tenant gate. Accepts either pack tenant id or matching tenant code
+ * when the request uses a short code (e.g. GRA ↔ tenant-gra).
+ */
 export function assertTenantIsolation(
   requestTenantId: string,
   packTenantId: string,
+  packTenantCode?: string,
 ): string | null {
-  if (requestTenantId && requestTenantId !== packTenantId && requestTenantId !== 'GRA') {
-    // Allow code GRA vs id tenant-gra
-    if (requestTenantId !== 'tenant-gra' && packTenantId !== requestTenantId) {
-      return 'Cross-tenant requests are not supported in this prototype.'
-    }
+  if (!requestTenantId) return null
+  if (requestTenantId === packTenantId) return null
+  if (packTenantCode && requestTenantId.toUpperCase() === packTenantCode.toUpperCase()) {
+    return null
   }
-  return null
+  // Allow id/code variants like tenant-gra vs GRA
+  const norm = (s: string) => s.toLowerCase().replace(/^tenant-/, '')
+  if (packTenantCode && norm(requestTenantId) === norm(packTenantCode)) return null
+  if (norm(requestTenantId) === norm(packTenantId)) return null
+  return 'Cross-tenant requests are not supported in this prototype.'
 }

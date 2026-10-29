@@ -2,20 +2,36 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
   clearTenantCache,
+  createRuntimeWorkspace,
   createTenantRepository,
   getTenantConfig,
+  isKnownTenant,
   listAvailableTenants,
   loadTenantPack,
   mergeGraAiSeedIfMissing,
   type TenantCode,
   type TenantRepository,
 } from '../data/repositories/tenantRepository'
+import type { RuntimeWorkspaceProfile } from '../data/tenants/runtimeWorkspaces'
 import type { TenantPack } from '../domain/schemas'
 import type { TenantConfig } from '../domain/tenants/config'
 import type { EntityType, TimeClass } from '../domain/entities/types'
 import type { AuditAction, InitiativeDraft } from '../domain/workflow'
-import type { EA360AIResponse, AIReviewStatus, AIFeedback } from '../lib/ai/types'
+import type {
+  EA360AIResponse,
+  AIReviewStatus,
+  AIFeedback,
+  RecommendationDraftPayload,
+} from '../lib/ai/types'
 import { configureEA360AI } from '../lib/ai'
+import { getDemoAsOfDate, setDemoAsOfDate as setClockAsOf } from '../domain/demo/demoClock'
+import { applyFixture } from '../data/demo/fixtureBuilders'
+import { getJourneyBinding, type JourneyId } from '../features/demo/journeyBindings'
+import {
+  mergeApplicationImport,
+  type ImportValidationResult,
+  type StagedImportValidation,
+} from '../data/templates/applicationImport'
 import {
   assertDecisionTransition,
   assertFindingTransition,
@@ -82,6 +98,15 @@ export type IntegrationFilters = {
 export type GraphRoot = { id: string; type: EntityType } | null
 export type GraphDirection = 'both' | 'upstream' | 'downstream'
 
+/** Guided journey run state. etryNonce forces the step effect to re-run on Retry; skipped lists required steps skipped (run is then Incomplete). */
+export type GuidedTourState = {
+  active: boolean
+  journeyId: string
+  stepIndex: number
+  retryNonce: number
+  skipped: string[]
+}
+
 type ActionResult = { ok: boolean; error?: string; id?: string; errors?: string[] }
 
 export type BriefingPreferences = {
@@ -102,7 +127,13 @@ export type SavedRecommendationDraft = {
   createdAt: string
   reviewStatus: AIReviewStatus
   humanEdited?: boolean
+  /** Structured AI draft payload (outcome, options, assumptions...). */
+  payload?: RecommendationDraftPayload
+  /** Set once a human converts the draft into a pack Recommendation (status Draft, never approved). */
+  recommendationId?: string
 }
+
+export type AskTab = 'ask' | 'briefing'
 
 const MAX_AI_HISTORY = 12
 const initialBriefingPrefs: BriefingPreferences = {
@@ -136,6 +167,8 @@ export type TenantUiSlice = {
   recommendationDrafts: SavedRecommendationDraft[]
   briefingPreferences: BriefingPreferences
   lastAiResponseId: string | null
+  /** Per-workspace data revision (incremented on every pack mutation). */
+  dataRevision: number
 }
 
 type PrototypeState = {
@@ -169,10 +202,37 @@ type PrototypeState = {
   recommendationDrafts: SavedRecommendationDraft[]
   briefingPreferences: BriefingPreferences
   lastAiResponseId: string | null
+  /** Id of the most recent executive briefing response (Ask panel shows it on the Briefing tab). */
+  lastBriefingResponseId: string | null
   landingComplete: boolean
   presentationMode: boolean
-  guidedTour: { active: boolean; journeyId: string; stepIndex: number } | null
+  guidedTour: GuidedTourState | null
   toast: { message: string; show: boolean }
+  /** Demo as-of date (ISO) shared by Ask, EOS horizons, imports and reports. */
+  demoAsOfDate: string
+  /** Incremented on every working-pack mutation; Ask answers older than this are stale. */
+  dataRevision: number
+  /** Latest staged (uncommitted) import validation for the active workspace, read by Ask Q32. */
+  importValidation: StagedImportValidation | null
+  askTab: AskTab
+  setDemoAsOfDate: (isoDate: string) => ActionResult
+  setImportValidation: (validation: StagedImportValidation | null) => void
+  setAskTab: (tab: AskTab) => void
+  setLastBriefingResponseId: (id: string | null) => void
+  /** Human action: turn a saved AI draft into a pack Recommendation with status Draft (never approves). */
+  convertRecommendationDraftToEntity: (draftId: string) => ActionResult & { existing?: boolean }
+  /** Explicitly prepare the synthetic J6 / J7 fixture for the active workspace (tagged, never overwrites). */
+  prepareDemoFixture: (journeyId: JourneyId) => ActionResult & { created?: string[] }
+  /** Commit a validated application import into the working pack (atomic) and record an audit entry. */
+  commitApplicationImport: (
+    result: ImportValidationResult,
+    meta: { draftId: string; fileName?: string },
+  ) => ActionResult & { created?: string[]; updated?: string[] }
+  /** Clone a starter into a runtime prospect workspace and make it the active tenant. */
+  createWorkspaceFromStarter: (
+    profile: RuntimeWorkspaceProfile,
+    starterCode: string,
+  ) => ActionResult & { code?: string; persisted?: boolean }
   setAskOpen: (open: boolean) => void
   recordAiResponse: (response: EA360AIResponse) => void
   reviewAiResponse: (responseId: string, status: AIReviewStatus, comment?: string) => void
@@ -207,9 +267,10 @@ type PrototypeState = {
   setPresentationMode: (on: boolean) => void
   startGuidedTour: (journeyId: string) => void
   setGuidedStep: (stepIndex: number) => void
+  retryGuidedStep: () => void
   exitGuidedTour: () => void
   restartGuidedTour: () => void
-  skipGuidedStep: () => void
+  skipGuidedStep: (stepId?: string, required?: boolean) => void
   showToast: (message: string) => void
   clearToast: () => void
   prototypeSchemaVersion: number
@@ -317,6 +378,7 @@ function captureTenantSlice(state: {
   recommendationDrafts: SavedRecommendationDraft[]
   briefingPreferences: BriefingPreferences
   lastAiResponseId: string | null
+  dataRevision?: number
 }): TenantUiSlice {
   return {
     role: state.role,
@@ -343,6 +405,7 @@ function captureTenantSlice(state: {
     recommendationDrafts: [...state.recommendationDrafts],
     briefingPreferences: { ...state.briefingPreferences },
     lastAiResponseId: state.lastAiResponseId,
+    dataRevision: state.dataRevision ?? 0,
   }
 }
 
@@ -378,6 +441,7 @@ function defaultTenantSlice(config: TenantConfig): TenantUiSlice {
       period: config.defaultReportingPeriod,
     },
     lastAiResponseId: null,
+    dataRevision: 0,
   }
 }
 
@@ -466,6 +530,7 @@ export const usePrototypeStore = create<PrototypeState>()(
           workingPack: pack,
           workingPacks: { ...get().workingPacks, [code]: pack },
           mutations,
+          dataRevision: (get().dataRevision ?? 0) + 1,
         })
       }
 
@@ -619,18 +684,190 @@ export const usePrototypeStore = create<PrototypeState>()(
         recommendationDrafts: [],
         briefingPreferences: { ...initialBriefingPrefs },
         lastAiResponseId: null,
+        lastBriefingResponseId: null,
         landingComplete: false,
         presentationMode: false,
         guidedTour: null,
         toast: { message: '', show: false },
+        demoAsOfDate: getDemoAsOfDate(),
+        dataRevision: 0,
+        importValidation: null,
+        askTab: 'ask' as AskTab,
         prototypeSchemaVersion: 8,
+        setDemoAsOfDate: (isoDate) => {
+          try {
+            setClockAsOf(isoDate)
+          } catch (e) {
+            return { ok: false, error: (e as Error).message }
+          }
+          // The as-of date changes EOS horizons and freshness, so earlier answers become stale.
+          set({ demoAsOfDate: isoDate, dataRevision: (get().dataRevision ?? 0) + 1 })
+          return { ok: true }
+        },
+        setImportValidation: (importValidation) => set({ importValidation }),
+        setAskTab: (askTab) => set({ askTab }),
+        setLastBriefingResponseId: (lastBriefingResponseId) => set({ lastBriefingResponseId }),
+        convertRecommendationDraftToEntity: (draftId) => {
+          const draft = get().recommendationDrafts.find((d) => d.id === draftId)
+          if (!draft) return { ok: false, error: 'Saved draft not found. Save the draft for review first.' }
+          const pack = ensurePack()
+          // Idempotent: a draft converts at most once (survives reloads via sourceRefs on the pack record).
+          const already =
+            (draft.recommendationId && pack.recommendations.find((r) => r.id === draft.recommendationId)) ||
+            pack.recommendations.find((r) => (r.sourceRefs ?? []).includes(draft.id))
+          if (already) {
+            if (draft.recommendationId !== already.id) {
+              set({
+                recommendationDrafts: get().recommendationDrafts.map((d) =>
+                  d.id === draftId ? { ...d, recommendationId: already.id } : d,
+                ),
+              })
+            }
+            return { ok: true, id: already.id, existing: true }
+          }
+          const finding = pack.findings.find((f) => f.id === draft.findingId)
+          if (!finding) return { ok: false, error: `Finding ${draft.findingId} is not in this workspace.` }
+          if (!(finding.evidenceIds?.length > 0)) {
+            return {
+              ok: false,
+              error: 'The finding has no linked evidence. Attach evidence before creating a recommendation draft.',
+            }
+          }
+          const payload = draft.payload
+          const newId = `rec-ai-${draft.id}`
+          try {
+            updatePack(
+              (p) => {
+                const f = p.findings.find((x) => x.id === draft.findingId)
+                if (!f) throw new Error('Finding not found')
+                const outcome = payload?.intendedOutcome || f.recommendedAction || 'Reduce the recorded business impact of this finding.'
+                const action = payload?.recommendedAction || f.recommendedAction || 'Address finding'
+                p.recommendations.push({
+                  id: newId,
+                  tenantId: p.tenant.id,
+                  name: `Draft: ${f.name}`,
+                  description: draft.summary || f.problemStatement,
+                  status: 'draft',
+                  ownerId: f.architectureOwnerId || f.ownerId,
+                  createdAt: today(),
+                  updatedAt: today(),
+                  dataQuality: 'medium',
+                  sourceRefs: ['ask-ea360-draft', draft.id],
+                  tags: ['ai-assisted', 'draft'],
+                  outcome: outcome,
+                  intendedOutcome: outcome,
+                  recommendedAction: action,
+                  findingIds: [f.id],
+                  affectedCapabilityIds: f.linkedObjectIds.filter((x) => p.capabilities.some((c) => c.id === x)),
+                  affectedApplicationIds: f.linkedObjectIds.filter((x) => p.applications.some((a) => a.id === x)),
+                  optionsConsidered: payload?.optionsConsidered?.length ? [...payload.optionsConsidered] : [action, 'Do nothing'],
+                  expectedValue: payload?.expectedBenefitBand || 'Indicative benefit band subject to validation',
+                  riskReduction: payload?.riskReductionRationale || f.businessImpact,
+                  effortBand: (['S', 'M', 'L', 'XL'] as const).includes(payload?.indicativeEffort as 'M')
+                    ? (payload!.indicativeEffort as 'S' | 'M' | 'L' | 'XL')
+                    : 'M',
+                  confidence: payload?.confidence ?? 'medium',
+                  assumptions: [
+                    ...(payload?.assumptions ?? []),
+                    'AI-assisted draft — requires architect validation. Not submitted and not approved.',
+                  ].filter((x, i, arr) => arr.indexOf(x) === i),
+                  workflowStatus: 'Draft',
+                  evidenceIds: [...(payload?.supportingEvidenceIds?.length ? payload.supportingEvidenceIds : f.evidenceIds)],
+                  preferredOption: action,
+                  reviewComments: [],
+                })
+                f.recommendationIds = [...new Set([...(f.recommendationIds ?? []), newId])]
+              },
+              {
+                action: 'recommendation_draft_created',
+                entityId: newId,
+                entityType: 'recommendation',
+                newState: 'Draft',
+                comment: `Created by a human from saved AI draft ${draft.id} for finding ${draft.findingId}. Not submitted, not approved.`,
+              },
+            )
+          } catch (e) {
+            return { ok: false, error: (e as Error).message }
+          }
+          set({
+            recommendationDrafts: get().recommendationDrafts.map((d) =>
+              d.id === draftId ? { ...d, recommendationId: newId } : d,
+            ),
+          })
+          return { ok: true, id: newId }
+        },
+        prepareDemoFixture: (journeyId) => {
+          const code = get().tenantCode
+          const binding = getJourneyBinding(code, journeyId)
+          if (!binding) return { ok: false, error: `No scenario binding for ${journeyId} in this workspace.` }
+          const kind = binding.requiresFixture
+          if (!kind) return { ok: false, error: `${journeyId} does not need a synthetic example in this workspace.` }
+          let outcome: { ok: boolean; created: string[]; error?: string } = {
+            ok: false,
+            created: [],
+            error: 'Nothing to prepare.',
+          }
+          try {
+            updatePack(
+              (pack) => {
+                outcome = applyFixture(pack, kind, binding)
+                if (!outcome.ok) throw new Error(outcome.error || 'Fixture could not be prepared.')
+              },
+              {
+                action: 'demo_fixture_prepared',
+                entityId: journeyId,
+                entityType: 'demo-journey',
+                comment: 'Prepared synthetic example records (tagged synthetic-demo-fixture).',
+              },
+            )
+          } catch (e) {
+            return { ok: false, error: (e as Error).message }
+          }
+          return { ok: true, created: outcome.created }
+        },
+        commitApplicationImport: (result, meta) => {
+          let merged: { created: string[]; updated: string[] } = { created: [], updated: [] }
+          try {
+            updatePack(
+              (pack) => {
+                merged = mergeApplicationImport(pack, result)
+              },
+              {
+                action: 'import_committed',
+                entityId: meta.draftId,
+                entityType: 'import',
+                newState: `${result.created} created, ${result.updated} updated`,
+                comment: `CSV applications import${meta.fileName ? ` (${meta.fileName})` : ''}: ${result.rows.length} valid row(s), ${result.unchanged} unchanged, ${result.warnings.length} warning(s). Synthetic data.`,
+              },
+            )
+          } catch (e) {
+            // updatePack applies fn to a clone and only sets state afterwards, so the pack is unchanged here.
+            return { ok: false, error: (e as Error).message }
+          }
+          set({ importValidation: null })
+          return { ok: true, id: meta.draftId, created: merged.created, updated: merged.updated }
+        },
+        createWorkspaceFromStarter: (profile, starterCode) => {
+          const created = createRuntimeWorkspace(profile, starterCode)
+          if (!created.ok) return { ok: false, error: created.errors[0], errors: created.errors }
+          get().switchTenant(created.code)
+          set({
+            toast: {
+              message: created.persisted
+                ? `Workspace ${created.code} created (synthetic) and selected.`
+                : `Workspace ${created.code} created for this session only; browser storage is unavailable.`,
+              show: true,
+            },
+          })
+          return { ok: true, id: created.code, code: created.code, persisted: created.persisted }
+        },
         setAskOpen: (askOpen) => set({ askOpen }),
         dismissLanding: () => set({ landingComplete: true }),
         showLanding: () => set({ landingComplete: false, guidedTour: null }),
         setPresentationMode: (presentationMode) => set({ presentationMode }),
         startGuidedTour: (journeyId) =>
           set({
-            guidedTour: { active: true, journeyId, stepIndex: 0 },
+            guidedTour: { active: true, journeyId, stepIndex: 0, retryNonce: 0, skipped: [] },
             landingComplete: true,
             askOpen: false,
             graphRoot: null,
@@ -640,21 +877,26 @@ export const usePrototypeStore = create<PrototypeState>()(
           if (!tour?.active) return
           set({ guidedTour: { ...tour, stepIndex } })
         },
+        retryGuidedStep: () => {
+          const tour = get().guidedTour
+          if (!tour?.active) return
+          set({ guidedTour: { ...tour, retryNonce: (tour.retryNonce ?? 0) + 1 } })
+        },
         exitGuidedTour: () => set({ guidedTour: null, askOpen: false }),
         restartGuidedTour: () => {
           const tour = get().guidedTour
           if (!tour?.journeyId) return
           set({
-            guidedTour: { active: true, journeyId: tour.journeyId, stepIndex: 0 },
+            guidedTour: { active: true, journeyId: tour.journeyId, stepIndex: 0, retryNonce: 0, skipped: [] },
             askOpen: false,
             graphRoot: null,
           })
         },
-        skipGuidedStep: () => {
+        skipGuidedStep: (stepId, required = false) => {
           const tour = get().guidedTour
           if (!tour?.active) return
-          // Consumer advances; GuidedDemoBar Finish handles end — clamp happens in UI
-          set({ guidedTour: { ...tour, stepIndex: tour.stepIndex + 1 } })
+          const skipped = required && stepId && !(tour.skipped ?? []).includes(stepId) ? [...(tour.skipped ?? []), stepId] : (tour.skipped ?? [])
+          set({ guidedTour: { ...tour, stepIndex: tour.stepIndex + 1, skipped } })
         },
         showToast: (message) => set({ toast: { message, show: true } }),
         clearToast: () => set({ toast: { message: '', show: false } }),
@@ -678,7 +920,10 @@ export const usePrototypeStore = create<PrototypeState>()(
           })
         },
         saveRecommendationDraft: (draft) => {
-          const id = `ai-draft-${Date.now()}`
+          // Idempotent: saving the same AI response twice returns the existing saved draft.
+          const existing = get().recommendationDrafts.find((d) => d.responseId === draft.responseId)
+          if (existing) return { ok: true, id: existing.id }
+          const id = `ai-draft-${Date.now()}-${get().recommendationDrafts.length + 1}`
           set({
             recommendationDrafts: [
               ...get().recommendationDrafts,
@@ -763,6 +1008,9 @@ export const usePrototypeStore = create<PrototypeState>()(
             guidedTour: null,
             graphRoot: null,
             impactMode: false,
+            importValidation: null,
+            lastBriefingResponseId: null,
+            askTab: 'ask',
             toast: { message: 'Demonstration restored for the active organisation.', show: true },
             prototypeSchemaVersion: 8,
           })
@@ -782,12 +1030,16 @@ export const usePrototypeStore = create<PrototypeState>()(
             ...slice,
             selectedEntity: null,
             view: 'executive',
+            importValidation: null,
+            lastBriefingResponseId: null,
+            askTab: 'ask',
           })
         },
 
         switchTenant: (code: TenantCode) => {
           const state = get()
           if (state.tenantCode === code) return
+          if (!isKnownTenant(code)) return
 
           const persistedSlice = captureTenantSlice(state)
           const workingPacks: Partial<Record<TenantCode, TenantPack>> = {
@@ -839,6 +1091,11 @@ export const usePrototypeStore = create<PrototypeState>()(
             recommendationDrafts: restored.recommendationDrafts,
             briefingPreferences: restored.briefingPreferences,
             lastAiResponseId: restored.lastAiResponseId,
+            dataRevision: restored.dataRevision ?? 0,
+            // Staged imports and briefing previews never follow the user into another workspace.
+            importValidation: null,
+            lastBriefingResponseId: null,
+            askTab: 'ask',
           })
           if (typeof window !== 'undefined') {
             window.location.hash = ''
@@ -1371,6 +1628,14 @@ export const usePrototypeStore = create<PrototypeState>()(
         }
         return base
       },
+      merge: (persisted, current) => {
+        const p = (persisted || {}) as Partial<PrototypeState>
+        // A runtime workspace may have been removed from browser storage: fall back to the seed default.
+        if (p.tenantCode && !isKnownTenant(p.tenantCode)) {
+          return { ...current, ...p, tenantCode: 'GRA', workingPack: null, selectedEntity: null, view: 'executive' } as PrototypeState
+        }
+        return { ...current, ...p } as PrototypeState
+      },
       partialize: (s) => ({
         tenantCode: s.tenantCode,
         workingPacks: s.workingPacks,
@@ -1406,6 +1671,7 @@ export const usePrototypeStore = create<PrototypeState>()(
         aiFeedback: s.aiFeedback.slice(-20),
         recommendationDrafts: s.recommendationDrafts,
         briefingPreferences: s.briefingPreferences,
+        dataRevision: s.dataRevision,
       }),
     },
   ),

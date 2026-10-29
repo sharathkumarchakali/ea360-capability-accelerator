@@ -25,12 +25,23 @@ export default function ExecutiveBriefing({ onAction, embedded, inDrawer }) {
   const prefs = usePrototypeStore((s) => s.briefingPreferences)
   const setBriefingPreferences = usePrototypeStore((s) => s.setBriefingPreferences)
   const recordAiResponse = usePrototypeStore((s) => s.recordAiResponse)
+  const demoAsOfDate = usePrototypeStore((s) => s.demoAsOfDate)
+  const dataRevision = usePrototypeStore((s) => s.dataRevision)
+  const aiHistory = usePrototypeStore((s) => s.aiHistory)
+  const lastBriefingResponseId = usePrototypeStore((s) => s.lastBriefingResponseId)
+  const setLastBriefingResponseId = usePrototypeStore((s) => s.setLastBriefingResponseId)
   const domains = getRepo().listCapabilities?.()
     ? [...new Set(getRepo().listCapabilities().map((c) => c.domain).filter(Boolean))]
     : []
 
-  const [preview, setPreview] = useState(null)
+  const [localPreviewId, setLocalPreviewId] = useState(null)
   const [copied, setCopied] = useState(false)
+
+  // A briefing generated from a demo step or the Ask command (openBriefing) is shown here too.
+  const preview =
+    aiHistory.find((r) => r.id === (localPreviewId || lastBriefingResponseId) && r.intent === 'executive_briefing') ||
+    null
+  const stale = preview && preview.dataRevision != null && preview.dataRevision < dataRevision
 
   function generate() {
     const tenant = getRepo().getTenant()
@@ -47,9 +58,12 @@ export default function ExecutiveBriefing({ onAction, embedded, inDrawer }) {
         objectiveId: prefs.objectiveId || undefined,
       },
       view: 'executive',
+      asOfDate: demoAsOfDate,
+      dataRevision,
     })
     recordAiResponse(response)
-    setPreview(response)
+    setLastBriefingResponseId(response.id)
+    setLocalPreviewId(response.id)
   }
 
   async function copyText() {
@@ -156,6 +170,12 @@ export default function ExecutiveBriefing({ onAction, embedded, inDrawer }) {
           Print
         </button>
       </div>
+
+      {stale ? (
+        <p className="ai-stale-banner" role="status">
+          Workspace data changed after this briefing was generated. Generate it again to include the latest records.
+        </p>
+      ) : null}
 
       {preview ? (
         <div className="ai-briefing-preview print-friendly">

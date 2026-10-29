@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --kulana-cyan: #52cfe4;
   --kulana-mint: #62e0c8;
   --kulana-teal: #1e8caa;
@@ -6984,3 +6984,142 @@ canvas {
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* --- Demo Studio, guided journeys and workspace views --- */
+.guided-demo-bar { flex-wrap: wrap; }
+.guided-demo-meta { flex-wrap: wrap; }
+.guided-progress { font-size: 0.875rem; }
+.guided-meter { width: 120px; height: 8px; accent-color: var(--accent); }
+.guided-demo-copy p { font-size: 0.875rem; }
+.guided-label {
+  display: inline-block;
+  margin-right: 6px;
+  font-weight: 600;
+  color: var(--text);
+}
+.guided-warning {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--warn-soft);
+  color: var(--text);
+  border: 1px solid var(--warning);
+}
+.guided-incomplete {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: var(--warn-soft);
+  border: 1px solid var(--warning);
+  color: var(--text);
+}
+.guided-notes-panel {
+  margin-top: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+}
+.guided-demo-actions .btn { min-height: 48px; }
+
+.ds-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.ds-toggles { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.ds-toggle, .ds-actions .btn, .wv-actions .btn, .wv-filters .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  border-radius: 10px;
+}
+.ds-h2 { margin: 28px 0 12px; font-size: 1.25rem; color: var(--text); }
+.ds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.ds-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  font-size: 1rem;
+}
+.ds-card h3 { margin: 0; font-size: 1.125rem; color: var(--text); }
+.ds-card p { margin: 0; }
+.ds-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ds-code { font-weight: 700; font-size: 0.875rem; color: var(--accent); }
+.ds-meta { font-size: 0.875rem; color: var(--text-muted); }
+.ds-reasons { margin: 0; padding-left: 20px; font-size: 0.875rem; color: var(--text-muted); }
+.ds-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 8px; }
+.ds-steps { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 10px; font-size: 0.875rem; }
+.ds-step-sub, .ds-note { display: block; color: var(--text-muted); }
+.ds-note { padding: 6px 10px; border-radius: 8px; background: var(--accent-soft); color: var(--text); }
+.ds-optional { color: var(--text-muted); }
+.ds-error, .wv-error { color: var(--risk); font-size: 0.875rem; }
+.ds-empty { padding: 16px; border: 1px dashed var(--border); border-radius: 12px; }
+
+.wv-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  align-items: end;
+  margin: 16px 0;
+}
+.wv-caption { padding: 8px 0; text-align: left; font-size: 0.875rem; color: var(--text-muted); caption-side: top; }
+.wv-split { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1024px) { .wv-split { grid-template-columns: minmax(0, 1fr); } }
+.wv-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  font-size: 1rem;
+}
+.wv-panel h2, .wv-panel h3, .wv-panel p, .wv-panel ul { margin: 0; }
+.wv-panel h2 { font-size: 1.25rem; }
+.wv-panel h3 { font-size: 1rem; }
+.wv-panel ul { padding-left: 20px; }
+.wv-form { display: grid; gap: 12px; }
+.wv-form .field textarea, .wv-panel .field textarea { width: 100%; font: inherit; }
+.wv-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.wv-issues { display: grid; gap: 8px; list-style: none; padding-left: 0 !important; font-size: 0.875rem; }
+.wv-exception { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
+.wv-confirm { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--warning); border-radius: 12px; background: var(--warn-soft); }
+.wv-hidden-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); opacity: 0; }
+.wv-check { display: flex; align-items: center; gap: 10px; min-height: 48px; }
+.wv-check input { width: 20px; height: 20px; }
+.wv-stepper { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; padding: 0; list-style: none; }
+.wv-stepper li { padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px; font-size: 0.875rem; color: var(--text-muted); }
+.wv-stepper li.is-current { color: var(--text); border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.wv-view .clickable-row.is-selected { background: var(--accent-soft); }
+.wv-view .clickable-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.wv-view .table-wrap { overflow-x: auto; }
+/* Journeys: ask panel additions, ingestion mapping, disclosures */
+.ask-panel-label { margin: 0 0 8px; font-size: 0.875rem; color: var(--text-muted); }
+.ask-active { display: grid; gap: 12px; }
+.ai-stale-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+  margin: 0 0 12px; padding: 12px 16px;
+  border: 1px solid var(--warning); border-radius: 12px;
+  background: var(--warn-soft); color: var(--text); font-size: 0.875rem;
+}
+.ai-followups { display: flex; flex-wrap: wrap; gap: 8px; }
+.ai-draft-fields { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 3fr); gap: 8px 16px; margin: 0; font-size: 0.875rem; }
+.ai-draft-fields dt { color: var(--text-muted); font-weight: 600; }
+.ai-draft-fields dd { margin: 0; overflow-wrap: anywhere; }
+.ai-draft-steps { display: grid; gap: 4px; margin: 0; padding-left: 20px; font-size: 0.875rem; }
+@media (max-width: 640px) { .ai-draft-fields { grid-template-columns: minmax(0, 1fr); } }
+.wv-map-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.wv-map-grid select { width: 100%; }
+.synthetic-disclosure { margin: 16px 0 0; color: var(--text-muted); font-size: 0.875rem; }

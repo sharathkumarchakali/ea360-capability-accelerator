@@ -1,0 +1,4 @@
+id,name,capabilityId,criticality
+app-gra-01,Domestic Tax Core,cap-gra-04,critical
+app-sample-101,Case intake portal (sample),cap-gra-01,high
+app-sample-102,Records archive (sample),cap-gra-02,medium
