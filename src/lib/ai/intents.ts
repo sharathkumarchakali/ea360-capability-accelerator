@@ -166,11 +166,13 @@ export const INTENT_PATTERNS: IntentPattern[] = [
   },
   {
     intent: 'executive_review',
-    priority: 70,
+    priority: 88,
     patterns: [
       /\bexecutive (committee )?review\b/i,
       /\bthis quarter\b/i,
       /\bshould .+ review\b/i,
+      /\bwhat should (the )?cio do first\b/i,
+      /\bcio.{0,30}(first|priority|priorities)\b/i,
     ],
   },
   {
@@ -325,11 +327,13 @@ export const INTENT_PATTERNS: IntentPattern[] = [
   },
   {
     intent: 'import_validation',
-    priority: 85,
+    priority: 88,
     patterns: [
       /\bimport (fail|validation)\b/i,
       /\bwhy did .{0,20}import\b/i,
       /\bvalidation (issues?|errors?)\b/i,
+      /\bwhat is blocking (this |the )?(data )?import\b/i,
+      /\bblocking (this |the )?import\b/i,
     ],
   },
   {

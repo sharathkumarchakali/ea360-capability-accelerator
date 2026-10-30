@@ -67,7 +67,7 @@ function buildPriorityDecisions({ metrics, intMetrics, topFinding, topRec, decis
   const fallback = [
     {
       id: 'open-findings',
-      title: `${metrics.openFindings} open findings need triage`,
+      title: `${metrics.openFindings} reviewed/open findings need triage`,
       impact: `${metrics.criticalRiskCount} critical risks concentrated in priority domains`,
       status: 'attention',
       next: 'Open findings workspace',
@@ -221,7 +221,7 @@ export default function ExecutiveCockpit({ onNavigate }) {
         ? 'warn'
         : 'risk'
   const riskTone = metrics.criticalRiskCount > 0 ? 'risk' : 'good'
-  const decisionTone = metrics.openFindings > 0 ? 'warn' : 'good'
+  const decisionTone = metrics.pendingDecisions > 0 ? 'warn' : 'good'
   const healthGap = Math.round(70 - Number(metrics.enterpriseHealth || 0))
   const TrendIcon = healthGap > 0 ? TrendingDown : healthGap < 0 ? TrendingUp : Minus
 
@@ -398,7 +398,7 @@ export default function ExecutiveCockpit({ onNavigate }) {
 
   return (
     <section className="view active executive-cockpit">
-      <div className="cockpit-workspace">
+      <div className="cockpit-workspace ea-workspace">
         <header className="cockpit-header">
           <div className="cockpit-header-copy">
             <h1 className="cockpit-title">Executive Cockpit</h1>
@@ -482,9 +482,9 @@ export default function ExecutiveCockpit({ onNavigate }) {
               onClick={() => go('governance')}
             >
               <span className="cockpit-kpi-label">Decisions requiring attention</span>
-              <strong className="cockpit-kpi-value">{metrics.openFindings}</strong>
+              <strong className="cockpit-kpi-value">{metrics.pendingDecisions}</strong>
               <span className={`cockpit-kpi-status tone-${decisionTone}`}>
-                {metrics.approvedRecommendations} approved ready
+                Pending or deferred
               </span>
             </button>
           </div>

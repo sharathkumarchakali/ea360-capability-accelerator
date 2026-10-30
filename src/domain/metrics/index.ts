@@ -1,11 +1,62 @@
 import type {
   Application,
   Capability,
+  Decision,
   Finding,
   Initiative,
   KPI,
   Recommendation,
 } from '../entities/types'
+import { coerceFindingWorkflowStatus, coerceRecommendationWorkflowStatus } from '../workflow/transitions'
+
+export function countDraftFindings(findings: Finding[]): number {
+  return findings.filter(
+    (f) => coerceFindingWorkflowStatus(f.workflowStatus ?? f.status) === 'Draft',
+  ).length
+}
+
+export function countExecutiveOpenFindings(findings: Finding[]): number {
+  return findings.filter((f) => isExecutiveOpenFinding(f)).length
+}
+
+export function countRegisterOpenFindings(findings: Finding[]): number {
+  return findings.filter((f) => {
+    const ws = coerceFindingWorkflowStatus(f.workflowStatus ?? f.status)
+    return !['Resolved', 'Rejected'].includes(ws)
+  }).length
+}
+
+export function isExecutiveOpenFinding(f: Finding): boolean {
+  return isFindingExecutiveOpen(f.status, f.workflowStatus)
+}
+
+export function isFindingExecutiveOpen(status: string, workflowStatus?: string): boolean {
+  const ws = coerceFindingWorkflowStatus(workflowStatus ?? status)
+  return !['Draft', 'Resolved', 'Rejected'].includes(ws)
+}
+
+export function countPendingDecisions(decisions: Decision[] | undefined): number {
+  return (decisions ?? []).filter((d) =>
+    ['Pending', 'Deferred'].includes(d.decisionStatus || (d as { status?: string }).status || ''),
+  ).length
+}
+
+export function countRecommendationsAwaitingDecision(recommendations: Recommendation[]): number {
+  return recommendations.filter((r) => {
+    const ws = coerceRecommendationWorkflowStatus(r.workflowStatus ?? r.status)
+    return ['Ready for Review', 'Under Review', 'Approved'].includes(ws)
+  }).length
+}
+
+export function audienceFindingWorkflowLabel(f: Finding): string {
+  return coerceFindingWorkflowStatus(f.workflowStatus ?? f.status)
+}
+
+export function audienceRecommendationLabel(r: Recommendation): string {
+  const ws = coerceRecommendationWorkflowStatus(r.workflowStatus ?? r.status)
+  if (ws === 'Converted to Initiative') return 'Converted to initiative (delivery in progress)'
+  return ws
+}
 
 /**
  * Enterprise health (0–100)
@@ -96,6 +147,7 @@ export function deriveExecutiveMetrics(pack: {
   initiatives: Initiative[]
   kpis: KPI[]
   recommendations: Recommendation[]
+  decisions?: Decision[]
 }) {
   const maturity = architectureMaturity(pack.capabilities)
   const appHealth = applicationHealth(pack.applications)
@@ -109,6 +161,11 @@ export function deriveExecutiveMetrics(pack: {
     applicationHealth: appHealth,
     transformationProgress: transform,
   })
+  const draftFindings = countDraftFindings(pack.findings)
+  const executiveOpenFindings = countExecutiveOpenFindings(pack.findings)
+  const registerOpenFindings = countRegisterOpenFindings(pack.findings)
+  const pendingDecisions = countPendingDecisions(pack.decisions)
+
   return {
     enterpriseHealth: health,
     strategicAlignment: alignment,
@@ -116,8 +173,11 @@ export function deriveExecutiveMetrics(pack: {
     criticalRiskCount: critical,
     applicationHealth: appHealth,
     transformationProgress: transform,
-    openFindings: pack.findings.filter((f) => f.status === 'open' || f.status === 'in_progress')
-      .length,
+    /** Reviewed / active risk findings (Draft excluded). */
+    openFindings: executiveOpenFindings,
+    registerOpenFindings,
+    draftFindings,
+    pendingDecisions,
     approvedRecommendations: pack.recommendations.filter((r) => r.status === 'approved').length,
   }
 }

@@ -53,13 +53,19 @@ export function matchFollowUpKind(text: string): FollowUpKind | null {
   return FOLLOW_UP_PATTERNS.find((p) => p.re.test(q))?.kind ?? null
 }
 
-/** The object a follow-up is about: the first related object of the previous answer. */
+/** The object a follow-up is about — prefer the primary subject type of the prior answer. */
 export function followUpSubject(previous: EA360AIResponse | null | undefined): EntityReference | null {
   if (!previous) return null
   if (['unsupported', 'cross_tenant_refused', 'refuse_approval', 'refuse_guaranteed_finance', 'unknown_entity', 'clarify_entity'].includes(previous.intent)) {
     return null
   }
-  return previous.entityRefs?.[0] ?? null
+  const refs = previous.entityRefs ?? []
+  const preferred = ['aiSolution', 'finding', 'recommendation', 'application', 'integration', 'technology', 'capability']
+  for (const t of preferred) {
+    const hit = refs.find((r) => r.type === t)
+    if (hit) return hit
+  }
+  return refs[0] ?? null
 }
 
 /**
@@ -75,6 +81,13 @@ export function resolveFollowUp(
   const base = { kind, subject, followUpOf: previous.id }
 
   if (kind === 'why') {
+    if (previous.intent === 'ai_agent_permissions' && subject.type === 'aiSolution') {
+      return {
+        ...base,
+        intent: 'ai_agent_permissions_why',
+        query: 'Why are these permission and guardrail gaps a concern?',
+      }
+    }
     const row = WHY_BY_TYPE[subject.type]
     return row ? { ...base, ...row } : null
   }

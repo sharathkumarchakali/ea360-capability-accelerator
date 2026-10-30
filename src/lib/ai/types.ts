@@ -32,6 +32,7 @@ export type AIIntent =
   | 'ai_governance_attention'
   | 'ai_agent_explain'
   | 'ai_agent_permissions'
+  | 'ai_agent_permissions_why'
   | 'ai_model_dependencies'
   | 'ai_agent_kpi'
   | 'import_validation'

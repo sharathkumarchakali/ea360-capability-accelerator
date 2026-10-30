@@ -426,6 +426,7 @@ export function createTenantRepository(pack: TenantPack) {
         initiatives: pack.initiatives,
         kpis: pack.kpis,
         recommendations: pack.recommendations,
+        decisions: pack.decisions,
       }),
     getPriorityCapability: () =>
       [...pack.capabilities].sort((a, b) => b.riskScore - a.riskScore)[0],

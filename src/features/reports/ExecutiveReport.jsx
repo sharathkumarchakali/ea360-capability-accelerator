@@ -2,6 +2,12 @@ import { useMemo, useState } from 'react'
 import { usePrototypeStore, getTenantConfig } from '../../state/prototypeStore'
 import { deriveIntegrationMetrics } from '../../domain/metrics/integration'
 
+function formatKpiCell(value, unit) {
+  if (value == null || value === '') return '—'
+  const u = unit ? ` ${unit}` : ''
+  return `${value}${u}`
+}
+
 const SECTION_DEFS = [
   { id: 'cover', label: 'Cover' },
   { id: 'summary', label: 'Executive summary' },
@@ -69,15 +75,17 @@ export default function ExecutiveReport({ onNavigate }) {
 
   const summaryText = useMemo(() => {
     const top = filteredFindings[0]
-    const pending = decisions.length
+  const pending = metrics.pendingDecisions ?? decisions.length
     return [
       `${tenant.displayName || tenant.name} (${tenant.shortName}) — ${filters.period}.`,
       `Enterprise health ${metrics.enterpriseHealth}/100; architecture maturity ${metrics.architectureMaturity}/5; application health ${metrics.applicationHealth}/5.`,
-      `${metrics.openFindings} open findings (${metrics.criticalRiskCount} critical). Point-to-point concentration ${intMetrics.pointToPointPercentage}%.`,
+      `${metrics.openFindings} reviewed/open findings (${metrics.criticalRiskCount} critical)${
+        metrics.draftFindings ? `; ${metrics.draftFindings} draft(s) excluded from executive exposure` : ''
+      }. Point-to-point concentration ${intMetrics.pointToPointPercentage}%.`,
       top
         ? `Priority finding: ${top.name}. Recommended next step is governed remediation via the linked recommendation and roadmap initiative.`
         : 'No priority finding in the current filter.',
-      `${pending} decision(s) require Architecture / Portfolio Review Board attention.`,
+      `${pending} pending or deferred decision(s) require Architecture / Portfolio Review Board attention.`,
       'Figures are indicative and derived from synthetic demonstration data.',
     ].join(' ')
   }, [
@@ -501,8 +509,8 @@ export default function ExecutiveReport({ onNavigate }) {
                 {kpis.slice(0, 10).map((k) => (
                   <tr key={k.id}>
                     <td>{k.name}</td>
-                    <td>{k.currentValue ?? k.value ?? '—'}</td>
-                    <td>{k.targetValue ?? k.target ?? '—'}</td>
+                    <td>{formatKpiCell(k.currentValue ?? k.value, k.unit)}</td>
+                    <td>{formatKpiCell(k.targetValue ?? k.target, k.unit)}</td>
                   </tr>
                 ))}
               </tbody>

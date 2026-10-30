@@ -503,6 +503,8 @@ function Inspector({
   impactMap,
   impact,
   impactMode,
+  relationshipDepth,
+  canvasNodeCount,
   repo,
   onOpenDetail,
   onExpand,
@@ -568,13 +570,26 @@ function Inspector({
 
   const evidenceRecs = useMemo(() => {
     if (!sideEntity) return []
-    const items = sideRels
-      .map((r) => {
-        const otherId = r.sourceId === sideEntity.id ? r.targetId : r.sourceId
-        return repo.resolveGraphNode(otherId)
-      })
-      .filter((n) => n && (n.type === 'evidence' || n.type === 'recommendation' || n.type === 'initiative'))
-    return items.slice(0, 8)
+    const map = new Map()
+    for (const r of sideRels) {
+      const otherId = r.sourceId === sideEntity.id ? r.targetId : r.sourceId
+      const n = repo.resolveGraphNode(otherId)
+      if (n && (n.type === 'evidence' || n.type === 'recommendation' || n.type === 'initiative')) {
+        map.set(n.id, n)
+      }
+    }
+    const findingIds = new Set(
+      (sideEntity.findingIds || []).concat(
+        (repo.findingsForApplication?.(sideEntity.id) || []).map((f) => f.id),
+        (repo.findingsForIntegration?.(sideEntity.id) || []).map((f) => f.id),
+      ),
+    )
+    for (const fid of findingIds) {
+      for (const rec of repo.recommendationsForFinding(fid) || []) {
+        map.set(rec.id, { id: rec.id, type: 'recommendation', name: rec.name })
+      }
+    }
+    return [...map.values()].slice(0, 8)
   }, [sideEntity, sideRels, repo])
 
   const attrs = useMemo(() => {
@@ -635,6 +650,10 @@ function Inspector({
               Extended {impact.hits.filter((h) => h.level === 'potential').length}
             </span>
           </div>
+          <p className="explorer-muted" style={{ margin: '8px 0 0', fontSize: '0.8125rem' }}>
+            Showing {canvasNodeCount ?? '—'} node(s) on canvas · {impact.hits.length} in impact scope
+            {relationshipDepth != null ? ` (depth ${relationshipDepth})` : ''}. List view shows all paths.
+          </p>
           <button type="button" className="explorer-btn primary" onClick={onExplain}>
             Explain impact
           </button>
@@ -1436,6 +1455,8 @@ export default function RelationshipExplorer({ onNavigate }) {
                 impactMap={impactMap}
                 impact={impact}
                 impactMode={impactMode}
+                relationshipDepth={relationshipDepth}
+                canvasNodeCount={nodes.length}
                 repo={repo}
                 onOpenDetail={openDetail}
                 onExpand={expandFromSide}
@@ -1572,6 +1593,8 @@ export default function RelationshipExplorer({ onNavigate }) {
               impactMap={impactMap}
               impact={impact}
               impactMode={impactMode}
+              relationshipDepth={relationshipDepth}
+              canvasNodeCount={nodes.length}
               repo={repo}
               onOpenDetail={openDetail}
               onExpand={expandFromSide}

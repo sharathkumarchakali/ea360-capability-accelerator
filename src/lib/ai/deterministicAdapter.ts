@@ -1,5 +1,6 @@
 import type { TenantRepository } from '../../data/repositories/tenantRepository'
 import { deriveExecutiveMetrics } from '../../domain/metrics'
+import { isFindingExecutiveOpen } from '../../domain/metrics'
 import { buildP2PCounts, classifyTIME } from '../../domain/metrics/portfolio'
 import { deriveIntegrationMetrics } from '../../domain/metrics/integration'
 import { analyseImpact } from '../../domain/metrics/graph'
@@ -39,6 +40,7 @@ import {
   answerAiGovernanceAttention,
   answerAiAgentExplain,
   answerAiAgentPermissions,
+  answerAiAgentPermissionsWhy,
   answerAiModelDependencies,
   answerAiAgentKpi,
   answerImportValidation,
@@ -70,8 +72,7 @@ function evidenceForEntities(repo: TenantRepository, entityIds: string[]) {
 }
 
 function openFindingStatuses(status: string, workflowStatus?: string) {
-  const ws = coerceFindingWorkflowStatus(workflowStatus ?? status)
-  return !['Resolved', 'Rejected'].includes(ws)
+  return isFindingExecutiveOpen(status, workflowStatus)
 }
 
 export function createDeterministicAdapter(opts: DeterministicAdapterOptions): EA360AIService {
@@ -281,6 +282,9 @@ export function createDeterministicAdapter(opts: DeterministicAdapterOptions): E
       case 'ai_agent_permissions':
         draft = answerAiAgentPermissions(ctx)
         break
+      case 'ai_agent_permissions_why':
+        draft = answerAiAgentPermissionsWhy(ctx)
+        break
       case 'ai_model_dependencies':
         draft = answerAiModelDependencies(ctx)
         break
@@ -316,9 +320,8 @@ export function createDeterministicAdapter(opts: DeterministicAdapterOptions): E
           intent: 'unsupported',
           tenantId,
           summary:
-            'This question is outside the supported deterministic intents. Try a suggested question or open Explain on a specific insight.',
-          explanation:
-            'Ask EA360 supports focused enterprise questions (risks, TIME, integrations, findings, decisions, briefings) grounded in GRA records — not unrestricted natural language.',
+            'This question is outside the supported Ask EA360 catalogue. Try a suggested question or open Explain on a specific insight.',
+          explanation: `Ask EA360 answers focused enterprise questions (risks, TIME, integrations, findings, decisions, briefings) from the active ${pack.tenant.shortName} workspace — not unrestricted natural language.`,
           confidence: 'low',
           confidenceReason: 'Unsupported query pattern.',
           suggestedActions: [
@@ -1123,7 +1126,7 @@ function answerExplainMetric(ctx: AIContext) {
       tenantId: ctx.tenantId,
       summary: `Enterprise health is ${metrics.enterpriseHealth}/100.`,
       explanation:
-        'Weighted blend: architecture maturity 40%, inverse critical-risk pressure 30%, application health 20%, transformation progress 10%. All inputs are derived from GRA records.',
+        `Weighted blend: architecture maturity 40%, inverse critical-risk pressure 30%, application health 20%, transformation progress 10%. All inputs are derived from the active workspace records.`,
       whyItMatters: 'A single executive signal for architecture and risk posture — not a financial KPI.',
       evidenceIds: ctx.pack.findings.filter((f) => f.severity === 'critical').flatMap((f) => f.evidenceIds).slice(0, 8),
       entityRefs: [],
