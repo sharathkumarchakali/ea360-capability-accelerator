@@ -337,13 +337,13 @@ export default function ApplicationsView() {
   }, [packApps, caps])
 
   return (
-    <section className="view active app-portfolio-view">
+    <section className="view active app-portfolio-view ea-workspace">
       <div className="module">
-        <div className="module-header app-portfolio-header">
+        <header className="ea-page-head app-portfolio-header">
           <div>
             <div className="kicker">Portfolios · {orgName}</div>
             <h1 className="page-title">Applications</h1>
-            <p>
+            <p className="ea-page-lead">
               Understand the applications that run the enterprise, the capabilities they support,
               the risks they create and the decisions required.
             </p>
@@ -351,9 +351,9 @@ export default function ApplicationsView() {
           <div className="synthetic-pill" title="Illustrative seed data for demonstration">
             SYNTHETIC DEMO DATA
           </div>
-        </div>
+        </header>
 
-        <div className="app-metric-strip" role="group" aria-label="Portfolio summary metrics">
+        <div className="ea-metric-strip app-metric-strip" role="group" aria-label="Portfolio summary metrics">
           <button type="button" className="app-metric" onClick={() => applyMetricFilter('all')}>
             <span>Applications</span>
             <strong>{metrics.total}</strong>
@@ -616,7 +616,7 @@ export default function ApplicationsView() {
           ) : null}
         </div>
 
-        <div className="table-wrap portfolio-table-desktop app-register">
+        <div className="ea-data-table table-wrap portfolio-table-desktop app-register">
           <table className="data">
             <thead>
               <tr>

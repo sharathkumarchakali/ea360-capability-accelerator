@@ -21,6 +21,7 @@ import {
 } from './index'
 import { assertTenantIsolation } from './groundingValidator'
 import { extractUnknownNamedSubject } from './contextBuilder'
+import { classifyIntent } from './intents'
 import { clearTenantCache, createTenantRepository, loadTenantPack } from '../../data/repositories/tenantRepository'
 import { clearRuntimeWorkspaces } from '../../data/tenants/registry'
 import { usePrototypeStore } from '../../state/prototypeStore'
@@ -669,5 +670,50 @@ describe('AT20 — executive briefing', () => {
     const board = executiveBriefing(request({ query: 'Generate an executive briefing.', intent: 'executive_briefing', briefingRole: 'Board' }))
     expect(exec.grounded && board.grounded).toBe(true)
     expect(allText(exec)).not.toMatch(/\bwe approved\b|\bhas been approved by EA360\b/i)
+  })
+})
+
+describe('Reliability fixes (R02, R03, R07, R08)', () => {
+  it('R02 Why after permissions explains control gaps for ai-gra-02', () => {
+    const permissions = askQuestion('Q26', { contextEntityIds: ['ai-gra-02'] })
+    const follow = resolveFollowUp('why', permissions)
+    expect(follow?.intent).toBe('ai_agent_permissions_why')
+    const why = askEA360(
+      request({
+        query: follow!.query,
+        intent: follow!.intent,
+        contextEntityIds: [follow!.subject.id],
+        followUpOf: permissions.id,
+      }),
+    )
+    expect(why.explanation).toMatch(/Fraud Analyst|WRITE|EXECUTE/i)
+    expect(why.explanation).not.toMatch(/person-chief-architect/i)
+  })
+
+  it('R03 agent approval authority is scoped for ai-gra-02', () => {
+    const r = askEA360(
+      request({
+        query: 'Who can approve this agent?',
+        intent: 'approval_authority',
+        contextEntityIds: ['ai-gra-02'],
+      }),
+    )
+    expect(r.summary).toMatch(/No production approval authority/i)
+  })
+
+  it('R07 typed CIO and import blocking classify', () => {
+    expect(classifyIntent('What should the CIO do first, and why?', undefined, 'GRA')).toBe('executive_review')
+    expect(classifyIntent('What is blocking this data import?', undefined, 'GRA')).toBe('import_validation')
+  })
+
+  it('R08 unsupported answer names active workspace on BOG', () => {
+    usePrototypeStore.getState().setTenant('BOG')
+    configureEA360AI({ getRepo: () => usePrototypeStore.getState().getRepo() })
+    const bogId = usePrototypeStore.getState().getRepo().getTenant().id
+    const r = askEA360(request({ query: 'Tell me a quantum foam joke', tenantId: bogId }))
+    expect(r.intent).toBe('unsupported')
+    expect(r.explanation).not.toMatch(/grounded in GRA records/i)
+    usePrototypeStore.getState().setTenant('GRA')
+    configureEA360AI({ getRepo: () => usePrototypeStore.getState().getRepo() })
   })
 })

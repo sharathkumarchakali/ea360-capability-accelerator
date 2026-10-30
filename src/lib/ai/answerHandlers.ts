@@ -4,11 +4,14 @@
  */
 import { classifySupportDate, getDemoAsOfDate } from '../../domain/demo/demoClock'
 import { analyseImpact } from '../../domain/metrics/graph'
+import { countPendingDecisions } from '../../domain/metrics'
 import {
   calculateFindingConfidence,
   coerceFindingWorkflowStatus,
   isInsufficientlyEvidenced,
 } from '../../domain/workflow'
+import { getCatalog } from '../../features/ai-data-governance/governanceModel'
+import type { AiSolution } from '../../domain/entities/types'
 import type { AIContext } from './contextBuilder'
 import { baseResponse, refsFromIds } from './responseComposer'
 import type { EA360AIResponse, EntityReference } from './types'
@@ -668,26 +671,21 @@ export function answerAiAgentExplain(ctx: AIContext): Draft {
       inferences: [],
     })
   }
+  const view = normalizeAiSolution(s)!
   return baseResponse({
     intent: 'ai_agent_explain',
     tenantId: ctx.tenantId,
     questionId: 'Q25',
     asOfDate: ctx.asOfDate,
-    summary: `${s.name}: ${(s as { businessPurpose?: string }).businessPurpose || s.description}`,
-    explanation: [
-      `Autonomy: ${(s as { autonomyLevel?: string }).autonomyLevel || 'unknown'}`,
-      `Risk: ${(s as { riskLevel?: string }).riskLevel || 'unknown'}`,
-      `Owner: ${s.ownerId || 'unknown'}`,
-      `Human oversight: ${(s as { humanOversight?: string }).humanOversight || 'unknown'}`,
-      `Models: ${((s as { modelIds?: string[] }).modelIds ?? []).join(', ') || 'none recorded'}`,
-    ].join('\n'),
+    summary: `${view.name}: ${view.businessPurpose}`,
+    explanation: formatAiSolutionExplainBlock(view),
     whyItMatters: 'Agent purpose and oversight must be clear before expanding permissions.',
     evidenceIds: [],
     entityRefs: [{ id: s.id, type: 'aiSolution', name: s.name }],
     assumptions: ['Described permissions are not executed by this prototype.'],
     confidence: 'high',
     confidenceReason: 'Fields from AI solution record.',
-    facts: [`risk=${(s as { riskLevel?: string }).riskLevel}`, `autonomy=${(s as { autonomyLevel?: string }).autonomyLevel}`],
+    facts: [`risk=${view.riskLevel}`, `autonomy=${view.autonomyLevel}`],
     inferences: [],
     suggestedActions: [
       {
@@ -750,6 +748,54 @@ export function answerAiAgentPermissions(ctx: AIContext): Draft {
     suggestedActions: [
       { id: 'gov', label: 'Open AI Governance', action: 'navigate', view: 'ai-data-governance' },
       { id: 'findings', label: 'Open related findings', action: 'navigate', view: 'findings' },
+    ],
+  })
+}
+
+export function answerAiAgentPermissionsWhy(ctx: AIContext): Draft {
+  const missing = needEntity(ctx, ['aiSolution'], 'AI agent/solution')
+  if (missing) return missing
+  const ref = entityOfType(ctx, ['aiSolution'])!
+  const s =
+    ctx.repo.getAiSolution?.(ref.id) || (ctx.pack.aiSolutions ?? []).find((x) => x.id === ref.id)!
+  const toolPermissions =
+    (s as { toolPermissions?: Array<{ integrationId: string; permission: string }> }).toolPermissions ?? []
+  const writePerms = toolPermissions.filter((p) => /WRITE|EXECUTE|ADMIN/i.test(String(p.permission)))
+  const guardrailMap = ((s as { guardrails?: Record<string, string> }).guardrails ?? {}) as Record<string, string>
+  const partial = Object.entries(guardrailMap).filter(([, v]) => v !== 'Defined')
+  const view = normalizeAiSolution(s)!
+  return baseResponse({
+    intent: 'ai_agent_permissions_why',
+    tenantId: ctx.tenantId,
+    asOfDate: ctx.asOfDate,
+    summary: `The concern follows from ${writePerms.length} elevated permission(s), ${partial.length} partial/missing guardrail control(s), and ${view.humanOversightType} oversight by ${view.humanOversightRole}.`,
+    explanation: [
+      writePerms.length
+        ? `Elevated access: ${writePerms
+            .map((p) => {
+              const integ = (ctx.pack.integrations ?? []).find((i) => i.id === p.integrationId)
+              return `${p.permission} on ${integ?.name ?? p.integrationId}`
+            })
+            .join('; ')}`
+        : 'No WRITE/EXECUTE permissions are recorded.',
+      partial.length
+        ? `Partial or missing guardrails: ${partial.map(([k, v]) => `${k} (${v})`).join('; ')}`
+        : guardrailMap && Object.keys(guardrailMap).length
+          ? 'Recorded guardrails are fully defined.'
+          : 'Guardrail assessment is not recorded — treat oversight claims as unverified.',
+      `Operational oversight (${view.humanOversightType}, ${view.humanOversightRole}) governs day-to-day actions; it is separate from production deployment approval.`,
+      `Escalation path: ${view.escalationOwner}.`,
+    ].join('\n'),
+    whyItMatters: 'Write/execute access plus incomplete guardrails increase the blast radius if the agent mis-routes or over-collects data.',
+    entityRefs: [{ id: s.id, type: 'aiSolution', name: s.name }],
+    evidenceIds: [],
+    assumptions: ['Conclusion refers to the prior permissions answer for the same agent.'],
+    confidence: partial.length || writePerms.length ? 'high' : 'medium',
+    confidenceReason: 'Derived from recorded permissions, guardrails and oversight fields.',
+    facts: [`writeOrExecute=${writePerms.length}`, `partialGuardrails=${partial.length}`],
+    inferences: [],
+    suggestedActions: [
+      { id: 'gov', label: 'Open AI Governance', action: 'navigate', view: 'ai-data-governance' },
     ],
   })
 }
@@ -997,36 +1043,141 @@ function formatDemoNote(asOf?: string) {
 }
 
 export function answerApprovalAuthority(ctx: AIContext): Draft {
-  const pending = (ctx.pack.decisions ?? []).filter((d) =>
-    ['Pending', 'Deferred'].includes(d.decisionStatus),
-  )
-  const rec = entityOfType(ctx, ['recommendation', 'decision', 'aiSolution'])
-  const focus = rec
-    ? (ctx.pack.decisions ?? []).find((d) => d.id === rec.id) ||
-      (ctx.pack.recommendations ?? []).find((r) => r.id === rec.id)
-    : pending[0]
-  const authority =
-    (focus as { decisionAuthority?: string; authority?: string })?.decisionAuthority ||
-    (focus as { authority?: string })?.authority ||
-    'Recorded ARB / accountable authority on the decision record'
+  const agentRef = entityOfType(ctx, ['aiSolution'])
+  const recRef = entityOfType(ctx, ['recommendation'])
+  const decRef = entityOfType(ctx, ['decision'])
+  const catalog = getCatalog(ctx.tenantCode)
+  const workspace = ctx.pack.tenant.shortName || ctx.pack.tenant.name
+
+  if (agentRef) {
+    const s =
+      ctx.repo.getAiSolution?.(agentRef.id) ||
+      (ctx.pack.aiSolutions ?? []).find((x) => x.id === agentRef.id)
+    const view = normalizeAiSolution(s)
+    const linkedDecisions = (ctx.pack.decisions ?? []).filter((d) =>
+      (d.affectedObjectIds ?? []).includes(agentRef.id),
+    )
+    const approvals = (catalog.approvals ?? []).filter((a) => a.subjectId === agentRef.id)
+    const override = catalog.aiApprovalOverrides?.[agentRef.id]
+
+    if (!approvals.length && !linkedDecisions.length && !override) {
+      return baseResponse({
+        intent: 'approval_authority',
+        tenantId: ctx.tenantId,
+        asOfDate: ctx.asOfDate,
+        summary: `No production approval authority is recorded for “${view?.name || agentRef.name}”.`,
+        explanation: [
+          `Lifecycle is ${view?.lifecycle || 'not recorded'}. Operational human oversight (${view?.humanOversightType || 'n/a'}, ${view?.humanOversightRole || 'n/a'}) is not the same as deployment sign-off.`,
+          `Use AI Governance to register an approver before expanding WRITE/EXECUTE permissions.`,
+        ].join('\n'),
+        whyItMatters: 'Deploying agents with elevated permissions requires an accountable production approver.',
+        confidence: 'high',
+        confidenceReason: 'No matching approval catalogue entry for this agent.',
+        entityRefs: [{ id: agentRef.id, type: 'aiSolution', name: view?.name || agentRef.name }],
+        facts: [`agent=${agentRef.id}`, 'productionApproval=none'],
+        inferences: [],
+        suggestedActions: [
+          { id: 'gov', label: 'Open AI Governance', action: 'navigate', view: 'ai-data-governance' },
+          {
+            id: 'agent',
+            label: 'Open agent record',
+            action: 'select-entity',
+            entityId: agentRef.id,
+            entityType: 'aiSolution',
+            view: 'ai-automation',
+          },
+        ],
+      })
+    }
+
+    const lines = [
+      ...approvals.map(
+        (a) =>
+          `${a.item}: approver ${a.approver} — ${a.status}${a.conditions?.length ? ` (conditions: ${a.conditions.join('; ')})` : ''}`,
+      ),
+      ...linkedDecisions.map(
+        (d) => `${d.name}: ${d.decisionAuthority || d.decisionStatus} (${d.decisionStatus})`,
+      ),
+    ]
+    if (override && !approvals.length) {
+      lines.push(
+        `Catalogue override: ${override.approver} — ${override.approvalStatus}${override.conditions?.length ? ` (${override.conditions.join('; ')})` : ''}`,
+      )
+    }
+
+    return baseResponse({
+      intent: 'approval_authority',
+      tenantId: ctx.tenantId,
+      asOfDate: ctx.asOfDate,
+      summary: `Production / governance approval for “${view?.name || agentRef.name}” is recorded as follows. EA360 will not execute an approval.`,
+      explanation: lines.join('\n') || 'See governance catalogue.',
+      whyItMatters: 'Informational only — accountable authorities record decisions in Governance.',
+      confidence: 'high',
+      confidenceReason: 'Scoped to selected agent approval links and catalogue.',
+      entityRefs: [{ id: agentRef.id, type: 'aiSolution', name: view?.name || agentRef.name }],
+      facts: lines,
+      inferences: [],
+      suggestedActions: [
+        { id: 'gov', label: 'Open AI Governance', action: 'navigate', view: 'ai-data-governance' },
+      ],
+    })
+  }
+
+  if (recRef || decRef) {
+    const id = (recRef || decRef)!.id
+    const decision =
+      (ctx.pack.decisions ?? []).find((d) => d.id === id) ||
+      (ctx.pack.decisions ?? []).find((d) => d.recommendationId === id)
+    const rec = (ctx.pack.recommendations ?? []).find((r) => r.id === id)
+    const authority =
+      decision?.decisionAuthority ||
+      (rec as { decisionAuthority?: string })?.decisionAuthority ||
+      'See decision record'
+    return baseResponse({
+      intent: 'approval_authority',
+      tenantId: ctx.tenantId,
+      asOfDate: ctx.asOfDate,
+      summary: `Recorded approval authority: ${authority}. EA360 will not execute the approval.`,
+      explanation: decision
+        ? `${decision.name} — status ${decision.decisionStatus}, authority ${decision.decisionAuthority}.`
+        : rec
+          ? `${rec.name} — recommendation status ${rec.status}.`
+          : 'No decision record matched the selection.',
+      whyItMatters: 'Informational approval questions are allowed; executing approval is not.',
+      confidence: 'high',
+      confidenceReason: 'Authority fields from selected decision/recommendation.',
+      entityRefs: decision
+        ? [{ id: decision.id, type: 'decision', name: decision.name }]
+        : rec
+          ? [{ id: rec.id, type: 'recommendation', name: rec.name }]
+          : [],
+      facts: decision ? [decision.id] : rec ? [rec.id] : [],
+      inferences: [],
+      suggestedActions: [{ id: 'gov', label: 'Open Governance', action: 'navigate', view: 'governance' }],
+    })
+  }
+
+  const pending = countPendingDecisions(ctx.pack.decisions)
   return baseResponse({
     intent: 'approval_authority',
     tenantId: ctx.tenantId,
     asOfDate: ctx.asOfDate,
-    summary: `Recorded approval authority: ${authority}. EA360 will not execute the approval.`,
-    explanation: pending
-      .slice(0, 5)
-      .map((d) => `${d.name}: authority ${(d as { decisionAuthority?: string }).decisionAuthority || d.ownerId || 'see record'}`)
-      .join('\n'),
-    whyItMatters: 'Informational approval questions are allowed; executing approval is not.',
+    summary: `${pending} workspace-wide decision(s) are Pending or Deferred in ${workspace}. Select an agent, recommendation or decision for item-specific authority.`,
+    explanation:
+      pending > 0
+        ? (ctx.pack.decisions ?? [])
+            .filter((d) => ['Pending', 'Deferred'].includes(d.decisionStatus))
+            .slice(0, 5)
+            .map((d) => `${d.name}: ${d.decisionAuthority}`)
+            .join('\n')
+        : 'No pending decisions are recorded.',
+    whyItMatters: 'Workspace-wide queue — not a substitute for agent-specific production approval.',
     confidence: 'high',
-    confidenceReason: 'Authority fields from decision/recommendation records.',
-    entityRefs: pending.slice(0, 5).map((d) => ({ id: d.id, type: 'decision', name: d.name })),
-    facts: pending.map((d) => d.id),
+    confidenceReason: 'Workspace-scoped pending decision scan.',
+    entityRefs: [],
+    facts: [`pending=${pending}`],
     inferences: [],
-    suggestedActions: [
-      { id: 'gov', label: 'Open Governance', action: 'navigate', view: 'governance' },
-    ],
+    suggestedActions: [{ id: 'gov', label: 'Open Governance', action: 'navigate', view: 'governance' }],
   })
 }
 
@@ -1070,6 +1221,50 @@ export function answerUnknownEntity(ctx: AIContext): Draft {
       { id: 'search', label: 'Open portfolio search via Executive', action: 'navigate', view: 'executive' },
     ],
   })
+}
+
+function normalizeAiSolution(raw: AiSolution | null | undefined) {
+  if (!raw) return null
+  const s = raw as AiSolution & {
+    businessOwner?: string
+    technicalOwner?: string
+    aiOwner?: string
+    humanOversightType?: string
+    humanOversightRole?: string
+    escalationOwner?: string
+    overrideAvailable?: boolean
+    businessPurpose?: string
+    lifecycle?: string
+  }
+  return {
+    id: s.id,
+    name: s.name,
+    businessPurpose: s.businessPurpose || s.description || '',
+    businessOwner: s.businessOwner || 'Not recorded',
+    technicalOwner: s.technicalOwner || 'Not recorded',
+    aiOwner: s.aiOwner || 'Not recorded',
+    autonomyLevel: s.autonomyLevel != null ? String(s.autonomyLevel) : 'Not recorded',
+    riskLevel: s.riskLevel || 'Not recorded',
+    humanOversightType: s.humanOversightType || 'Not recorded',
+    humanOversightRole: s.humanOversightRole || 'Not recorded',
+    escalationOwner: s.escalationOwner || 'Not recorded',
+    overrideAvailable: Boolean(s.overrideAvailable),
+    lifecycle: s.lifecycle || 'Not recorded',
+  }
+}
+
+function formatAiSolutionExplainBlock(view: NonNullable<ReturnType<typeof normalizeAiSolution>>) {
+  return [
+    `Business owner: ${view.businessOwner}`,
+    `Technical owner: ${view.technicalOwner}`,
+    `AI owner: ${view.aiOwner}`,
+    `Autonomy level: ${view.autonomyLevel}`,
+    `Risk: ${view.riskLevel}`,
+    `Human oversight: ${view.humanOversightType} (${view.humanOversightRole})`,
+    `Escalation owner: ${view.escalationOwner}`,
+    `Override available: ${view.overrideAvailable ? 'Yes' : 'No'}`,
+    `Lifecycle: ${view.lifecycle}`,
+  ].join('\n')
 }
 
 /** Re-export helper used by EOS answers elsewhere */

@@ -304,7 +304,7 @@ export const QUESTION_CATALOG: QuestionDefinition[] = [
     intent: 'import_validation',
     supportedScopes: ['ingestion'],
     expectedResponseKind: 'validation',
-    paraphrases: ['import fail', 'validation issues'],
+    paraphrases: ['import fail', 'validation issues', 'what is blocking this data import', 'blocking this import'],
   },
   {
     id: 'Q33',

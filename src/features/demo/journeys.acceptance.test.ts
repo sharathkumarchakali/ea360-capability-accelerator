@@ -34,7 +34,7 @@ import {
   canTransitionFinding,
   canTransitionRecommendation,
 } from '../../domain/workflow'
-import { applyDemoStepWithStore } from './applyDemoStep'
+import { applyDemoStepWithStore, runGuidedAskOffer } from './applyDemoStep'
 import {
   DEMO_PLAYLISTS,
   buildPlaylistJourney,
@@ -763,38 +763,47 @@ describe('AT17 — runtime workspace clones are remapped and isolated', () => {
 })
 
 /* ------------------------------------------------------------------ */
-describe('AT20 — briefing steps generate a real briefing', () => {
-  it('applying a briefing step opens Ask on the Briefing tab with a recorded briefing', () => {
+describe('AT20 — briefing steps (FIX-00 on-demand Ask)', () => {
+  it('applying a briefing step navigates without opening Ask or generating a briefing', () => {
     const step = getDemoJourneys('GRA')
       .flatMap((j) => j.steps)
       .find((s) => s.action.openBriefing || s.ask?.mode === 'briefing')
     expect(step, 'a journey step opens the briefing').toBeTruthy()
+    store().setAskOpen(false)
     const historyBefore = store().aiHistory.length
     applyDemoStepWithStore(step!, { navigate: vi.fn() })
+    expect(store().askOpen).toBe(false)
+    expect(store().aiHistory.length).toBe(historyBefore)
+  })
+
+  it('explicit runGuidedAskOffer generates a briefing when presenter chooses', () => {
+    const step = getDemoJourneys('GRA')
+      .flatMap((j) => j.steps)
+      .find((s) => s.action.openBriefing || s.ask?.mode === 'briefing')!
+    const historyBefore = store().aiHistory.length
+    runGuidedAskOffer(step, store())
     expect(store().askOpen).toBe(true)
     expect(store().askTab).toBe('briefing')
     expect(store().aiHistory.length).toBe(historyBefore + 1)
-    const response = store().aiHistory.at(-1)!
-    expect(response.intent).toBe('executive_briefing')
-    expect(store().lastBriefingResponseId).toBe(response.id)
-    expect(response.asOfDate).toBe(store().demoAsOfDate)
-    expect(response.dataRevision).toBe(store().dataRevision)
+    expect(store().aiHistory.at(-1)!.intent).toBe('executive_briefing')
   })
 
-  it('an Ask step runs its question; a step that only opens Ask does not run anything', () => {
+  it('an Ask step does not auto-run on navigation (FIX-00)', () => {
     const asks = getDemoJourneys('GRA').flatMap((j) => j.steps).filter((s) => s.action.ask?.executeOnEnter && s.action.ask.questionId && s.action.ask.mode !== 'briefing')
     expect(asks.length).toBeGreaterThan(0)
     const step = asks[0]
+    store().setAskOpen(false)
     const before = store().aiHistory.length
     applyDemoStepWithStore(step, { navigate: vi.fn() })
-    expect(store().aiHistory.length).toBe(before + 1)
-    expect(store().aiHistory.at(-1)!.questionId).toBe(step.action.ask!.questionId)
+    expect(store().askOpen).toBe(false)
+    expect(store().aiHistory.length).toBe(before)
 
     const opensOnly = getDemoJourneys('GRA').flatMap((j) => j.steps).find((s) => s.action.ask && !s.action.ask.executeOnEnter)
     if (opensOnly) {
       const count = store().aiHistory.length
       applyDemoStepWithStore(opensOnly, { navigate: vi.fn() })
       expect(store().aiHistory.length).toBe(count)
+      expect(store().askOpen).toBe(false)
     }
   })
 
@@ -809,5 +818,41 @@ describe('AT20 — briefing steps generate a real briefing', () => {
     const r = executiveBriefing({ tenantId: pack().tenant.id, userRole: 'executive', query: 'Generate an executive briefing.', intent: 'executive_briefing' })
     expect(r.grounded).toBe(true)
     expect(r.tenantId).toBe('tenant-acme')
+  })
+})
+
+describe('FIX-00 / DESIGN-01 regression (R17–R19)', () => {
+  const root = resolve(import.meta.dirname, '..')
+
+  it('R17 navigation steps do not open Ask', () => {
+    const steps = getDemoJourneys('GRA').flatMap((j) => j.steps)
+    const withAi = steps.filter((s) => s.action?.ask?.executeOnEnter || s.action?.openBriefing)
+    expect(withAi.length).toBeGreaterThan(0)
+    store().setAskOpen(false)
+    const hist = store().aiHistory.length
+    applyDemoStepWithStore(withAi[0], { navigate: vi.fn() })
+    expect(store().askOpen).toBe(false)
+    expect(store().aiHistory.length).toBe(hist)
+  })
+
+  it('R18 compact tour bar markup is present', () => {
+    const src = readFileSync(resolve(root, 'demo/GuidedDemoBar.jsx'), 'utf8')
+    expect(src).toContain('demo-tour-bar')
+    expect(src).not.toContain('guided-demo-bar')
+    expect(src).toContain('Step details')
+  })
+
+  it('R19 modern workspace composition on governance, review board and executive', () => {
+    const gov = readFileSync(resolve(root, 'governance/GovernanceView.jsx'), 'utf8')
+    const reviews = readFileSync(resolve(root, 'reviews/ReviewBoardView.jsx'), 'utf8')
+    const exec = readFileSync(resolve(root, 'executive/ExecutiveCockpit.jsx'), 'utf8')
+    const apps = readFileSync(resolve(root, 'applications/ApplicationsView.jsx'), 'utf8')
+    expect(gov).toContain('ea-workspace')
+    expect(gov).toContain('Decision register')
+    expect(reviews).toContain('ea-workspace')
+    expect(reviews).toContain('Review Board')
+    expect(exec).toContain('ea-workspace')
+    expect(apps).toContain('ea-workspace')
+    expect(apps).toContain('ea-page-head')
   })
 })

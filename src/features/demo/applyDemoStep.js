@@ -46,8 +46,13 @@ export function applyDemoStepWithStore(step, opts = {}, state = usePrototypeStor
     }
   }
 
+  const panelMode = action.panelMode || inferPanelMode(view, action)
+  if (panelMode === 'report' || panelMode === 'briefing' || panelMode === 'none') {
+    state.clearSelection()
+  }
+
   // Apply selection after navigation so clearSelection from navigate cannot wipe it
-  if (action.selectEntity) {
+  if (action.selectEntity && panelMode !== 'report' && panelMode !== 'briefing' && panelMode !== 'none') {
     // Defer one tick so React hash/view effects settle
     const entity = {
       id: action.selectEntity.id,
@@ -63,23 +68,78 @@ export function applyDemoStepWithStore(step, opts = {}, state = usePrototypeStor
     state.clearSelection()
   }
 
-  const askCmd = action.ask || (action.openBriefing ? { mode: 'briefing', executeOnEnter: true } : null) ||
-    (action.openAsk ? { mode: 'ask', executeOnEnter: false } : null)
+  // FIX-00: navigation only — never open Ask or auto-submit on step entry.
 
-  if (askCmd) {
-    state.setAskOpen(true)
-    if (askCmd.tab) state.setAskTab?.(askCmd.tab)
-    if (askCmd.mode === 'briefing' || action.openBriefing) {
-      state.setAskTab?.('briefing')
-      if (askCmd.executeOnEnter !== false) {
-        runBriefingCommand(state, askCmd)
-      }
-    } else if (askCmd.executeOnEnter && askCmd.questionId) {
-      runAskCommand(state, askCmd)
-    }
+  return { view, selected: action.selectEntity || null, panelMode }
+}
+
+function inferPanelMode(view, action) {
+  if (action.openBriefing || action.ask?.mode === 'briefing') return 'briefing'
+  if (view === 'reports' || action.ask?.tab === 'report') return 'report'
+  if (action.selectEntity) return 'detail'
+  if (action.openAsk) return 'ask'
+  return 'none'
+}
+
+/** Explicit presenter action: open Ask and run the step's suggested question or briefing. */
+export function runGuidedAskOffer(step, state = usePrototypeStore.getState()) {
+  const action = step?.action || {}
+  state.setAskOpen(true)
+  const askCmd =
+    action.ask ||
+    (action.openBriefing ? { mode: 'briefing', executeOnEnter: true } : null) ||
+    (action.openAsk ? { mode: 'ask', executeOnEnter: false } : null)
+  if (!askCmd) return { ok: false, reason: 'no_offer' }
+  if (askCmd.mode === 'briefing' || action.openBriefing) {
+    state.setAskTab?.('briefing')
+    runBriefingCommand(state, askCmd)
+    return { ok: true }
+  }
+  if (askCmd.questionId) {
+    state.setAskTab?.(askCmd.tab || 'ask')
+    runAskCommand(state, askCmd, resolveAskContextIds(action, state))
+    return { ok: true }
+  }
+  return { ok: true, opened: true }
+}
+
+/**
+ * @deprecated FIX-00 — do not call on navigation; use runGuidedAskOffer from explicit UI only.
+ */
+export function executeGuidedStepAsk(step, state = usePrototypeStore.getState()) {
+  const action = step?.action || {}
+  const askCmd =
+    action.ask ||
+    (action.openBriefing ? { mode: 'briefing', executeOnEnter: true } : null) ||
+    (action.openAsk ? { mode: 'ask', executeOnEnter: false } : null)
+  if (!askCmd || askCmd.executeOnEnter === false) {
+    return { ok: true, skipped: true }
   }
 
-  return { view, selected: action.selectEntity || null }
+  const expectedId = action.selectEntity?.id
+  if (expectedId && state.selectedEntity?.id !== expectedId) {
+    return { ok: false, reason: 'selection_mismatch' }
+  }
+
+  try {
+    if (askCmd.mode === 'briefing' || action.openBriefing) {
+      runBriefingCommand(state, askCmd)
+    } else if (askCmd.questionId) {
+      runAskCommand(state, askCmd, resolveAskContextIds(action, state))
+    }
+    return { ok: true }
+  } catch (err) {
+    if (import.meta.env.DEV) console.warn('[EA360] Guided Ask failed', err)
+    return { ok: false, reason: 'ask_failed' }
+  }
+}
+
+function resolveAskContextIds(action, state) {
+  const ids = []
+  if (action.selectEntity?.id) ids.push(action.selectEntity.id)
+  const sel = state.selectedEntity?.id
+  if (sel && !ids.includes(sel)) ids.push(sel)
+  return ids
 }
 
 function applyFilters(f, state) {
@@ -189,11 +249,17 @@ function runBriefingCommand(state, askCmd) {
   }
 }
 
-function runAskCommand(state, askCmd) {
+function runAskCommand(state, askCmd, contextEntityIds) {
   try {
     const repo = state.getRepo()
     const tenant = repo.getTenant()
     const def = askCmd.questionId ? QUESTION_BY_ID[askCmd.questionId] : null
+    const ids =
+      contextEntityIds?.length > 0
+        ? contextEntityIds
+        : state.selectedEntity?.id
+          ? [state.selectedEntity.id]
+          : []
     const response = askEA360({
       tenantId: tenant.id,
       userRole: state.role || 'executive',
@@ -202,8 +268,12 @@ function runAskCommand(state, askCmd) {
       questionId: askCmd.questionId,
       asOfDate: state.demoAsOfDate || getDemoAsOfDate(),
       dataRevision: state.dataRevision,
-      contextEntityIds: state.selectedEntity?.id ? [state.selectedEntity.id] : [],
+      contextEntityIds: ids,
       view: state.view,
+      importValidation:
+        state.importValidation && state.importValidation.tenantCode === state.tenantCode
+          ? state.importValidation
+          : undefined,
     })
     state.recordAiResponse(response)
   } catch (err) {

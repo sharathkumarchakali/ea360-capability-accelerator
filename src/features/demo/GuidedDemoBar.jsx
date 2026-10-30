@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { ChevronDown, MoreHorizontal } from 'lucide-react'
 import { usePrototypeStore } from '../../state/prototypeStore'
 import { DEMO_TARGET_SELECTORS, evaluatePredicate, getDemoJourneyById, resolveStepForRun } from './journeyDefinitions'
 import { getJourneyBinding } from './journeyBindings'
-import { applyDemoStepWithStore } from './applyDemoStep'
+import { applyDemoStepWithStore, runGuidedAskOffer } from './applyDemoStep'
+import { QUESTION_BY_ID } from '../../lib/ai/questionCatalog'
 
 function targetSelector(step) {
   const name = step?.highlightTarget || step?.target?.name
@@ -38,13 +40,26 @@ function noteDocument(journeyTitle, step, index, total) {
   const esc = (s) =>
     String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Presenter notes</title>
-<style>body{font-family:Inter,system-ui,sans-serif;margin:0;padding:20px;line-height:1.5;color:#073642}
+<style>body{font-family:Inter,system-ui,sans-serif;margin:0;padding:20px;line-height:1.5;color:#102a35}
 small{opacity:.75}h1{font-size:18px;margin:4px 0 12px}p{font-size:16px;margin:0 0 12px}</style></head>
 <body><small>${esc(journeyTitle)} · Step ${index + 1} of ${total} · Illustrative data</small>
 <h1>${esc(step.title)}</h1><p><strong>Say / do:</strong> ${esc(step.presenterNote)}</p>
 <p><strong>Expect:</strong> ${esc(step.expectedResult)}</p>
 ${step.humanAction ? `<p><strong>Human action required:</strong> ${esc(step.humanAction)}</p>` : ''}
+${step.businessQuestion ? `<p><strong>Business question:</strong> ${esc(step.businessQuestion)}</p>` : ''}
 </body></html>`
+}
+
+function stepAskOffer(step) {
+  const action = step?.action || {}
+  if (action.ask?.questionId) {
+    return { kind: 'ask', questionId: action.ask.questionId, label: QUESTION_BY_ID[action.ask.questionId]?.label }
+  }
+  if (action.openBriefing || action.ask?.mode === 'briefing') {
+    return { kind: 'briefing', label: 'Generate executive briefing' }
+  }
+  if (action.openAsk) return { kind: 'ask-open', label: 'Open Ask EA360' }
+  return null
 }
 
 export default function GuidedDemoBar({ onNavigate }) {
@@ -62,11 +77,13 @@ export default function GuidedDemoBar({ onNavigate }) {
   const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
   const [problem, setProblem] = useState(null)
   const [ready, setReady] = useState(false)
-  const [notesOpen, setNotesOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [tick, setTick] = useState(0)
   const highlightRef = useRef([])
   const applyGen = useRef(0)
   const notesWin = useRef(null)
+  const moreRef = useRef(null)
 
   const journey = useMemo(() => {
     if (!guidedTour?.journeyId) return null
@@ -79,6 +96,7 @@ export default function GuidedDemoBar({ onNavigate }) {
   const total = journey?.steps.length || 0
   const skipped = guidedTour?.skipped ?? []
   const incomplete = skipped.length > 0
+  const askOffer = step ? stepAskOffer(step) : null
 
   const binding = useMemo(() => {
     if (!journey) return null
@@ -86,7 +104,6 @@ export default function GuidedDemoBar({ onNavigate }) {
     return jid ? getJourneyBinding(tenantCode, jid) : null
   }, [journey, step?.segmentJourneyId, tenantCode])
 
-  // Poll only for localStorage-backed predicates (import commit).
   useEffect(() => {
     if (!step?.completesWhen?.includes('import-committed')) return undefined
     const t = setInterval(() => setTick((n) => n + 1), 700)
@@ -101,13 +118,14 @@ export default function GuidedDemoBar({ onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, workingPack, binding, drafts, tenantCode, tick])
 
-  // Apply the step. Re-runs on explicit Retry (retryNonce) even when the index is unchanged.
   useEffect(() => {
     if (!step || !guidedTour?.active) return undefined
 
     const gen = ++applyGen.current
     setReady(false)
     setProblem(null)
+    setDetailsOpen(false)
+    setMoreOpen(false)
 
     highlightRef.current.forEach((n) => n.classList.remove('demo-highlight'))
     highlightRef.current = []
@@ -118,7 +136,7 @@ export default function GuidedDemoBar({ onNavigate }) {
     if (unresolvedSlot) {
       setProblem({
         kind: 'slot',
-        message: `This step needs the ${unresolvedSlot} created in an earlier human step. Complete that step, then Retry.`,
+        message: `This step needs the ${unresolvedSlot} from an earlier human step. Complete that step, then Retry.`,
       })
       applyDemoStepWithStore({ ...resolved, action: { ...resolved.action, selectEntity: undefined } }, { navigate: onNavigate }, state)
       setReady(true)
@@ -141,7 +159,7 @@ export default function GuidedDemoBar({ onNavigate }) {
       if (selector && !el) {
         setProblem({
           kind: 'target',
-          message: `The expected screen area (“${resolved.target?.name}”) did not appear. The journey is paused rather than highlighting something unrelated.`,
+          message: `Expected area (“${resolved.target?.name}”) did not appear. Retry or use Step details.`,
         })
         setReady(true)
         return
@@ -150,7 +168,7 @@ export default function GuidedDemoBar({ onNavigate }) {
       if (expectedId && usePrototypeStore.getState().selectedEntity?.id !== expectedId) {
         setProblem({
           kind: 'selection',
-          message: 'The bound record did not open. The journey is paused rather than showing a different record.',
+          message: 'The bound record did not open. Retry after the record is visible.',
         })
         setReady(true)
         return
@@ -174,11 +192,9 @@ export default function GuidedDemoBar({ onNavigate }) {
       highlightRef.current.forEach((n) => n.classList.remove('demo-highlight'))
       highlightRef.current = []
     }
-    // retryNonce intentionally included so Retry re-applies the same step index.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, guidedTour?.active, stepIndex, retryNonce, onNavigate, binding])
 
-  // Presenter notes window follows the current step.
   useEffect(() => {
     const w = notesWin.current
     if (!w || w.closed || !step || !journey) return
@@ -194,10 +210,20 @@ export default function GuidedDemoBar({ onNavigate }) {
     [],
   )
 
+  useEffect(() => {
+    if (!moreOpen) return undefined
+    function onDoc(e) {
+      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false)
+    }
+    document.addEventListener('click', onDoc)
+    return () => document.removeEventListener('click', onDoc)
+  }, [moreOpen])
+
   if (!guidedTour?.active || !journey || !step) return null
 
   const isLast = stepIndex >= total - 1
   const notesAllowed = !presentationMode
+  const progressPct = total ? Math.round(((stepIndex + 1) / total) * 100) : 0
 
   function finish() {
     if (incomplete) {
@@ -208,11 +234,22 @@ export default function GuidedDemoBar({ onNavigate }) {
     exitGuidedTour()
   }
 
+  function confirmRestart() {
+    if (typeof window !== 'undefined' && !window.confirm('Restart this walkthrough from step 1? Workspace data is kept.')) return
+    setAskOpen(false)
+    restartGuidedTour()
+  }
+
+  function confirmExit() {
+    if (typeof window !== 'undefined' && !window.confirm('End this guided walkthrough?')) return
+    exitGuidedTour()
+  }
+
   function openNotesWindow() {
     const w = window.open('', 'ea360-presenter-notes', 'width=480,height=520')
     if (!w) {
-      showToast('The notes window was blocked by the browser. Use the in-page panel instead.')
-      setNotesOpen(true)
+      showToast('Notes window blocked — use Step details instead.')
+      setDetailsOpen(true)
       return
     }
     notesWin.current = w
@@ -221,61 +258,67 @@ export default function GuidedDemoBar({ onNavigate }) {
     w.document.close()
   }
 
-  function returnToStudio() {
-    exitGuidedTour()
-    onNavigate?.('demo-studio')
+  function runSuggestedAsk() {
+    const resolved = resolveStepForRun(step, usePrototypeStore.getState().workingPack, binding).step
+    if (askOffer?.kind === 'ask-open') {
+      setAskOpen(true)
+      setMoreOpen(false)
+      return
+    }
+    runGuidedAskOffer(resolved, usePrototypeStore.getState())
+    setMoreOpen(false)
   }
 
   return (
-    <div className="guided-demo-bar" role="region" aria-label="Guided demonstration">
-      <div className="guided-demo-meta">
-        <span className="guided-pill">{journey.title}</span>
-        <span className="guided-progress">
-          Step {stepIndex + 1} of {total}
+    <div className="demo-tour-bar" role="region" aria-label="Guided demonstration">
+      <div className="demo-tour-bar__progress">
+        <span className="demo-tour-bar__journey">{journey.title}</span>
+        <span className="demo-tour-bar__count">
+          {stepIndex + 1} of {total}
         </span>
-        <progress className="guided-meter" max={total} value={stepIndex + 1} aria-label="Journey progress" />
+        <div className="demo-tour-bar__meter" aria-hidden="true">
+          <span style={{ width: `${progressPct}%` }} />
+        </div>
+        <progress className="sr-only" max={total} value={stepIndex + 1} aria-label="Journey progress" />
         {incomplete && (
-          <span className="guided-incomplete" role="status">
-            Incomplete — {skipped.length} required step{skipped.length === 1 ? '' : 's'} skipped
+          <span className="demo-tour-bar__warn" role="status">
+            Incomplete
           </span>
         )}
       </div>
-      <div className="guided-demo-copy">
-        {step.segmentStart && (
-          <p className="sub">
-            Segment {step.segmentJourneyId}: starts at its own baseline. Reset the workspace first if you need an
-            untouched starting position.
-          </p>
-        )}
-        <strong>{step.title}</strong>
-        <p>
-          <span className="guided-label">Business question</span> {step.businessQuestion}
-        </p>
-        <p>
-          <span className="guided-label">Expect to see</span> {step.expectedResult}
-        </p>
-        {step.humanAction && !gateOpen && (
-          <p className="guided-warning" role="status">
-            Human action needed: {step.humanAction} Next unlocks when it is done.
-          </p>
-        )}
+
+      <div className="demo-tour-bar__step">
+        <h2 className="demo-tour-bar__title">{step.title}</h2>
+        {!ready && <span className="demo-tour-bar__preparing">Preparing…</span>}
         {problem && (
-          <p className="guided-warning" role="alert">
+          <p className="demo-tour-bar__alert" role="alert">
             {problem.message}
           </p>
         )}
-        {!ready && <p className="sub">Preparing step…</p>}
-        {notesAllowed && notesOpen && (
-          <div className="guided-notes-panel" role="note" aria-label="Presenter notes">
-            <strong>Presenter notes (not shown in presentation mode)</strong>
-            <p>{step.presenterNote}</p>
+        {step.humanAction && !gateOpen && (
+          <p className="demo-tour-bar__hint" role="status">
+            Complete: {step.humanAction}
+          </p>
+        )}
+        {detailsOpen && (
+          <div className="demo-tour-bar__details" role="region" aria-label="Step details">
+            {step.businessQuestion && (
+              <p>
+                <strong>Business question:</strong> {step.businessQuestion}
+              </p>
+            )}
+            <p>
+              <strong>Expect to see:</strong> {step.expectedResult}
+            </p>
+            {notesAllowed && <p>{step.presenterNote}</p>}
           </div>
         )}
       </div>
-      <div className="guided-demo-actions">
+
+      <div className="demo-tour-bar__nav">
         <button
           type="button"
-          className="btn tiny secondary-button"
+          className="btn secondary-button demo-tour-btn"
           disabled={stepIndex <= 0}
           onClick={() => setGuidedStep(Math.max(0, stepIndex - 1))}
         >
@@ -283,8 +326,8 @@ export default function GuidedDemoBar({ onNavigate }) {
         </button>
         <button
           type="button"
-          className="btn tiny primary-button"
-          disabled={!gateOpen}
+          className="btn primary-button demo-tour-btn demo-tour-btn--primary"
+          disabled={!gateOpen || !ready}
           title={!gateOpen ? 'Complete the required human action first' : undefined}
           onClick={() => {
             if (isLast) finish()
@@ -293,54 +336,61 @@ export default function GuidedDemoBar({ onNavigate }) {
         >
           {isLast ? 'Finish' : 'Next'}
         </button>
-        <button type="button" className="btn tiny secondary-button" onClick={() => retryGuidedStep()}>
-          Retry
-        </button>
-        <button
-          type="button"
-          className="btn tiny secondary-button"
-          title={step.optional ? 'Optional exploration step' : 'Skipping a required step marks the run Incomplete'}
-          onClick={() => {
-            skipGuidedStep(step.id, !step.optional)
-            if (isLast) finish()
-          }}
-        >
-          Skip
-        </button>
-        <button
-          type="button"
-          className="btn tiny secondary-button"
-          title="Return to step 1 and clear this run's Ask panel. Workspace data is kept; use Workspace Settings to reset."
-          onClick={() => {
-            setAskOpen(false)
-            restartGuidedTour()
-          }}
-        >
-          Restart journey
-        </button>
-        {notesAllowed && (
-          <>
-            <button
-              type="button"
-              className="btn tiny secondary-button"
-              aria-pressed={notesOpen}
-              onClick={() => setNotesOpen((v) => !v)}
-            >
-              {notesOpen ? 'Hide notes' : 'Notes'}
-            </button>
-            <button type="button" className="btn tiny secondary-button" onClick={openNotesWindow}>
-              Notes window
-            </button>
-          </>
-        )}
-        {problem && (
-          <button type="button" className="btn tiny secondary-button" onClick={returnToStudio}>
-            Return to Studio
+
+        <div className="demo-tour-more" ref={moreRef}>
+          <button
+            type="button"
+            className="btn secondary-button demo-tour-btn demo-tour-btn--icon"
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
+            onClick={() => setMoreOpen((v) => !v)}
+          >
+            <MoreHorizontal size={18} strokeWidth={2} aria-hidden="true" />
+            <span>More</span>
+            <ChevronDown size={14} aria-hidden="true" />
           </button>
-        )}
-        <button type="button" className="btn tiny secondary-button" onClick={() => exitGuidedTour()}>
-          Exit
-        </button>
+          {moreOpen && (
+            <div className="demo-tour-menu" role="menu">
+              <button type="button" role="menuitem" onClick={() => setDetailsOpen((v) => !v)}>
+                {detailsOpen ? 'Hide step details' : 'Step details'}
+              </button>
+              {askOffer && (
+                <button type="button" role="menuitem" onClick={runSuggestedAsk}>
+                  {askOffer.kind === 'briefing' ? 'Generate briefing (Ask)' : askOffer.label || 'Run suggested Ask'}
+                </button>
+              )}
+              {problem && (
+                <button type="button" role="menuitem" onClick={() => retryGuidedStep()}>
+                  Retry step
+                </button>
+              )}
+              {!step.optional && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    skipGuidedStep(step.id, false)
+                    setMoreOpen(false)
+                    if (isLast) finish()
+                  }}
+                >
+                  Skip step (marks incomplete)
+                </button>
+              )}
+              {notesAllowed && (
+                <button type="button" role="menuitem" onClick={openNotesWindow}>
+                  Presenter notes window
+                </button>
+              )}
+              <button type="button" role="menuitem" onClick={confirmRestart}>
+                Restart walkthrough
+              </button>
+              <button type="button" role="menuitem" onClick={confirmExit}>
+                End demo
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

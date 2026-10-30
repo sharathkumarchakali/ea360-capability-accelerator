@@ -19,6 +19,7 @@ function DecisionPanel({ decision, recommendation, standards, pack }) {
   const [rationale, setRationale] = useState('')
   const [conditions, setConditions] = useState('')
   const [error, setError] = useState('')
+  const [reviewMode, setReviewMode] = useState(false)
 
   const awaiting = AWAITING.includes(decision.decisionStatus)
   const evidence = (pack.evidence ?? []).filter((e) => decision.evidenceIds?.includes(e.id))
@@ -51,7 +52,7 @@ function DecisionPanel({ decision, recommendation, standards, pack }) {
   }
 
   return (
-    <aside className="wv-panel" aria-label="Decision record" aria-live="polite">
+    <aside className="ea-detail-panel wv-panel" aria-label="Decision record" aria-live="polite">
       <h2>{decision.name}</h2>
       <p className="sub">
         {decision.id} · {decision.decisionAuthority}
@@ -59,42 +60,52 @@ function DecisionPanel({ decision, recommendation, standards, pack }) {
       <p>
         <span className={`status-tag tone-${statusTone(decision.decisionStatus)}`}>{decision.decisionStatus}</span>
       </p>
+      {decision.decisionDeadline && (
+        <p className="sub">
+          <strong>Deadline:</strong> {decision.decisionDeadline}
+        </p>
+      )}
       {recommendation && (
         <p>
           <strong>Recommendation:</strong> {recommendation.name}
         </p>
       )}
-      <p>
-        <strong>Evidence:</strong> {evidence.length ? evidence.map((e) => e.name).join('; ') : 'No evidence linked'}
-      </p>
+      <div className="ea-detail-section">
+        <h3>Evidence</h3>
+        <p>{evidence.length ? evidence.map((e) => e.name).join('; ') : 'No evidence linked'}</p>
+      </div>
       {decision.optionsConsidered?.length > 0 && (
-        <>
+        <div className="ea-detail-section">
           <h3>Options considered</h3>
           <ul>
             {decision.optionsConsidered.map((o) => (
               <li key={o}>{o}</li>
             ))}
           </ul>
-        </>
+        </div>
       )}
-      <p>
-        <strong>Required reviewers:</strong>{' '}
-        {(decision.requiredReviewerIds ?? decision.reviewerIds ?? []).length || 'None recorded'}
-      </p>
-      <h3>Applicable standards</h3>
-      {standards.length === 0 ? (
-        <p className="sub">No recorded standard applies to the affected assets.</p>
-      ) : (
-        <ul>
-          {standards.map((s) => (
-            <li key={s.id}>
-              {s.name} ({s.type})
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="ea-detail-section">
+        <h3>Applicable standards</h3>
+        {standards.length === 0 ? (
+          <p className="sub">No recorded standard applies to the affected assets.</p>
+        ) : (
+          <ul>
+            {standards.map((s) => (
+              <li key={s.id}>
+                {s.name} ({s.type})
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
-      {awaiting ? (
+      {awaiting && !reviewMode ? (
+        <button type="button" className="btn primary primary-button" onClick={() => setReviewMode(true)}>
+          Review decision
+        </button>
+      ) : null}
+
+      {awaiting && reviewMode ? (
         <form
           className="wv-form"
           onSubmit={(e) => {
@@ -128,7 +139,7 @@ function DecisionPanel({ decision, recommendation, standards, pack }) {
             </button>
           </div>
         </form>
-      ) : (
+      ) : !awaiting ? (
         <>
           <h3>Recorded outcome</h3>
           <p>{decision.rationale || 'No rationale recorded.'}</p>
@@ -141,7 +152,7 @@ function DecisionPanel({ decision, recommendation, standards, pack }) {
           )}
           {decision.decisionDate && <p className="sub">Recorded {decision.decisionDate}</p>}
         </>
-      )}
+      ) : null}
     </aside>
   )
 }
@@ -175,33 +186,33 @@ export default function ReviewBoardView() {
 
   return (
     <section className="view active wv-view" data-demo-target="review-board">
-      <div className="module">
-        <div className="module-header">
+      <div className="module ea-workspace">
+        <header className="ea-page-head">
           <div>
-            <div className="kicker">Governance · Review Board</div>
-            <h1 className="page-title">Review Board</h1>
-            <p>Decisions waiting for the board, with the evidence, options and standards needed to decide.</p>
+            <p className="kicker" style={{ margin: 0 }}>Governance</p>
+            <h1>Review Board</h1>
+            <p className="ea-lead">Formal board decisions with evidence, options and standards — distinct from the decision register queue.</p>
             <p className="sub">{formatDemoAsOfLabel()}</p>
           </div>
           <div className="synthetic-pill">ILLUSTRATIVE DATA</div>
-        </div>
+        </header>
 
-        <div className="app-metric-strip" role="group" aria-label="Review board metrics">
-          <div className="app-metric">
+        <div className="ea-metric-strip" role="group" aria-label="Review board metrics">
+          <div className="ea-metric">
             <span>Awaiting decision</span>
             <strong>{queue.filter((d) => d.decisionStatus === 'Pending').length}</strong>
           </div>
-          <div className="app-metric">
+          <div className="ea-metric">
             <span>Deferred</span>
             <strong>{queue.filter((d) => d.decisionStatus === 'Deferred').length}</strong>
           </div>
-          <div className="app-metric">
+          <div className="ea-metric">
             <span>Decided</span>
             <strong>{decisions.length - queue.length}</strong>
           </div>
         </div>
 
-        <div className="wv-filters" role="group" aria-label="Queue filter">
+        <div className="ea-toolbar" role="group" aria-label="Queue filter">
           <label className="field">
             <span>Show</span>
             <select value={filter} onChange={(e) => setFilter(e.target.value)}>
@@ -211,9 +222,9 @@ export default function ReviewBoardView() {
           </label>
         </div>
 
-        <div className="wv-split">
+        <div className="ea-split wv-split">
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="ea-data-table data-table">
               <caption className="wv-caption">{visible.length} decisions. Select one to open its record.</caption>
               <thead>
                 <tr>

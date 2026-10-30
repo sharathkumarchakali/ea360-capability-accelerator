@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePrototypeStore } from '../../state/prototypeStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CreateInitiativeModal from '../initiatives/CreateInitiativeModal'
@@ -72,6 +72,8 @@ export default function GovernanceView() {
   const [conditions, setConditions] = useState('')
   const [rationale, setRationale] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [reviewMode, setReviewMode] = useState(false)
+  const setView = usePrototypeStore((s) => s.setView)
 
   const queue = useMemo(
     () => buildArbQueue(repo, usePrototypeStore.getState()),
@@ -99,6 +101,10 @@ export default function GovernanceView() {
   const linkedRec = selected?.recommendationId
     ? repo.getRecommendation(selected.recommendationId)
     : null
+
+  useEffect(() => {
+    setReviewMode(false)
+  }, [selected?.id])
 
   function runDecision(action) {
     if (!selected) return
@@ -137,51 +143,54 @@ export default function GovernanceView() {
 
   return (
     <section className="view active">
-      <div className="module">
-        <div className="module-header" data-demo-target="governance-decisions">
+      <div className="module ea-workspace">
+        <header className="ea-page-head" data-demo-target="governance-decisions">
           <div>
-            <div className="kicker">Decide · Governance & decisions</div>
-            <h1 className="page-title">Architecture Review Board</h1>
-            <p>
-              Queue of items awaiting review, decision records with conditions, and an audit-style
-              history of prototype governance actions.
+            <p className="kicker" style={{ margin: 0 }}>Governance</p>
+            <h1>Decision register</h1>
+            <p className="ea-lead">
+              Items awaiting architecture review, recorded decisions and audit history for the active workspace.
             </p>
           </div>
-        </div>
+          <div className="ea-page-actions">
+            <button type="button" className="btn secondary-button" onClick={() => setView('reviews')}>
+              Open Review Board
+            </button>
+          </div>
+        </header>
 
-        <div className="int-kpi-grid wf-kpi-grid">
-          <div className="int-kpi-card">
-            <span>ARB queue</span>
+        <div className="ea-metric-strip" role="group" aria-label="Register summary">
+          <div className="ea-metric">
+            <span>In queue</span>
             <strong>{queue.length}</strong>
           </div>
-          <div className="int-kpi-card">
+          <div className="ea-metric">
             <span>Avg age (days)</span>
             <strong>
               {queue.length
                 ? Math.round(
-                    queue.reduce((s, i) => s + queueAgeDays(i.submittedAt || i.updatedAt), 0) /
-                      queue.length,
+                    queue.reduce((s, i) => s + queueAgeDays(i.submittedAt || i.updatedAt), 0) / queue.length,
                   )
                 : 0}
             </strong>
           </div>
-          <div className="int-kpi-card">
+          <div className="ea-metric">
             <span>Decisions recorded</span>
             <strong>{(Array.isArray(decisions) ? decisions : []).length}</strong>
           </div>
-          <div className="int-kpi-card">
+          <div className="ea-metric">
             <span>Audit events</span>
             <strong>{audit.length}</strong>
           </div>
         </div>
 
-        <div className="intel-toolbar">
+        <div className="ea-toolbar">
           <label className="field grow">
-            <span>Search queue</span>
+            <span>Search</span>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Item, recommendation…"
+              placeholder="Item or recommendation…"
             />
           </label>
           <label className="field">
@@ -194,13 +203,25 @@ export default function GovernanceView() {
               <option value="deferred">Deferred</option>
             </select>
           </label>
+          {(search || statusFilter) && (
+            <button
+              type="button"
+              className="btn secondary-button"
+              onClick={() => {
+                setSearch('')
+                setStatusFilter('')
+              }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
-        <div className="gov-layout">
+        <div className="ea-split">
           <div className="gov-queue">
-            <h3 className="section-title">ARB queue</h3>
-            <div className="tablewrap int-table-desktop">
-              <table>
+            <h3 className="section-title" style={{ marginTop: 0 }}>Review queue</h3>
+            <div className="tablewrap">
+              <table className="ea-data-table">
                 <thead>
                   <tr>
                     <th>Item</th>
@@ -213,7 +234,7 @@ export default function GovernanceView() {
                   {filteredQueue.map((item) => (
                     <tr
                       key={item.id}
-                      className={`row-click${selected?.id === item.id ? ' row-selected' : ''}`}
+                      className={`clickable-row${selected?.id === item.id ? ' is-selected' : ''}`}
                       onClick={() => setSelectedId(item.id)}
                     >
                       <td>
@@ -221,10 +242,10 @@ export default function GovernanceView() {
                         <div className="sub">{item.summary || item.type}</div>
                       </td>
                       <td>
-                        <span className="wf-status">{item.status}</span>
+                        <span className="status-tag tone-warn">{item.status}</span>
                       </td>
                       <td>{queueAgeDays(item.submittedAt || item.updatedAt)}d</td>
-                      <td>{(item.ownerId || '').replace('person-', '') || '—'}</td>
+                      <td>{(item.ownerId || '').replace('person-', '').replace(/-/g, ' ') || '—'}</td>
                     </tr>
                   ))}
                   {!filteredQueue.length && (
@@ -237,121 +258,109 @@ export default function GovernanceView() {
                 </tbody>
               </table>
             </div>
-            <div className="int-mobile">
-              {filteredQueue.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`itemcard${selected?.id === item.id ? ' selected' : ''}`}
-                  onClick={() => setSelectedId(item.id)}
-                >
-                  <span className="wf-status">{item.status}</span>
-                  <h4>{item.name}</h4>
-                  <p className="sub">
-                    Age {queueAgeDays(item.submittedAt || item.updatedAt)}d ·{' '}
-                    {(item.ownerId || '').replace('person-', '')}
-                  </p>
-                </button>
-              ))}
-            </div>
           </div>
 
-          <aside className="gov-detail itemcard">
+          <aside className="ea-detail-panel">
             {selected ? (
               <>
-                <div className="kicker">Review item</div>
                 <h3>{selected.name}</h3>
                 <p>{selected.summary || linkedRec?.outcome}</p>
                 <p className="sub">
-                  Status {selected.status} · Age{' '}
-                  {queueAgeDays(selected.submittedAt || selected.updatedAt)} days · Effort{' '}
-                  {selected.effortBand || linkedRec?.effortBand || '—'}
+                  Status {selected.status} · {queueAgeDays(selected.submittedAt || selected.updatedAt)} days in queue
                 </p>
                 {linkedRec && (
                   <button
                     type="button"
                     className="text-link"
-                    onClick={() =>
-                      selectEntity({ id: linkedRec.id, type: 'recommendation' })
-                    }
+                    onClick={() => selectEntity({ id: linkedRec.id, type: 'recommendation' })}
                   >
                     Open recommendation: {linkedRec.name}
                   </button>
                 )}
-                <label className="field grow" style={{ marginTop: 12 }}>
-                  <span>Rationale</span>
-                  <textarea
-                    rows={2}
-                    value={rationale}
-                    onChange={(e) => setRationale(e.target.value)}
-                    placeholder="Decision rationale…"
-                  />
-                </label>
-                <label className="field grow">
-                  <span>Conditions (if approving with conditions)</span>
-                  <input
-                    value={conditions}
-                    onChange={(e) => setConditions(e.target.value)}
-                    placeholder="e.g. migrate identity APIs in wave 1"
-                  />
-                </label>
-                <div className="toolbar wrap-actions">
-                  <button
-                    type="button"
-                    className="btn primary primary-button"
-                    onClick={() =>
-                      setConfirm({
-                        action: 'approve',
-                        title: 'Approve decision?',
-                        message: `Approve “${selected.name}” for implementation planning.`,
-                      })
-                    }
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    className="btn secondary-button"
-                    onClick={() =>
-                      setConfirm({
-                        action: 'approveWithConditions',
-                        title: 'Approve with conditions?',
-                        message: conditions
-                          ? `Approve “${selected.name}” with conditions: ${conditions}`
-                          : `Approve “${selected.name}” with conditions (enter conditions above).`,
-                      })
-                    }
-                  >
-                    Approve with conditions
-                  </button>
-                  <button
-                    type="button"
-                    className="btn secondary-button"
-                    onClick={() =>
-                      setConfirm({
-                        action: 'reject',
-                        title: 'Reject decision?',
-                        message: `Reject “${selected.name}”. This records a governance decision.`,
-                        tone: 'danger',
-                      })
-                    }
-                  >
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    className="btn secondary-button"
-                    onClick={() =>
-                      setConfirm({
-                        action: 'defer',
-                        title: 'Defer decision?',
-                        message: `Defer “${selected.name}” to a later ARB cycle.`,
-                      })
-                    }
-                  >
-                    Defer
-                  </button>
-                </div>
+                {!reviewMode ? (
+                  <div className="ea-detail-section">
+                    <button type="button" className="btn primary primary-button" onClick={() => setReviewMode(true)}>
+                      Review decision
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <label className="field grow" style={{ marginTop: 12 }}>
+                      <span>Rationale</span>
+                      <textarea
+                        rows={2}
+                        value={rationale}
+                        onChange={(e) => setRationale(e.target.value)}
+                        placeholder="Decision rationale…"
+                      />
+                    </label>
+                    <label className="field grow">
+                      <span>Conditions (if approving with conditions)</span>
+                      <input
+                        value={conditions}
+                        onChange={(e) => setConditions(e.target.value)}
+                        placeholder="e.g. migrate identity APIs in wave 1"
+                      />
+                    </label>
+                    <div className="toolbar wrap-actions">
+                      <button
+                        type="button"
+                        className="btn primary primary-button"
+                        onClick={() =>
+                          setConfirm({
+                            action: 'approve',
+                            title: 'Approve decision?',
+                            message: `Approve “${selected.name}” for implementation planning.`,
+                          })
+                        }
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        className="btn secondary-button"
+                        onClick={() =>
+                          setConfirm({
+                            action: 'approveWithConditions',
+                            title: 'Approve with conditions?',
+                            message: conditions
+                              ? `Approve “${selected.name}” with conditions: ${conditions}`
+                              : `Approve “${selected.name}” with conditions (enter conditions above).`,
+                          })
+                        }
+                      >
+                        Approve with conditions
+                      </button>
+                      <button
+                        type="button"
+                        className="btn secondary-button"
+                        onClick={() =>
+                          setConfirm({
+                            action: 'reject',
+                            title: 'Reject decision?',
+                            message: `Reject “${selected.name}”. This records a governance decision.`,
+                            tone: 'danger',
+                          })
+                        }
+                      >
+                        Reject
+                      </button>
+                      <button
+                        type="button"
+                        className="btn secondary-button"
+                        onClick={() =>
+                          setConfirm({
+                            action: 'defer',
+                            title: 'Defer decision?',
+                            message: `Defer “${selected.name}” to a later ARB cycle.`,
+                          })
+                        }
+                      >
+                        Defer
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <p className="sub">Select a queue item to review.</p>

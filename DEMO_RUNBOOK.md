@@ -2,7 +2,7 @@
 
 **Product:** EA360 — Enterprise Intelligence and Transformation Governance  
 **Prototype:** Synthetic demonstration (Phases 1-6)  
-**Last updated:** 28 October 2026  
+**Last updated:** 29 October 2026  
 
 ---
 
@@ -203,6 +203,13 @@ Journey, playlist and workspace details: `DEMO_JOURNEYS.md`. Ask EA360 questions
 | Ask answer looks out of date | Use **Ask again** on the stale banner. |
 | Imported rows look wrong | Reset demo (seed workspaces) or create a new workspace code (runtime workspaces). |
 | Runtime workspace disappeared | Browser storage was cleared or blocked; recreate it. The app returns to GRA. |
+
+| Ask says "Select a finding…" on a guided step | Wait for the record drawer to finish opening, then **Retry** on the guided bar (Ask now runs after selection is confirmed). |
+| Initiative drawer blocks report/briefing | Advance to the report step again; drawer should close automatically. Use **Exit** if a stale drawer persists. |
+| Cockpit "Decisions requiring attention" vs Ask pending list | Cockpit count is **pending/deferred decisions**; finding counts on the cockpit exclude **Draft** findings (see report footnote). |
+| Typed question fails but chip works | Use catalogue wording or paraphrases documented in `ASK_EA360_DEMO_QUESTIONS.md`; CIO-first and import-blocking prompts are now pattern-matched. |
+
+See **`DEMO_FIX_VALIDATION.md`** for the reliability fix checklist and automated results.
 
 ### Journey limitations
 
