@@ -159,7 +159,7 @@ export default function Sidebar({ open, collapsed, onToggleCollapse, onNavigate 
             {items.map((item) => {
               const { label, id, Icon, comingNext } = item
               const active = !comingNext && isNavActive(id, activeView)
-              const title = comingNext ? `${label} — Coming next` : label
+              const title = comingNext ? `${label} — Coming next` : collapsed ? label : undefined
 
               return (
                 <button
@@ -167,13 +167,13 @@ export default function Sidebar({ open, collapsed, onToggleCollapse, onNavigate 
                   type="button"
                   className={`navitem${active ? ' active' : ''}${comingNext ? ' is-coming' : ''}`}
                   aria-current={active ? 'page' : undefined}
-                  aria-label={comingNext ? `${label}, coming next` : undefined}
+                  aria-label={label}
                   title={title}
                   onClick={() => handleNav(item)}
                 >
                   <span className="left">
                     <span className="ico" aria-hidden="true">
-                      <Icon size={16} strokeWidth={2} />
+                      <Icon size={18} strokeWidth={2} />
                     </span>
                     <span className="nav-label">{label}</span>
                   </span>

@@ -398,7 +398,7 @@ export default function IntegrationsView() {
     : 0
 
   return (
-    <section className="view active app-portfolio-view int-portfolio-view">
+    <section className="view active app-portfolio-view int-portfolio-view" data-demo-target="integration-topology">
       <div className="module">
         <div className="module-header app-portfolio-header">
           <div>

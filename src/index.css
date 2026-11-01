@@ -539,7 +539,7 @@ select:focus-visible,
   gap: 8px;
   border: 1px solid transparent;
   background: transparent;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--sidebar-text);
   border-radius: 8px;
   padding: 6px 8px;
   font-size: 0.8125rem;
@@ -658,14 +658,14 @@ select:focus-visible,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.72);
-  opacity: 0.95;
+  color: inherit;
+  opacity: 1;
   flex-shrink: 0;
 }
 
 .navitem.active .ico {
+  color: inherit;
   opacity: 1;
-  color: var(--kulana-mint);
 }
 
 .nav-label {
@@ -695,7 +695,7 @@ select:focus-visible,
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.42);
+  color: var(--ea-muted);
   white-space: nowrap;
 }
 

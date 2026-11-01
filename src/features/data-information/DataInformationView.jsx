@@ -424,7 +424,7 @@ export default function DataInformationView() {
   }, [packData, applications])
 
   return (
-    <section className="view active app-portfolio-view data-portfolio-view">
+    <section className="view active app-portfolio-view data-portfolio-view" data-demo-target="data-information-portfolio">
       <div className="module">
         <div className="module-header app-portfolio-header">
           <div>

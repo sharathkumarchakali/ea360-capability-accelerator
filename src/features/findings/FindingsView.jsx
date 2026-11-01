@@ -76,6 +76,7 @@ function enrichFinding(f, repo) {
 export default function FindingsView() {
   const repo = usePrototypeStore((s) => s.getRepo)()
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
+  const openEntityDetail = usePrototypeStore((s) => s.openEntityDetail)
   const setView = usePrototypeStore((s) => s.setView)
   const setGraphRoot = usePrototypeStore((s) => s.setGraphRoot)
   const selected = usePrototypeStore((s) => s.selectedEntity)
@@ -216,14 +217,12 @@ export default function FindingsView() {
   const pageRows = sorted.slice(pageSafe * PAGE_SIZE, pageSafe * PAGE_SIZE + PAGE_SIZE)
 
   const activeDetailId =
-    detailId ||
-    (selected?.type === 'finding' ? selected.id : null) ||
-    pageRows[0]?.f.id
-  const detail = enriched.find((x) => x.f.id === activeDetailId) || null
+    detailId || (selected?.type === 'finding' ? selected.id : null)
+  const detail = activeDetailId ? enriched.find((x) => x.f.id === activeDetailId) || null : null
 
   function openFinding(id) {
     setDetailId(id)
-    selectEntity({ id, type: 'finding' })
+    selectEntity({ id, type: 'finding' }, { openDetail: false })
     const hit = enriched.find((x) => x.f.id === id)
     setOwnerDraft(ownerLabel(hit?.f.ownerId))
     setDateDraft(hit?.f.targetDate || '')
@@ -534,7 +533,13 @@ export default function FindingsView() {
           </div>
 
           {detail && (
-            <aside className="findings-detail itemcard">
+            <aside
+              className="findings-detail itemcard"
+              data-demo-target="entity-detail"
+              data-demo-entity-id={detail.f.id}
+              data-demo-entity-type="finding"
+              aria-busy={false}
+            >
               <div className="kicker">Finding detail</div>
               <h3>{detail.f.name}</h3>
               <div className="chip-row">

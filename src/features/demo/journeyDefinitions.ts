@@ -109,8 +109,9 @@ export const DEMO_TARGET_SELECTORS: Record<string, string> = {
   'evidence-panel': '[data-demo-target="evidence-panel"]',
   'relationship-explorer': '[data-demo-target="relationship-explorer"]',
   'entity-detail': '[data-demo-target="entity-detail"]',
-  'application-portfolio': '[data-demo-target="application-portfolio"], .portfolio-table-desktop',
-  'integration-topology': '[data-demo-target="integration-topology"], .portfolio-table-desktop',
+  'application-portfolio': '[data-demo-target="application-portfolio"]',
+  'integration-topology': '[data-demo-target="integration-topology"]',
+  'data-information-portfolio': '[data-demo-target="data-information-portfolio"]',
   'architecture-health': '[data-demo-target="architecture-health"]',
   'standards-register': '[data-demo-target="standards-register"]',
   'review-board': '[data-demo-target="review-board"]',
@@ -129,6 +130,14 @@ export type DemoGraphContext = {
   impactMode: boolean
 }
 
+export type DemoTarget = {
+  name: string
+  entity?: EntityBinding
+  /** When false, route/selection can pass without this DOM node (cosmetic highlight only). */
+  requiredForReadiness?: boolean
+  highlight?: boolean
+}
+
 export type DemoStepV2 = {
   id: string
   title: string
@@ -140,7 +149,7 @@ export type DemoStepV2 = {
   filters?: StepFilters
   selection?: EntityBinding
   graph?: DemoGraphContext
-  target: { name: string; entity?: EntityBinding }
+  target: DemoTarget
   ask?: DemoAskCommand
   /** A visible human action is required; Next waits for `completesWhen`. */
   humanAction?: string
@@ -337,7 +346,11 @@ type Ctx = {
   ) => DemoGraphContext | undefined
 }
 
-type StepInput = Omit<DemoStepV2, 'id' | 'target'> & { id?: string; target?: string; targetEntity?: EntityBinding }
+type StepInput = Omit<DemoStepV2, 'id' | 'target'> & {
+  id?: string
+  target?: string | DemoTarget
+  targetEntity?: EntityBinding
+}
 
 function makeCtx(b: JourneyScenarioBinding): Ctx {
   const fx = (key: string): EntityBinding | undefined => {
@@ -397,6 +410,8 @@ function defaultTarget(route: RouteId): string {
       return 'onboarding-wizard'
     case 'data-ingestion':
       return 'data-ingestion-center'
+    case 'data-information':
+      return 'data-information-portfolio'
     case 'workspace-settings':
       return 'workspace-settings'
     default:
@@ -484,7 +499,7 @@ const J1: Template = (c) => [
     id: 'J1.7',
     title: 'Executive briefing',
     businessQuestion: 'Can we leave with a one-page position?',
-    presenterNote: 'Generate the briefing for the selected audience. Generation is executed on entry; Copy and Open report are available on the briefing.',
+    presenterNote: 'Use Generate briefing on the tour bar (or More). Copy and Open report are available once generated.',
     expectedResult: 'A generated briefing with position, top risks, decision needed, delivery outlook, limitations and next action.',
     route: 'executive',
     ask: { mode: 'briefing', questionId: 'Q05', executeOnEnter: true, audience: 'Executive Committee' },
@@ -1227,9 +1242,28 @@ function toEntity(b: EntityBinding | undefined): { id: string; type: string } | 
   return b?.kind === 'fixed' ? { id: b.id, type: b.type } : null
 }
 
+function buildDemoTarget(name: string, selection?: EntityBinding, explicit?: DemoTarget): DemoTarget {
+  const base: DemoTarget = {
+    name,
+    entity: selection,
+    requiredForReadiness: name === 'entity-detail' || name !== 'view-root',
+    highlight: true,
+  }
+  if (!explicit) return base
+  return {
+    ...base,
+    ...explicit,
+    name: explicit.name || name,
+    entity: explicit.entity ?? selection ?? base.entity,
+  }
+}
+
 function buildStep(input: StepInput & { id: string }, b: JourneyScenarioBinding): DemoStep {
-  const target = input.target ?? defaultTarget(input.route)
   const selection = input.selection
+  const explicitTarget =
+    typeof input.target === 'string' ? ({ name: input.target } satisfies DemoTarget) : input.target
+  const targetName = explicitTarget?.name ?? (selection ? 'entity-detail' : defaultTarget(input.route))
+  const target = buildDemoTarget(targetName, selection ?? input.targetEntity, explicitTarget)
   const graph = input.graph
   const action: DemoStepAction = {
     view: input.route,
@@ -1260,14 +1294,14 @@ function buildStep(input: StepInput & { id: string }, b: JourneyScenarioBinding)
     filters: input.filters ? stripUndefined(input.filters) : undefined,
     selection,
     graph,
-    target: { name: target, entity: selection ?? input.targetEntity },
+    target,
     ask: input.ask,
     humanAction: input.humanAction,
     completesWhen: input.completesWhen,
     optional: input.optional,
     slotsRequired: input.slotsRequired,
     businessRelevance: input.businessQuestion,
-    highlightTarget: target,
+    highlightTarget: target.name,
     action,
   }
 }

@@ -2,7 +2,18 @@
 
 **Product:** EA360 — Enterprise Intelligence and Transformation Governance  
 **Prototype:** Synthetic demonstration (Phases 1-6)  
-**Last updated:** 29 October 2026  
+**Last updated:** 30 October 2026  
+
+---
+
+## Guided tour (presenter)
+
+- **Next / Back / Retry** never open Ask or auto-run a question; use **More** or explicit **Generate briefing** / Ask actions when you want AI.
+- **Entity detail during the tour:** list screens (Findings, Governance, Explorer) show **inline** detail with journey markers. Portfolio steps (Data, Applications, Integrations, Technology, AI, etc.) open the **global detail drawer** for the bound record so the tour can confirm `entity-detail` readiness — close it yourself only when leaving a detail step; the bar closes obsolete detail before route-only steps.
+- If a step fails, read the **specific** message (route, missing record, selection) and use **Retry step** from **More** — Retry re-applies filters, route, selection and readiness without resetting the workspace.
+- **Focus highlight unavailable** appears only in **Step details** when the record/route is ready but the highlight target cannot be scrolled; Next stays available in that case.
+- **Skip (marks incomplete)** on required steps ends the run as **Incomplete**; optional steps can be skipped without that flag.
+- **Demo Landing** and **Demo Studio** both honour journey **preflight** (Ready / Needs setup / Unavailable).
 
 ---
 
@@ -199,7 +210,9 @@ Journey, playlist and workspace details: `DEMO_JOURNEYS.md`. Ask EA360 questions
 | Issue | Action |
 |---|---|
 | Journey shows Needs setup | Prepare synthetic example. |
-| Step highlight missing | Retry; if it persists, Restart. |
+| J4.2 / `entity-detail` on data domain | Confirm GRA + J4 Ready; **Retry step**. Data domain should open in the side drawer with detail visible (not Ask). |
+| Step blocked with route/selection message | Read the bar message; **Retry step** from **More** (re-applies bindings without reset). |
+| Focus highlight unavailable (Step details only) | Route/record is ready — you may **Next**; optionally Retry to retry scroll/highlight. |
 | Ask answer looks out of date | Use **Ask again** on the stale banner. |
 | Imported rows look wrong | Reset demo (seed workspaces) or create a new workspace code (runtime workspaces). |
 | Runtime workspace disappeared | Browser storage was cleared or blocked; recreate it. The app returns to GRA. |

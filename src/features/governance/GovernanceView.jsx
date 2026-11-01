@@ -144,7 +144,7 @@ export default function GovernanceView() {
   return (
     <section className="view active">
       <div className="module ea-workspace">
-        <header className="ea-page-head" data-demo-target="governance-decisions">
+        <header className="ea-page-head">
           <div>
             <p className="kicker" style={{ margin: 0 }}>Governance</p>
             <h1>Decision register</h1>
@@ -217,7 +217,7 @@ export default function GovernanceView() {
           )}
         </div>
 
-        <div className="ea-split">
+        <div className="ea-split" data-demo-target="governance-decisions">
           <div className="gov-queue">
             <h3 className="section-title" style={{ marginTop: 0 }}>Review queue</h3>
             <div className="tablewrap">
@@ -260,7 +260,13 @@ export default function GovernanceView() {
             </div>
           </div>
 
-          <aside className="ea-detail-panel">
+          <aside
+            className="ea-detail-panel"
+            data-demo-target="entity-detail"
+            data-demo-entity-id={selected.decisionId || selected.id}
+            data-demo-entity-type="decision"
+            aria-busy={false}
+          >
             {selected ? (
               <>
                 <h3>{selected.name}</h3>

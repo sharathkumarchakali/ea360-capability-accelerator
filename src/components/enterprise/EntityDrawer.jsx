@@ -12,6 +12,7 @@ import { enrichAiSolution } from '../../features/ai-automation/portfolioModel'
 import InitiativeDetailPanel from '../../features/initiatives/InitiativeDetailPanel'
 import { enrichInitiative } from '../../features/initiatives/portfolioModel'
 import EvidencePanel, { deriveTrustStatus } from '../../features/evidence/EvidencePanel'
+import DecisionReviewPanel from '../../features/governance/DecisionReviewPanel'
 import { callStoreAction } from '../../features/workflow/callStoreAction'
 
 function Section({ title, children }) {
@@ -39,7 +40,8 @@ function LinkChip({ id, type, label, onOpen }) {
 
 export default function EntityDrawer() {
   const selected = usePrototypeStore((s) => s.selectedEntity)
-  const clearSelection = usePrototypeStore((s) => s.clearSelection)
+  const closeEntityDetail = usePrototypeStore((s) => s.closeEntityDetail)
+  const entityDetailOpen = usePrototypeStore((s) => s.entityDetailOpen)
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
   const setView = usePrototypeStore((s) => s.setView)
   const setNavContext = usePrototypeStore((s) => s.setNavContext)
@@ -47,7 +49,7 @@ export default function EntityDrawer() {
   const view = usePrototypeStore((s) => s.view)
   const repo = usePrototypeStore((s) => s.getRepo)()
 
-  if (!selected) return null
+  if (!selected || !entityDetailOpen) return null
 
   const open = (entity) => {
     setNavContext({ fromView: view, entityId: selected.id })
@@ -484,25 +486,10 @@ export default function EntityDrawer() {
     const d = (Array.isArray(decisions) ? decisions : []).find((x) => x.id === selected.id)
     if (!d) return null
     title = d.name || d.id
-    subtitle = `Decision · ${d.status}`
+    subtitle = `Decision · ${d.status || d.decisionStatus || 'Unknown'}`
+    const rec = d.recommendationId ? repo.getRecommendation(d.recommendationId) : null
     body = (
-      <>
-        <p>{d.rationale || d.summary || d.description}</p>
-        {d.conditions && <p className="sub">Conditions: {d.conditions}</p>}
-        <Section title="Workflow">
-          <div className="toolbar wrap-actions">
-            <button type="button" className="btn secondary-button" onClick={() => callStoreAction('approveDecision', { decisionId: d.id })}>Approve</button>
-            <button type="button" className="btn secondary-button" onClick={() => callStoreAction('approveDecisionWithConditions', { decisionId: d.id, conditions: d.conditions || 'Follow wave-1 constraints' })}>Approve with conditions</button>
-            <button type="button" className="btn secondary-button" onClick={() => callStoreAction('rejectDecision', { decisionId: d.id })}>Reject</button>
-            <button type="button" className="btn secondary-button" onClick={() => callStoreAction('deferDecision', { decisionId: d.id })}>Defer</button>
-            {(d.status === 'approved' || d.status === 'approved_with_conditions') && (
-              <button type="button" className="btn primary primary-button" onClick={() => callStoreAction('createInitiative', { decisionId: d.id, recommendationIds: d.recommendationId ? [d.recommendationId] : d.recommendationIds || [], name: `${d.name || d.id} — initiative`, description: d.rationale || '', horizon: 'next', expectedValue: '', riskReduction: '', capabilityIds: [], costBand: 'medium', status: 'proposed', progressPercent: 0 })}>
-                Create initiative
-              </button>
-            )}
-          </div>
-        </Section>
-      </>
+      <DecisionReviewPanel decision={d} repo={repo} linkedRecommendation={rec} compact />
     )
   }
 
@@ -529,14 +516,20 @@ export default function EntityDrawer() {
 
   return (
     <div className="drawer-root" role="dialog" aria-modal="true" aria-label={title}>
-      <button type="button" className="drawer-backdrop" aria-label="Close detail" onClick={clearSelection} />
-      <aside className="entity-drawer">
+      <button type="button" className="drawer-backdrop" aria-label="Close detail" onClick={closeEntityDetail} />
+      <aside
+        className="entity-drawer"
+        data-demo-target="entity-detail"
+        data-demo-entity-id={selected.id}
+        data-demo-entity-type={selected.type}
+        aria-busy={false}
+      >
         <header className="drawer-head">
           <div>
             <div className="kicker">{subtitle}</div>
             <h2>{title}</h2>
           </div>
-          <button type="button" className="btn secondary-button" onClick={clearSelection}>
+          <button type="button" className="btn secondary-button" onClick={closeEntityDetail}>
             Close
           </button>
         </header>

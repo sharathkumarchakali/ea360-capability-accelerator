@@ -4,7 +4,9 @@ import {
   listAvailableTenants,
   usePrototypeStore,
 } from '../../state/prototypeStore'
+import { loadTenantPack } from '../../data/repositories/tenantRepository'
 import { DEMO_ENTRY_OPTIONS, getDemoJourneys } from './demoJourneys'
+import { preflightJourney } from './scenarioPreflight'
 
 export default function DemoLanding({ onStart }) {
   const tenants = listAvailableTenants()
@@ -15,6 +17,7 @@ export default function DemoLanding({ onStart }) {
   const setPresentationMode = usePrototypeStore((s) => s.setPresentationMode)
   const startGuidedTour = usePrototypeStore((s) => s.startGuidedTour)
   const dismissLanding = usePrototypeStore((s) => s.dismissLanding)
+  const showToast = usePrototypeStore((s) => s.showToast)
   const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
   const [presentation, setPresentation] = useState(true)
 
@@ -25,7 +28,19 @@ export default function DemoLanding({ onStart }) {
     if (entry?.journeyKind) {
       const journeys = getDemoJourneys(tenantCode)
       const journey = journeys.find((j) => j.kind === entry.journeyKind) || journeys[0]
-      if (journey) startGuidedTour(journey.id)
+      if (journey) {
+        const pack = usePrototypeStore.getState().workingPack || loadTenantPack(tenantCode)
+        const pre = preflightJourney(pack, tenantCode, journey.journeyId)
+        if (pre.status === 'Unavailable') {
+          showToast(pre.summary || 'This journey is not available in the selected workspace.')
+          return
+        }
+        if (pre.status === 'Needs setup') {
+          showToast(pre.summary || 'Prepare the workspace in Demo Studio before starting this journey.')
+          return
+        }
+        startGuidedTour(journey.id)
+      }
     }
     onStart?.(entryId)
   }
