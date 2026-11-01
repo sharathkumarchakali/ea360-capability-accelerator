@@ -2,6 +2,7 @@ import { usePrototypeStore } from '../../state/prototypeStore'
 import { askEA360, executiveBriefing } from '../../lib/ai'
 import { getDemoAsOfDate } from '../../domain/demo/demoClock'
 import { QUESTION_BY_ID } from '../../lib/ai/questionCatalog'
+import { shouldOpenDrawerDetailForStep } from './demoStepContract'
 
 /**
  * Apply a guided-demo step to the prototype store and navigate.
@@ -12,6 +13,7 @@ export function applyDemoStepWithStore(step, opts = {}, state = usePrototypeStor
   const action = step.action || {}
   const view = action.view === 'overview' ? 'executive' : action.view
   const keepSelection = Boolean(action.selectEntity) || Boolean(opts.keepSelection)
+  const applyNonce = opts.applyNonce
 
   if (action.scenarioId) state.setScenarioId(action.scenarioId)
   if (action.heatmapMode) state.setHeatmapMode(action.heatmapMode)
@@ -49,20 +51,34 @@ export function applyDemoStepWithStore(step, opts = {}, state = usePrototypeStor
   const panelMode = action.panelMode || inferPanelMode(view, action)
   if (panelMode === 'report' || panelMode === 'briefing' || panelMode === 'none') {
     state.clearSelection()
+  } else if (!action.selectEntity) {
+    state.closeEntityDetail?.()
   }
+
+  const tourActive = Boolean(state.guidedTour?.active)
+  const openDrawerDetail =
+    opts.openDrawerDetail ?? (tourActive && step && shouldOpenDrawerDetailForStep(step))
 
   // Apply selection after navigation so clearSelection from navigate cannot wipe it
   if (action.selectEntity && panelMode !== 'report' && panelMode !== 'briefing' && panelMode !== 'none') {
-    // Defer one tick so React hash/view effects settle
     const entity = {
       id: action.selectEntity.id,
       type: action.selectEntity.type,
     }
-    state.selectEntity(entity)
+    state.closeEntityDetail?.()
+    state.selectEntity(entity, { openDetail: false })
+    const syncSelection = () => {
+      const next = usePrototypeStore.getState()
+      const tour = next.guidedTour
+      if (applyNonce != null && tour?.active && tour.applyNonce !== applyNonce) return
+      if (opts.stepIndex != null && tour?.active && tour.stepIndex !== opts.stepIndex) return
+      next.selectEntity(entity, { openDetail: false })
+      if (openDrawerDetail) next.openEntityDetail?.()
+    }
     if (typeof queueMicrotask === 'function') {
-      queueMicrotask(() => {
-        usePrototypeStore.getState().selectEntity(entity)
-      })
+      queueMicrotask(syncSelection)
+    } else if (openDrawerDetail) {
+      state.openEntityDetail?.()
     }
   } else if (action.selectEntity === null && !keepSelection) {
     state.clearSelection()

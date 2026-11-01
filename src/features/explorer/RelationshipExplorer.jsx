@@ -614,7 +614,13 @@ function Inspector({
   const tone = riskTone(sideEntity.criticality)
 
   return (
-    <aside className="explorer-inspector" data-demo-target="entity-detail">
+    <aside
+      className="explorer-inspector"
+      data-demo-target="entity-detail"
+      data-demo-entity-id={sideEntity.id}
+      data-demo-entity-type={sideEntity.type}
+      aria-busy={false}
+    >
       {impactMode && impact && (
         <div className="explorer-impact-summary" data-demo-target="impact-analysis">
           <div className="explorer-impact-head">

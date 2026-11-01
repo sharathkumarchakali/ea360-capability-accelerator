@@ -337,7 +337,7 @@ export default function ApplicationsView() {
   }, [packApps, caps])
 
   return (
-    <section className="view active app-portfolio-view ea-workspace">
+    <section className="view active app-portfolio-view ea-workspace" data-demo-target="application-portfolio">
       <div className="module">
         <header className="ea-page-head app-portfolio-header">
           <div>

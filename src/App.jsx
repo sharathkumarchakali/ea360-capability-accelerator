@@ -71,6 +71,7 @@ export default function App() {
   const view = usePrototypeStore((s) => s.view)
   const setView = usePrototypeStore((s) => s.setView)
   const clearSelection = usePrototypeStore((s) => s.clearSelection)
+  const closeEntityDetail = usePrototypeStore((s) => s.closeEntityDetail)
   const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
   const tenantCode = usePrototypeStore((s) => s.tenantCode)
   const landingComplete = usePrototypeStore((s) => s.landingComplete)
@@ -116,8 +117,9 @@ export default function App() {
       setNotifOpen(false)
       setProfileOpen(false)
       if (!keepSelection) clearSelection()
+      else closeEntityDetail()
     },
-    [closeMobile, setView, clearSelection],
+    [closeMobile, setView, clearSelection, closeEntityDetail],
   )
 
   useEffect(() => {

@@ -98,13 +98,21 @@ export type IntegrationFilters = {
 export type GraphRoot = { id: string; type: EntityType } | null
 export type GraphDirection = 'both' | 'upstream' | 'downstream'
 
-/** Guided journey run state. etryNonce forces the step effect to re-run on Retry; skipped lists required steps skipped (run is then Incomplete). */
+/** Guided journey run state. 
+etryNonce forces the step effect to re-run on Retry; skipped lists required steps skipped (run is then Incomplete). */
 export type GuidedTourState = {
   active: boolean
   journeyId: string
   stepIndex: number
   retryNonce: number
   skipped: string[]
+  /** Bumped on each step apply; deferred selection must match this nonce. */
+  applyNonce: number
+}
+
+export type SelectEntityOptions = {
+  /** When true, opens the global entity drawer overlay. Default true for direct user clicks. */
+  openDetail?: boolean
 }
 
 type ActionResult = { ok: boolean; error?: string; id?: string; errors?: string[] }
@@ -179,6 +187,8 @@ type PrototypeState = {
     businessUnit: string
   }
   selectedEntity: SelectedEntity
+  /** Global entity drawer visibility — independent of selectedEntity (guided demo uses inline detail). */
+  entityDetailOpen: boolean
   mutations: PrototypeMutation[]
   workingPack: TenantPack | null
   workingPacks: Partial<Record<TenantCode, TenantPack>>
@@ -255,7 +265,9 @@ type PrototypeState = {
   toggleCompareCapability: (id: string) => void
   clearCompare: () => void
   setNavContext: (ctx: PrototypeState['navContext']) => void
-  selectEntity: (entity: SelectedEntity) => void
+  selectEntity: (entity: SelectedEntity, options?: SelectEntityOptions) => void
+  openEntityDetail: () => void
+  closeEntityDetail: () => void
   clearSelection: () => void
   addMutation: (description: string) => void
   switchTenant: (code: TenantCode) => void
@@ -270,7 +282,12 @@ type PrototypeState = {
   retryGuidedStep: () => void
   exitGuidedTour: () => void
   restartGuidedTour: () => void
-  skipGuidedStep: (stepId?: string, required?: boolean) => void
+  bumpGuidedApplyNonce: () => number
+  skipGuidedStep: (options: {
+    stepId: string
+    marksIncomplete: boolean
+    stepCount: number
+  }) => { atEnd: boolean; incomplete: boolean }
   showToast: (message: string) => void
   clearToast: () => void
   prototypeSchemaVersion: number
@@ -661,6 +678,7 @@ export const usePrototypeStore = create<PrototypeState>()(
         role: 'executive',
         filters: { ...initialFilters },
         selectedEntity: null,
+        entityDetailOpen: false,
         mutations: [],
         workingPack: null,
         workingPacks: {},
@@ -867,10 +885,18 @@ export const usePrototypeStore = create<PrototypeState>()(
         setPresentationMode: (presentationMode) => set({ presentationMode }),
         startGuidedTour: (journeyId) =>
           set({
-            guidedTour: { active: true, journeyId, stepIndex: 0, retryNonce: 0, skipped: [] },
+            guidedTour: {
+              active: true,
+              journeyId,
+              stepIndex: 0,
+              retryNonce: 0,
+              skipped: [],
+              applyNonce: 0,
+            },
             landingComplete: true,
             askOpen: false,
             graphRoot: null,
+            entityDetailOpen: false,
           }),
         setGuidedStep: (stepIndex) => {
           const tour = get().guidedTour
@@ -887,16 +913,38 @@ export const usePrototypeStore = create<PrototypeState>()(
           const tour = get().guidedTour
           if (!tour?.journeyId) return
           set({
-            guidedTour: { active: true, journeyId: tour.journeyId, stepIndex: 0, retryNonce: 0, skipped: [] },
+            guidedTour: {
+              active: true,
+              journeyId: tour.journeyId,
+              stepIndex: 0,
+              retryNonce: 0,
+              skipped: [],
+              applyNonce: 0,
+            },
             askOpen: false,
             graphRoot: null,
+            entityDetailOpen: false,
           })
         },
-        skipGuidedStep: (stepId, required = false) => {
+        bumpGuidedApplyNonce: () => {
           const tour = get().guidedTour
-          if (!tour?.active) return
-          const skipped = required && stepId && !(tour.skipped ?? []).includes(stepId) ? [...(tour.skipped ?? []), stepId] : (tour.skipped ?? [])
-          set({ guidedTour: { ...tour, stepIndex: tour.stepIndex + 1, skipped } })
+          if (!tour?.active) return 0
+          const applyNonce = (tour.applyNonce ?? 0) + 1
+          set({ guidedTour: { ...tour, applyNonce } })
+          return applyNonce
+        },
+        skipGuidedStep: ({ stepId, marksIncomplete, stepCount }) => {
+          const tour = get().guidedTour
+          if (!tour?.active) return { atEnd: true, incomplete: false }
+          const prevSkipped = tour.skipped ?? []
+          const skipped =
+            marksIncomplete && stepId && !prevSkipped.includes(stepId)
+              ? [...prevSkipped, stepId]
+              : prevSkipped
+          const atEnd = tour.stepIndex >= stepCount - 1
+          const stepIndex = atEnd ? tour.stepIndex : tour.stepIndex + 1
+          set({ guidedTour: { ...tour, stepIndex, skipped } })
+          return { atEnd, incomplete: skipped.length > 0 }
         },
         showToast: (message) => set({ toast: { message, show: true } }),
         clearToast: () => set({ toast: { message: '', show: false } }),
@@ -970,8 +1018,19 @@ export const usePrototypeStore = create<PrototypeState>()(
         },
         clearCompare: () => set({ compareCapabilityIds: [] }),
         setNavContext: (navContext) => set({ navContext }),
-        selectEntity: (entity) => set({ selectedEntity: entity }),
-        clearSelection: () => set({ selectedEntity: null }),
+        selectEntity: (entity, options) => {
+          if (!entity) {
+            set({ selectedEntity: null, entityDetailOpen: false })
+            return
+          }
+          const openDetail = options?.openDetail !== false
+          set({ selectedEntity: entity, entityDetailOpen: openDetail })
+        },
+        openEntityDetail: () => {
+          if (get().selectedEntity) set({ entityDetailOpen: true })
+        },
+        closeEntityDetail: () => set({ entityDetailOpen: false }),
+        clearSelection: () => set({ selectedEntity: null, entityDetailOpen: false }),
         addMutation: (description) =>
           set({
             mutations: [
@@ -1003,6 +1062,7 @@ export const usePrototypeStore = create<PrototypeState>()(
             tenantSlices: nextSlices,
             askOpen: false,
             selectedEntity: null,
+            entityDetailOpen: false,
             ...slice,
             view: 'executive',
             guidedTour: null,
@@ -1029,6 +1089,7 @@ export const usePrototypeStore = create<PrototypeState>()(
             askOpen: false,
             ...slice,
             selectedEntity: null,
+            entityDetailOpen: false,
             view: 'executive',
             importValidation: null,
             lastBriefingResponseId: null,
@@ -1069,6 +1130,7 @@ export const usePrototypeStore = create<PrototypeState>()(
             tenantSlices,
             askOpen: false,
             selectedEntity: null,
+            entityDetailOpen: false,
             guidedTour: null,
             view: 'executive',
             role: restored.role,

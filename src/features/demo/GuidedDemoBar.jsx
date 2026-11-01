@@ -1,40 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, MoreHorizontal } from 'lucide-react'
 import { usePrototypeStore } from '../../state/prototypeStore'
-import { DEMO_TARGET_SELECTORS, evaluatePredicate, getDemoJourneyById, resolveStepForRun } from './journeyDefinitions'
+import { evaluatePredicate, getDemoJourneyById, resolveStepForRun } from './journeyDefinitions'
 import { getJourneyBinding } from './journeyBindings'
 import { applyDemoStepWithStore, runGuidedAskOffer } from './applyDemoStep'
 import { QUESTION_BY_ID } from '../../lib/ai/questionCatalog'
-
-function targetSelector(step) {
-  const name = step?.highlightTarget || step?.target?.name
-  if (name && DEMO_TARGET_SELECTORS[name]) return DEMO_TARGET_SELECTORS[name]
-  if (name) return `[data-demo-target="${name}"]`
-  return null
-}
-
-function waitForTarget(selector, { timeoutMs = 2500, intervalMs = 80 } = {}) {
-  return new Promise((resolve) => {
-    if (!selector || typeof document === 'undefined') {
-      resolve(null)
-      return
-    }
-    const started = Date.now()
-    const tick = () => {
-      const el = document.querySelector(selector)
-      if (el) {
-        resolve(el)
-        return
-      }
-      if (Date.now() - started >= timeoutMs) {
-        resolve(null)
-        return
-      }
-      setTimeout(tick, intervalMs)
-    }
-    tick()
-  })
-}
+import {
+  problemMessageForReadiness,
+  readinessBlocksNext,
+  waitForDemoStepReady,
+} from './waitForDemoStepReady'
 
 function noteDocument(journeyTitle, step, index, total) {
   const esc = (s) =>
@@ -73,15 +48,19 @@ export default function GuidedDemoBar({ onNavigate }) {
   const exitGuidedTour = usePrototypeStore((s) => s.exitGuidedTour)
   const restartGuidedTour = usePrototypeStore((s) => s.restartGuidedTour)
   const skipGuidedStep = usePrototypeStore((s) => s.skipGuidedStep)
+  const bumpGuidedApplyNonce = usePrototypeStore((s) => s.bumpGuidedApplyNonce)
   const showToast = usePrototypeStore((s) => s.showToast)
   const setAskOpen = usePrototypeStore((s) => s.setAskOpen)
+  const closeEntityDetail = usePrototypeStore((s) => s.closeEntityDetail)
   const [problem, setProblem] = useState(null)
+  const [highlightWarning, setHighlightWarning] = useState(null)
   const [ready, setReady] = useState(false)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [tick, setTick] = useState(0)
   const highlightRef = useRef([])
-  const applyGen = useRef(0)
+  const stepExecId = useRef(0)
+  const abortRef = useRef(null)
   const notesWin = useRef(null)
   const moreRef = useRef(null)
 
@@ -95,7 +74,6 @@ export default function GuidedDemoBar({ onNavigate }) {
   const step = journey?.steps[stepIndex] || null
   const total = journey?.steps.length || 0
   const skipped = guidedTour?.skipped ?? []
-  const incomplete = skipped.length > 0
   const askOffer = step ? stepAskOffer(step) : null
 
   const binding = useMemo(() => {
@@ -121,9 +99,14 @@ export default function GuidedDemoBar({ onNavigate }) {
   useEffect(() => {
     if (!step || !guidedTour?.active) return undefined
 
-    const gen = ++applyGen.current
+    const execId = ++stepExecId.current
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     setReady(false)
     setProblem(null)
+    setHighlightWarning(null)
     setDetailsOpen(false)
     setMoreOpen(false)
 
@@ -131,6 +114,10 @@ export default function GuidedDemoBar({ onNavigate }) {
     highlightRef.current = []
 
     const state = usePrototypeStore.getState()
+    if (!step.action?.selectEntity) {
+      closeEntityDetail()
+    }
+
     const { step: resolved, unresolvedSlot } = resolveStepForRun(step, state.workingPack, binding)
 
     if (unresolvedSlot) {
@@ -138,57 +125,80 @@ export default function GuidedDemoBar({ onNavigate }) {
         kind: 'slot',
         message: `This step needs the ${unresolvedSlot} from an earlier human step. Complete that step, then Retry.`,
       })
-      applyDemoStepWithStore({ ...resolved, action: { ...resolved.action, selectEntity: undefined } }, { navigate: onNavigate }, state)
-      setReady(true)
-      return undefined
+      const applyNonce = bumpGuidedApplyNonce()
+      applyDemoStepWithStore(
+        { ...resolved, action: { ...resolved.action, selectEntity: undefined } },
+        { navigate: onNavigate, applyNonce, stepIndex },
+        state,
+      )
+      setReady(false)
+      return () => controller.abort()
     }
 
-    applyDemoStepWithStore(resolved, { navigate: onNavigate }, state)
-
-    const selector = targetSelector(resolved)
-    const expectedId = resolved.action?.selectEntity?.id
-    let cancelled = false
+    const applyNonce = bumpGuidedApplyNonce()
+    applyDemoStepWithStore(resolved, { navigate: onNavigate, applyNonce, stepIndex }, state)
 
     ;(async () => {
-      await new Promise((r) => setTimeout(r, 120))
-      if (cancelled || gen !== applyGen.current) return
+      try {
+        const readiness = await waitForDemoStepReady({
+          step: resolved,
+          getState: () => {
+            const s = usePrototypeStore.getState()
+            return { view: s.view, selectedEntity: s.selectedEntity, workingPack: s.workingPack }
+          },
+          signal: controller.signal,
+        })
+        if (execId !== stepExecId.current) return
 
-      const el = await waitForTarget(selector)
-      if (cancelled || gen !== applyGen.current) return
+        if (readiness.highlightWarning === 'missing-target' && !readiness.blockingReason) {
+          if (import.meta.env.DEV) {
+            console.warn('[EA360 demo] Focus highlight unavailable', {
+              journeyId: guidedTour.journeyId,
+              stepId: resolved.id,
+              route: resolved.route,
+              target: resolved.target?.name,
+            })
+          }
+          setHighlightWarning('Focus highlight unavailable')
+        }
 
-      if (selector && !el) {
+        const blockMsg = problemMessageForReadiness(readiness, resolved)
+        if (readinessBlocksNext(readiness, resolved) && blockMsg) {
+          setProblem({
+            kind: readiness.blockingReason || 'target',
+            message: blockMsg,
+          })
+          setReady(false)
+          return
+        }
+
+        const el = readiness.target
+        if (el && resolved.target?.highlight !== false) {
+          el.classList.add('demo-highlight')
+          highlightRef.current = [el]
+          try {
+            el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+          } catch {
+            /* ignore */
+          }
+        }
+
+        setProblem(null)
+        setReady(true)
+      } catch (err) {
+        if (err?.name === 'AbortError') return
+        if (execId !== stepExecId.current) return
+        if (import.meta.env.DEV) console.warn('[EA360 demo] Step readiness failed', err)
         setProblem({
           kind: 'target',
-          message: `Expected area (“${resolved.target?.name}”) did not appear. Retry or use Step details.`,
+          message: 'This step could not be prepared. Retry or use Step details.',
         })
-        setReady(true)
-        return
+        setReady(false)
       }
-
-      if (expectedId && usePrototypeStore.getState().selectedEntity?.id !== expectedId) {
-        setProblem({
-          kind: 'selection',
-          message: 'The bound record did not open. Retry after the record is visible.',
-        })
-        setReady(true)
-        return
-      }
-
-      if (el) {
-        el.classList.add('demo-highlight')
-        highlightRef.current = [el]
-        try {
-          el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-        } catch {
-          /* ignore */
-        }
-      }
-      setProblem(null)
-      setReady(true)
     })()
 
     return () => {
-      cancelled = true
+      controller.abort()
       highlightRef.current.forEach((n) => n.classList.remove('demo-highlight'))
       highlightRef.current = []
     }
@@ -224,14 +234,36 @@ export default function GuidedDemoBar({ onNavigate }) {
   const isLast = stepIndex >= total - 1
   const notesAllowed = !presentationMode
   const progressPct = total ? Math.round(((stepIndex + 1) / total) * 100) : 0
+  const stepBlocked = Boolean(problem && ['target', 'selection', 'slot', 'route', 'missing-record'].includes(problem.kind))
+  const gateBlocked = Boolean(step.humanAction && !gateOpen)
+  const runIncomplete = skipped.length > 0
+
+  function tourIncompleteNow() {
+    const tour = usePrototypeStore.getState().guidedTour
+    if ((tour?.skipped ?? []).length > 0) return true
+    if (gateBlocked) return true
+    if (stepBlocked) return true
+    return false
+  }
 
   function finish() {
-    if (incomplete) {
-      showToast(`Journey finished — Incomplete (${skipped.length} required step${skipped.length === 1 ? '' : 's'} skipped).`)
+    if (tourIncompleteNow()) {
+      const n = usePrototypeStore.getState().guidedTour?.skipped?.length ?? 0
+      showToast(
+        n > 0
+          ? `Journey finished — Incomplete (${n} required step${n === 1 ? '' : 's'} skipped).`
+          : 'Journey finished — Incomplete (required actions or readiness checks remain).',
+      )
     } else {
       showToast('Journey complete.')
     }
     exitGuidedTour()
+  }
+
+  function skipCurrentStep(marksIncomplete) {
+    const result = skipGuidedStep({ stepId: step.id, marksIncomplete, stepCount: total })
+    setMoreOpen(false)
+    if (result.atEnd) finish()
   }
 
   function confirmRestart() {
@@ -280,7 +312,7 @@ export default function GuidedDemoBar({ onNavigate }) {
           <span style={{ width: `${progressPct}%` }} />
         </div>
         <progress className="sr-only" max={total} value={stepIndex + 1} aria-label="Journey progress" />
-        {incomplete && (
+        {runIncomplete && (
           <span className="demo-tour-bar__warn" role="status">
             Incomplete
           </span>
@@ -302,6 +334,11 @@ export default function GuidedDemoBar({ onNavigate }) {
         )}
         {detailsOpen && (
           <div className="demo-tour-bar__details" role="region" aria-label="Step details">
+            {highlightWarning && (
+              <p className="demo-tour-bar__hint" role="status">
+                {highlightWarning}
+              </p>
+            )}
             {step.businessQuestion && (
               <p>
                 <strong>Business question:</strong> {step.businessQuestion}
@@ -316,6 +353,11 @@ export default function GuidedDemoBar({ onNavigate }) {
       </div>
 
       <div className="demo-tour-bar__nav">
+        {askOffer?.kind === 'briefing' && (
+          <button type="button" className="btn secondary-button demo-tour-btn" onClick={runSuggestedAsk}>
+            Generate briefing
+          </button>
+        )}
         <button
           type="button"
           className="btn secondary-button demo-tour-btn"
@@ -327,8 +369,14 @@ export default function GuidedDemoBar({ onNavigate }) {
         <button
           type="button"
           className="btn primary-button demo-tour-btn demo-tour-btn--primary"
-          disabled={!gateOpen || !ready}
-          title={!gateOpen ? 'Complete the required human action first' : undefined}
+          disabled={!gateOpen || !ready || stepBlocked}
+          title={
+            stepBlocked
+              ? 'Resolve the step issue or Retry first'
+              : !gateOpen
+                ? 'Complete the required human action first'
+                : undefined
+          }
           onClick={() => {
             if (isLast) finish()
             else setGuidedStep(stepIndex + 1)
@@ -365,16 +413,13 @@ export default function GuidedDemoBar({ onNavigate }) {
                 </button>
               )}
               {!step.optional && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    skipGuidedStep(step.id, false)
-                    setMoreOpen(false)
-                    if (isLast) finish()
-                  }}
-                >
+                <button type="button" role="menuitem" onClick={() => skipCurrentStep(true)}>
                   Skip step (marks incomplete)
+                </button>
+              )}
+              {step.optional && (
+                <button type="button" role="menuitem" onClick={() => skipCurrentStep(false)}>
+                  Skip optional step
                 </button>
               )}
               {notesAllowed && (

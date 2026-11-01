@@ -13,6 +13,9 @@ import {
 } from 'lucide-react'
 import { usePrototypeStore, getTenantConfig } from '../../state/prototypeStore'
 import { deriveIntegrationMetrics } from '../../domain/metrics/integration'
+import { getJourneyBinding } from '../demo/journeyBindings'
+import { resolveScenarioFocus } from '../demo/scenarioFocus'
+import { getDemoJourneyById } from '../demo/journeyDefinitions'
 import ExplainButton from '../ai-assist/ExplainButton'
 import ExecutiveBriefing from '../ai-assist/ExecutiveBriefing'
 
@@ -190,6 +193,8 @@ export default function ExecutiveCockpit({ onNavigate }) {
   const setPortfolioFilters = usePrototypeStore((s) => s.setPortfolioFilters)
   const setIntegrationFilters = usePrototypeStore((s) => s.setIntegrationFilters)
   const setHeatmapMode = usePrototypeStore((s) => s.setHeatmapMode)
+  const guidedTour = usePrototypeStore((s) => s.guidedTour)
+  const scenarioId = usePrototypeStore((s) => s.scenarioId)
   const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
   const tenant = repo.getTenant()
   const metrics = useMemo(() => repo.getExecutiveMetrics(), [repo])
@@ -347,51 +352,67 @@ export default function ExecutiveCockpit({ onNavigate }) {
     }
   }
 
+  const binding = useMemo(() => {
+    if (!guidedTour?.journeyId) return null
+    const demoJourney = getDemoJourneyById(tenantCode, guidedTour.journeyId)
+    if (!demoJourney?.journeyId) return null
+    return getJourneyBinding(tenantCode, demoJourney.journeyId)
+  }, [guidedTour?.journeyId, tenantCode])
+
+  const scenarioFocus = useMemo(() => resolveScenarioFocus(binding, repo), [binding, repo])
+
+  const chainCap = scenarioFocus?.capability || priorityCap
+  const chainFinding = scenarioFocus?.finding || topFinding
+  const chainRec = scenarioFocus?.recommendation || topRec
+  const chainInit = scenarioFocus?.initiative || topInit
+  const chainApps = scenarioFocus?.applications?.length ? scenarioFocus.applications : supportingApps
+  const chainInts = repo.integrationsForApplications(chainApps.map((a) => a.id))
+
   const journeyNodes = [
     {
       key: 'capability',
       label: 'Capability',
-      value: priorityCap?.name || 'Priority capability',
-      meta: priorityCap ? `Risk ${priorityCap.riskScore}` : '—',
+      value: chainCap?.name || 'Priority capability',
+      meta: chainCap ? `Risk ${chainCap.riskScore}` : '—',
       highlight: false,
-      onClick: openJourney,
+      onClick: chainCap ? () => selectEntity({ id: chainCap.id, type: 'capability' }, { openDetail: false }) : openJourney,
     },
     {
       key: 'apps',
       label: 'Applications',
-      value: `${supportingApps.length} apps`,
-      meta: `${supportingInts.length} integrations`,
+      value: `${chainApps.length} apps`,
+      meta: `${chainInts.length} integrations`,
       highlight: false,
-      onClick: () => openPortfolio({ capabilityId: priorityCap?.id || '' }),
+      onClick: () => openPortfolio({ capabilityId: chainCap?.id || '' }),
     },
     {
       key: 'finding',
       label: 'Finding',
-      value: topFinding?.name || 'Critical finding',
-      meta: topFinding ? 'Evidence-backed' : '—',
-      highlight: Boolean(topFinding),
-      onClick: topFinding
-        ? () => selectEntity({ id: topFinding.id, type: 'finding' })
+      value: chainFinding?.name || 'Critical finding',
+      meta: chainFinding ? 'Evidence-backed' : '—',
+      highlight: Boolean(chainFinding),
+      onClick: chainFinding
+        ? () => selectEntity({ id: chainFinding.id, type: 'finding' }, { openDetail: false })
         : undefined,
     },
     {
       key: 'recommendation',
       label: 'Recommendation',
-      value: topRec?.name || 'Recommendation',
-      meta: topRec?.status || '—',
-      highlight: Boolean(topRec),
-      onClick: topRec
-        ? () => selectEntity({ id: topRec.id, type: 'recommendation' })
+      value: chainRec?.name || 'Recommendation',
+      meta: chainRec?.status || '—',
+      highlight: Boolean(chainRec),
+      onClick: chainRec
+        ? () => selectEntity({ id: chainRec.id, type: 'recommendation' })
         : undefined,
     },
     {
       key: 'initiative',
       label: 'Initiative',
-      value: topInit?.name || 'Roadmap initiative',
-      meta: topInit ? `${topInit.progressPercent}% complete` : '—',
+      value: chainInit?.name || 'Roadmap initiative',
+      meta: chainInit ? `${chainInit.progressPercent}% complete` : '—',
       highlight: false,
-      onClick: topInit
-        ? () => selectEntity({ id: topInit.id, type: 'initiative' })
+      onClick: chainInit
+        ? () => selectEntity({ id: chainInit.id, type: 'initiative' })
         : undefined,
     },
   ]
@@ -428,7 +449,7 @@ export default function ExecutiveCockpit({ onNavigate }) {
         </header>
 
         <div className="cockpit-grid">
-          <div className="cockpit-kpi-strip" role="group" aria-label="KPI summary">
+          <div className="cockpit-kpi-strip" role="group" aria-label="Workspace-wide KPI summary">
             <button
               type="button"
               className={`cockpit-kpi tone-${tone}`}
@@ -604,7 +625,15 @@ export default function ExecutiveCockpit({ onNavigate }) {
           <article className="cockpit-panel cockpit-journey">
             <div className="cockpit-panel-head">
               <div>
-                <h2>Connected value chain</h2>
+                <h2>{scenarioFocus ? 'Scenario in focus' : 'Connected value chain'}</h2>
+                {scenarioFocus?.scenario && (
+                  <p className="sub">
+                    {scenarioFocus.scenario.name}
+                    {scenarioId && scenarioId !== scenarioFocus.scenario.id
+                      ? ` · workspace scenario ${scenarioId}`
+                      : ''}
+                  </p>
+                )}
               </div>
             </div>
             <div className="journey-chain" role="list">
