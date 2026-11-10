@@ -1,0 +1,446 @@
+diff --git a/src/data/tenants/bog/pack.ts b/src/data/tenants/bog/pack.ts
+index e411f23..fb7b448 100644
+--- a/src/data/tenants/bog/pack.ts
++++ b/src/data/tenants/bog/pack.ts
+@@ -596,7 +596,7 @@ export const bogPack: TenantPack = {
+   technologies: [
+     { ...base('tech-bog-01', 'Oracle Database 19c', 'Primary RDBMS for returns and RTGS operational stores.', 'person-bog-cto'), category: 'Database', lifecycle: 'approved' },
+     { ...base('tech-bog-02', 'PostgreSQL 15', 'Analytics and lakehouse metastore services.', 'person-bog-cdo'), category: 'Database', lifecycle: 'strategic' },
+-    { ...base('tech-bog-03', 'Legacy Java EE 6 runtime', 'End-of-support runtime for Legacy Returns Intake.', 'person-bog-cto', 'active', ['legacy', 'eos']), category: 'Application runtime', lifecycle: 'retire' },
++    { ...base('tech-bog-03', 'Legacy Java EE 6 runtime', 'End-of-support runtime for Legacy Returns Intake in this synthetic scenario.', 'person-bog-cto', 'active', ['legacy', 'eos']), category: 'Application runtime', lifecycle: 'retire', supportEndDate: '2026-03-31', supportEndDateSynthetic: true },
+     { ...base('tech-bog-04', 'WSO2 API Manager', 'API management for Integration Hub.', 'person-bog-chief-architect'), category: 'Integration', lifecycle: 'strategic' },
+     { ...base('tech-bog-05', 'Kubernetes', 'Container platform for new services.', 'person-bog-cto'), category: 'Platform', lifecycle: 'strategic' },
+     { ...base('tech-bog-06', 'Red Hat OpenShift', 'Enterprise Kubernetes distribution.', 'person-bog-cto'), category: 'Platform', lifecycle: 'approved' },
+@@ -621,7 +621,36 @@ export const bogPack: TenantPack = {
+     { ...base('tech-bog-25', 'Prometheus / Grafana', 'Platform monitoring stack.', 'person-bog-cto'), category: 'Observability', lifecycle: 'strategic' },
+   ],
+ 
++  aiModels: [{
++    ...base('aim-bog-demo-01', 'Synthetic supervisory text model', 'Fictional model for a controlled demonstration.', 'person-bog-cdo'),
++    provider: 'Synthetic demo provider', modelType: 'Text summarisation', hosting: 'Demo sandbox',
++    status: 'Pilot', riskLevel: 'High', isExternalProvider: false, isSynthetic: true,
++  }],
++  aiSolutions: [{
++    ...base('ai-bog-demo-01', 'Supervisory Evidence Review Agent', 'Drafts summaries for a human reviewer using synthetic supervisory evidence.', 'person-bog-cdo', 'active', ['synthetic']),
++    solutionType: 'Agent', businessCapabilityIds: ['cap-bog-32'],
++    businessPurpose: 'Draft source-linked summaries without issuing a supervisory decision.',
++    lifecycle: 'EXPERIMENT', businessCriticality: 'high', businessOwner: 'Data governance lead',
++    technicalOwner: 'Architecture lead', aiOwner: 'Model review lead',
++    autonomyLevel: 1, humanOversightType: 'Every Action', humanOversightRole: 'Supervisory reviewer',
++    overrideAvailable: true, modelIds: ['aim-bog-demo-01'], dataDomainIds: ['data-bog-02'],
++    toolPermissions: [{ integrationId: 'int-bog-02', permission: 'READ' }],
++    applicationIds: ['app-bog-11'], technologyIds: [], riskLevel: 'High', governanceStatus: 'Partial',
++    guardrails: { approvedUseCase: 'Defined', allowedActions: 'Defined', prohibitedActions: 'Partial',
++      approvedData: 'Partial', humanApproval: 'Defined', escalation: 'Partial',
++      outputReview: 'Defined', monitoring: 'Missing' },
++    findingIds: ['find-bog-demo-ai-01'], decisionIds: [], initiativeIds: [],
++    portfolioAction: 'GOVERN', isSynthetic: true,
++  }],
+   evidence: [
++    {
++      ...base('ev-bog-demo-ai-01', 'Synthetic agent permission review', 'Read-only access recorded; monitoring evidence is missing.', 'person-bog-cdo'),
++      evidenceType: 'architecture-document', confidence: 'high',
++      linkedObjectIds: ['ai-bog-demo-01', 'aim-bog-demo-01', 'data-bog-02', 'int-bog-02'],
++      sourceName: 'EA360 synthetic fixture', sourceReference: 'BOG-DEMO-AI-01',
++      sourceDate: '2026-09-01', capturedDate: '2026-09-01', freshness: 'fresh',
++      reliability: 'high', verificationStatus: 'verified', relatedFindingIds: ['find-bog-demo-ai-01'], notes: [],
++    },
+     {
+       ...base('ev-bog-01', 'Returns definition conflict analysis', 'Sample showing conflicting field definitions across legacy intake and returns engine.', 'person-bog-cdo'),
+       evidenceType: 'system-extract', confidence: 'high', linkedObjectIds: ['data-bog-01', 'app-bog-22', 'app-bog-04', 'cap-bog-32'],
+@@ -737,6 +766,20 @@ export const bogPack: TenantPack = {
+   ],
+ 
+   findings: [
++    {
++      ...base('find-bog-demo-ai-01', 'Agent monitoring evidence missing', 'Fictional production-readiness review.', 'person-bog-cdo', 'open', ['synthetic']),
++      category: 'AI Governance', severity: 'high',
++      problemStatement: 'The pilot agent has no recorded monitoring evidence.',
++      rootCause: 'The monitoring plan has not been demonstrated.',
++      businessImpact: 'Reviewers cannot establish that unsafe outputs would be detected.',
++      urgency: 'high', evidenceIds: ['ev-bog-demo-ai-01'],
++      linkedObjectIds: ['ai-bog-demo-01', 'aim-bog-demo-01', 'data-bog-02'],
++      targetDate: '2026-12-31', recommendedAction: 'Keep the pilot restricted and obtain monitoring evidence before production review.',
++      workflowStatus: 'Accepted', likelihood: 3, impactScore: 4, riskScore: 12,
++      businessOwnerId: 'person-bog-cdo', architectureOwnerId: 'person-bog-chief-architect',
++      dateIdentified: '2026-09-01', lastReviewedDate: '2026-09-01', domain: 'Regulatory Data',
++      recommendationIds: [], decisionIds: [], initiativeIds: [], confidenceScore: 90,
++    },
+     {
+       ...base('find-bog-01', 'Incomplete regulatory data lineage', 'Critical supervisory products lack end-to-end lineage from intake.', 'person-bog-cdo', 'open', ['lineage']),
+       category: 'Data / Capability', severity: 'critical',
+@@ -744,7 +787,7 @@ export const bogPack: TenantPack = {
+       rootCause: 'Dual intake paths and an untracked lake bypass without a governed data product catalogue.',
+       businessImpact: 'Conflicting supervisory metrics and delayed interventions.',
+       urgency: 'critical', evidenceIds: ['ev-bog-01', 'ev-bog-02'],
+-      linkedObjectIds: ['cap-bog-30', 'cap-bog-32', 'app-bog-11', 'app-bog-22', 'int-bog-03'],
++      linkedObjectIds: ['cap-bog-30', 'cap-bog-32', 'app-bog-11', 'app-bog-22', 'int-bog-03', 'data-bog-02'],
+       targetDate: '2026-12-31', recommendedAction: 'Mandate lineage for critical products and retire lake bypass.',
+       workflowStatus: 'Accepted', likelihood: 5, impactScore: 5, riskScore: 25,
+       businessOwnerId: 'person-bog-cdo', architectureOwnerId: 'person-bog-chief-architect',
+diff --git a/src/features/ai-data-governance/AIDataGovernanceView.jsx b/src/features/ai-data-governance/AIDataGovernanceView.jsx
+index 5736300..82cc24a 100644
+--- a/src/features/ai-data-governance/AIDataGovernanceView.jsx
++++ b/src/features/ai-data-governance/AIDataGovernanceView.jsx
+@@ -297,7 +297,7 @@ export default function AIDataGovernanceView() {
+   }
+ 
+   return (
+-    <section className="view active app-portfolio-view ai-gov-view data-portfolio-view">
++    <section className="view active app-portfolio-view ai-gov-view data-portfolio-view" data-demo-target="ai-governance-workspace">
+       <div className="module">
+         <div className="module-header app-portfolio-header">
+           <div>
+diff --git a/src/features/demo/DemoLanding.jsx b/src/features/demo/DemoLanding.jsx
+index d20e193..79bf20b 100644
+--- a/src/features/demo/DemoLanding.jsx
++++ b/src/features/demo/DemoLanding.jsx
+@@ -7,6 +7,7 @@ import {
+ import { loadTenantPack } from '../../data/repositories/tenantRepository'
+ import { DEMO_ENTRY_OPTIONS, getDemoJourneys } from './demoJourneys'
+ import { preflightJourney } from './scenarioPreflight'
++import { BOG_RESILIENCE_DEMO_ID } from './journeyDefinitions'
+ 
+ export default function DemoLanding({ onStart }) {
+   const tenants = listAvailableTenants()
+@@ -20,6 +21,24 @@ export default function DemoLanding({ onStart }) {
+   const showToast = usePrototypeStore((s) => s.showToast)
+   const config = useMemo(() => getTenantConfig(tenantCode), [tenantCode])
+   const [presentation, setPresentation] = useState(true)
++  const [bogProblem, setBogProblem] = useState('')
++
++  function startBogDemo() {
++    const state = usePrototypeStore.getState()
++    const pack = state.tenantCode === 'BOG'
++      ? state.workingPack
++      : state.workingPacks.BOG ?? loadTenantPack('BOG')
++    const preflight = preflightJourney(pack, 'BOG', 'J3')
++    if (preflight.status !== 'Ready') {
++      setBogProblem(preflight.summary || 'The synthetic BoG workspace is not ready.')
++      return
++    }
++    setBogProblem('')
++    switchTenant('BOG')
++    setPresentationMode(true)
++    onStart?.(BOG_RESILIENCE_DEMO_ID)
++    startGuidedTour(BOG_RESILIENCE_DEMO_ID)
++  }
+ 
+   function begin(entryId) {
+     setPresentationMode(presentation)
+@@ -91,6 +110,10 @@ export default function DemoLanding({ onStart }) {
+         </div>
+ 
+         <div className="demo-entry-grid">
++          <button type="button" className="demo-entry-card" onClick={startBogDemo}>
++            <strong>Start BoG resilience demo</strong>
++            <span>One payment-system decision in seven minutes · Synthetic scenario, not a BoG assessment.</span>
++          </button>
+           {DEMO_ENTRY_OPTIONS.map((opt) => (
+             <button
+               key={opt.id}
+@@ -103,6 +126,7 @@ export default function DemoLanding({ onStart }) {
+             </button>
+           ))}
+         </div>
++        {bogProblem && <p role="alert">{bogProblem}</p>}
+ 
+         <p className="demo-landing-disclaimer">{config.syntheticDisclaimer}</p>
+         <p className="demo-landing-disclaimer subtle">
+diff --git a/src/features/demo/demoStepContract.ts b/src/features/demo/demoStepContract.ts
+index 72cc726..8c86424 100644
+--- a/src/features/demo/demoStepContract.ts
++++ b/src/features/demo/demoStepContract.ts
+@@ -51,12 +51,19 @@ export function queryVisibleDemoTarget(
+   const scopedRoots = roots.length ? roots : [document.body]
+ 
+   const matches: HTMLElement[] = []
++  const selector = `[data-demo-target="${targetName}"]`
+   for (const root of scopedRoots) {
+-    const nodes = root.querySelectorAll(`[data-demo-target="${targetName}"]`)
++    if (root instanceof HTMLElement && root.matches(selector) && isElementVisible(root)) matches.push(root)
++    const nodes = root.querySelectorAll(selector)
+     nodes.forEach((n) => {
+       if (n instanceof HTMLElement && isElementVisible(n)) matches.push(n)
+     })
+   }
++  if (targetName === 'entity-detail') {
++    document.querySelectorAll(`.drawer-root ${selector}`).forEach((el) => {
++      if (el instanceof HTMLElement && isElementVisible(el) && !matches.includes(el)) matches.push(el)
++    })
++  }
+ 
+   let candidates = matches
+   if (opts.entityId) {
+diff --git a/src/features/demo/journeyBindings.ts b/src/features/demo/journeyBindings.ts
+index 8e10c3e..1ee9c51 100644
+--- a/src/features/demo/journeyBindings.ts
++++ b/src/features/demo/journeyBindings.ts
+@@ -463,6 +463,27 @@ function seededBindings(p: SeedParts, reasons: Record<'J4' | 'J5' | 'J6', string
+   ]
+ }
+ 
++const BOG_SPECIALIST_BINDINGS: JourneyScenarioBinding[] = [
++  { tenantCode: 'BOG', journeyId: 'J4', available: true, scenarioId: 'scenario-bog-lineage',
++    refs: { data: r('dataObject', 'data-bog-02'), finding: r('finding', 'find-bog-01'), recommendation: r('recommendation', 'rec-bog-01'), decision: r('decision', 'dec-bog-01'), initiative: r('initiative', 'init-bog-01') },
++    links: [["finding","data"],["finding","recommendation"],["recommendation","decision"],["recommendation","initiative"]],
++    routes: ["data-information","explorer","ai-data-governance","findings","initiatives"], questionIds: ["Q16","Q17","Q18","Q19"],
++    note: SYNTH,
++  },
++  { tenantCode: 'BOG', journeyId: 'J5', available: true, scenarioId: 'scenario-bog-lineage',
++    refs: { technology: r('technology', 'tech-bog-03'), application: r('application', 'app-bog-22'), finding: r('finding', 'find-bog-06'), initiative: r('initiative', 'init-bog-06') },
++    links: [["finding","technology"],["technology","application"],["finding","initiative"]],
++    routes: ["technology-infrastructure","explorer","standards","findings","roadmap"], questionIds: ["Q20","Q21","Q22","Q23"],
++    note: SYNTH,
++  },
++  { tenantCode: 'BOG', journeyId: 'J6', available: true, requiresFixture: 'j6-permission-evidence',
++    refs: { agent: r('aiSolution', 'ai-bog-demo-01'), model: r('aiModel', 'aim-bog-demo-01'), data: r('dataObject', 'data-bog-02'), finding: r('finding', 'find-bog-demo-ai-01'), evidence: r('evidence', 'ev-bog-demo-ai-01') },
++    links: [["agent","model"],["agent","data"],["finding","agent"],["finding","evidence"]],
++    routes: ["ai-automation","explorer","ai-data-governance","findings","kpis"], questionIds: ["Q24","Q25","Q26","Q27","Q28","Q29","Q30"],
++    note: SYNTH,
++  },
++]
++
+ const BOG_BINDINGS = seededBindings(
+   {
+     code: 'BOG',
+@@ -490,7 +511,7 @@ const BOG_BINDINGS = seededBindings(
+     },
+     j3: {
+       scenarioId: 'scenario-bog-payments',
+-      integrationId: 'int-bog-10',
++      integrationId: 'int-bog-12',
+       applicationId: 'app-bog-06',
+       findingId: 'find-bog-04',
+       evidenceId: 'ev-bog-06',
+@@ -508,6 +529,10 @@ const BOG_BINDINGS = seededBindings(
+   },
+ )
+ 
++for (const binding of BOG_SPECIALIST_BINDINGS) {
++  BOG_BINDINGS[BOG_BINDINGS.findIndex((entry) => entry.journeyId === binding.journeyId)] = binding
++}
++
+ const FIDELITY_BINDINGS = seededBindings(
+   {
+     code: 'FIDELITY',
+diff --git a/src/features/demo/journeyDefinitions.ts b/src/features/demo/journeyDefinitions.ts
+index 04d40d5..5ec95fd 100644
+--- a/src/features/demo/journeyDefinitions.ts
++++ b/src/features/demo/journeyDefinitions.ts
+@@ -45,6 +45,7 @@ export type DemoAskCommand = {
+ export type DemoPredicate =
+   | 'evidence-verified'
+   | 'finding-accepted'
++  | 'finding-validated'
+   | 'draft-saved'
+   | 'recommendation-submitted'
+   | 'decision-conditional'
+@@ -100,6 +101,8 @@ export const SUPPORTED_FILTER_KEYS = new Set<string>([
+ 
+ /** Central registry of `data-demo-target` names → selectors (spec §4.3). */
+ export const DEMO_TARGET_SELECTORS: Record<string, string> = {
++  'graph-node': '[data-demo-target="graph-node"]',
++  'ai-governance-workspace': '[data-demo-target="ai-governance-workspace"]',
+   'executive-health': '[data-demo-target="executive-health"]',
+   'findings-register': '[data-demo-target="findings-register"]',
+   'capability-heatmap': '[data-demo-target="capability-heatmap"]',
+@@ -1326,7 +1329,36 @@ function buildJourney(tenantCode: string, journeyId: JourneyId): DemoJourney {
+       routes: [],
+     } as JourneyScenarioBinding)
+   const ctx = makeCtx(b)
+-  const steps = TEMPLATES[journeyId](ctx).map((s) => buildStep(s, b))
++  const steps = TEMPLATES[journeyId](ctx)
++    .filter((s) => code !== 'BOG' || !['J4.5b', 'J5.4', 'J6.5b', 'J6.9', 'J6.10'].includes(s.id))
++    .map((s) => {
++      if (code === 'BOG' && ['J4.3', 'J5.3', 'J6.4'].includes(s.id)) {
++        return buildStep({ ...s, target: 'graph-node' }, b)
++      }
++      if (code === 'BOG' && s.route === 'ai-data-governance' && ['J4', 'J6'].includes(journeyId)) {
++        return buildStep({
++          ...s, target: 'ai-governance-workspace',
++          ...(s.id === 'J6.5c' ? { expectedResult: 'No production approval is recorded for this fictional pilot.' } : {}),
++        }, b)
++      }
++      if (code === 'BOG' && s.id === 'J6.3') {
++        return buildStep({ ...s, presenterNote: 'Show the recorded READ-only permission and missing monitoring. The prototype never invokes the interface.' }, b)
++      }
++      if (code === 'BOG' && s.id === 'J7.3') return buildStep({
++        ...s, title: 'Validate the finding', humanAction: 'Click Validate on the practice finding.',
++        presenterNote: 'Validate the finding before drafting the recommendation. Validation is not approval.',
++        expectedResult: 'The practice finding is Validated, with the transition in the audit trail.',
++        completesWhen: ['finding-validated'],
++      }, b)
++      if (code === 'BOG' && ['J7.6', 'J7.7'].includes(s.id)) return buildStep({ ...s, target: 'review-board' }, b)
++      if (code === 'BOG' && s.id === 'J7.8') return buildStep({
++        ...s, route: 'decisions', selection: undefined, target: 'governance-decisions',
++        presenterNote: 'Find the approved practice decision in the Decision Register and click Create initiative.',
++      }, b)
++      if (code === 'BOG' && s.id === 'J7.9') return buildStep({ ...s, target: 'roadmap-board' }, b)
++      if (code === 'BOG' && s.id === 'J7.10a') return buildStep({ ...s, target: 'kpi-register' }, b)
++      return buildStep(s, b)
++    })
+   const legacy = [`${prefix}-${journeyId.toLowerCase()}`]
+   if (journeyId === 'J1') legacy.push(`${prefix}-executive`)
+   if (journeyId === 'J2') legacy.push(`${prefix}-architecture`)
+@@ -1455,9 +1487,56 @@ export function buildPlaylistJourney(tenantCode: string, playlistId: string): De
+ }
+ 
+ /** Resolve a journey by current id, legacy id (`gra-executive`) or playlist id. */
++export const BOG_RESILIENCE_DEMO_ID = 'bog-resilience-demo'
++
++function buildBogResilienceDemo(): DemoJourney {
++  const base = getDemoJourneys('BOG').find((journey) => journey.journeyId === 'J3')!
++  const binding = getJourneyBinding('BOG', 'J3')!
++  const ctx = makeCtx(binding)
++  const question = 'What depends on this payment interface, and what should the review team do next?'
++  const step = (
++    id: string, title: string, route: RouteId, presenterNote: string, expectedResult: string,
++    extra: Partial<StepInput> = {},
++  ) => buildStep({ id, title, route, businessQuestion: question, presenterNote, expectedResult, ...extra }, binding)
++  return {
++    ...base,
++    id: BOG_RESILIENCE_DEMO_ID,
++    legacyIds: [],
++    title: 'BoG payment resilience · synthetic scenario',
++    audience: 'Bank of Ghana stakeholders',
++    durationLabel: '~7 min',
++    durationMinutes: 7,
++    description: 'Trace a payment visibility gap from dependency to recorded decision and delivery.',
++    businessQuestion: question,
++    businessOutcome: 'A traceable decision and an accountable next step.',
++    steps: [
++      step('BOG.1', 'What needs attention?', 'executive',
++        'This is a synthetic scenario, not an assessment of BoG. Point to the payment-system visibility gap.',
++        'One issue for the review team: limited visibility on a payment interface.'),
++      step('BOG.2', 'What depends on this interface?', 'explorer',
++        'Start on the interface named in the finding. These are recorded dependencies, not an outage forecast.',
++        'The payment visibility dependency and affected capability are visible.',
++        { graph: ctx.graph('integration', 'both', 1) }),
++      step('BOG.3', 'What evidence do we have?', 'evidence',
++        'Show the sample incident summary. Ask what further evidence stakeholders would need.',
++        'The evidence is linked to the interface and finding; unknowns remain unknown.',
++        { selection: ctx.fx('evidence') }),
++      step('BOG.4', 'What did the review decide?', 'decisions',
++        'Read the actual recorded status and conditions. Do not perform an approval during the walkthrough.',
++        'The linked decision shows its recorded status and conditions.',
++        { selection: ctx.fx('decision') }),
++      step('BOG.5', 'Who owns the follow-through?', 'roadmap',
++        'Show the initiative and its owner. Ask BoG to nominate one upcoming change for a scoped pilot.',
++        'The linked resilience initiative shows the delivery owner and progress.',
++        { selection: ctx.fx('initiative') }),
++    ],
++  }
++}
++
+ export function getDemoJourneyById(tenantCode: string, id: string): DemoJourney | null {
+   if (!id) return null
+   const key = tenantCode.trim().toUpperCase()
++  if (id === BOG_RESILIENCE_DEMO_ID) return key === 'BOG' ? buildBogResilienceDemo() : null
+   const playlistMatch = /-playlist-(.+)$/.exec(id)
+   if (playlistMatch) return buildPlaylistJourney(key, playlistMatch[1])
+   const all = getDemoJourneys(key)
+@@ -1539,6 +1618,10 @@ export function evaluatePredicate(name: DemoPredicate, ctx: PredicateContext): b
+       const wf = pack.findings?.find((f) => f.id === findingId)?.workflowStatus
+       return Boolean(wf && ['Accepted', 'Remediation Planned', 'Resolved'].includes(wf))
+     }
++    case 'finding-validated': {
++      const wf = pack.findings?.find((f) => f.id === findingId)?.workflowStatus
++      return Boolean(wf && ['Validated', 'Accepted', 'Remediation Planned', 'Resolved'].includes(wf))
++    }
+     case 'draft-saved':
+       return Boolean(findingId && (ctx.recommendationDrafts ?? []).some((d) => d.findingId === findingId))
+     case 'recommendation-submitted':
+diff --git a/src/features/demo/journeys.acceptance.test.ts b/src/features/demo/journeys.acceptance.test.ts
+index 54f59b7..bcd9212 100644
+--- a/src/features/demo/journeys.acceptance.test.ts
++++ b/src/features/demo/journeys.acceptance.test.ts
+@@ -77,7 +77,7 @@ afterEach(() => {
+ describe('AT01 — preflight and bindings', () => {
+   const EXPECTED = {
+     GRA: ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Needs setup', 'Needs setup', 'Ready'],
+-    BOG: ['Ready', 'Ready', 'Ready', 'Unavailable', 'Unavailable', 'Unavailable', 'Needs setup', 'Ready'],
++    BOG: ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Needs setup', 'Ready'],
+     FIDELITY: ['Ready', 'Ready', 'Ready', 'Unavailable', 'Unavailable', 'Unavailable', 'Needs setup', 'Ready'],
+     GENERIC: ['Ready', 'Ready', 'Ready', 'Unavailable', 'Unavailable', 'Unavailable', 'Needs setup', 'Ready'],
+   } as const
+@@ -108,7 +108,7 @@ describe('AT01 — preflight and bindings', () => {
+         const binding = getJourneyBinding(code, j)!
+         for (const ref of Object.values(binding.refs)) expect(ref.id, `${code} ${j}`).not.toMatch(/-gra-/)
+       }
+-      expect(preflightJourney(loadTenantPack(code), code, 'J4').status).toBe('Unavailable')
++      if (code !== 'BOG') expect(preflightJourney(loadTenantPack(code), code, 'J4').status).toBe('Unavailable')
+       expect(store().prepareDemoFixture).toBeTypeOf('function')
+     }
+   })
+@@ -153,12 +153,20 @@ describe('AT01 — preflight and bindings', () => {
+   })
+ 
+   it('a fixture is refused where the journey has no validated data', () => {
+-    store().switchTenant('BOG')
++    store().switchTenant('FIDELITY')
+     const before = snapshot()
+     expect(store().prepareDemoFixture('J6').ok).toBe(false)
+     expect(snapshot()).toBe(before)
+   })
+ 
++  it('prepares the BoG J7 practice case without pre-approving a decision', () => {
++    store().switchTenant('BOG')
++    expect(store().prepareDemoFixture('J7').ok).toBe(true)
++    expect(preflightJourney(pack(), 'BOG', 'J7').status).toBe('Ready')
++    expect(pack().findings.find((f) => f.id === 'demo-bog-payment-finding')?.decisionIds).toEqual([])
++    expect(store().prepareDemoFixture('J7').created).toEqual([])
++  })
++
+   it('does not change the seed pack when fixtures are prepared', () => {
+     const seedBefore = JSON.stringify(loadTenantPack('GRA', { bypassCache: true }))
+     store().prepareDemoFixture('J7')
+diff --git a/src/features/explorer/RelationshipExplorer.jsx b/src/features/explorer/RelationshipExplorer.jsx
+index ba8be69..0dbcf9c 100644
+--- a/src/features/explorer/RelationshipExplorer.jsx
++++ b/src/features/explorer/RelationshipExplorer.jsx
+@@ -1056,7 +1056,7 @@ export default function RelationshipExplorer({ onNavigate }) {
+         (impactMap.has(e.target) || e.target === root?.id)
+       const highlight = onPath || (impactMode && inImpact)
+       const showLabel = onPath || (selectedSideId && (e.source === selectedSideId || e.target === selectedSideId))
+-      const stroke = critical ? '#C0392B' : highlight ? '#0D6B7A' : '#8aa0a8'
++      const stroke = critical ? '#a32921' : highlight ? '#00565d' : '#466773'
+       return {
+         ...e,
+         label: showLabel ? e.data?.label : undefined,
+@@ -1068,13 +1068,13 @@ export default function RelationshipExplorer({ onNavigate }) {
+         style: {
+           ...e.style,
+           stroke,
+-          strokeWidth: highlight ? 2.75 : critical ? 2 : 1.5,
+-          opacity: impactMode && impact && !inImpact && !onPath ? 0.28 : 1,
++          strokeWidth: highlight ? 3.5 : critical ? 3 : 2.5,
++          opacity: impactMode && impact && !inImpact && !onPath ? 0.65 : 1,
+         },
+         markerEnd: {
+           type: MarkerType.ArrowClosed,
+-          width: 14,
+-          height: 14,
++          width: 18,
++          height: 18,
+           color: stroke,
+         },
+         animated: false,
+diff --git a/src/index.css b/src/index.css
+index 3693cd8..9dde512 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -3907,6 +3907,13 @@ button.metric {
+   fill: none;
+ }
+ 
++/* React Flow uses overflowing SVG layers to draw across the viewport. */
++.explorer-canvas-wrap .react-flow__edges svg,
++.explorer-mobile-graph .react-flow__edges svg {
++  max-width: none;
++  overflow: visible;
++}
++
+ .explorer-canvas-wrap .react-flow__edge.selected .react-flow__edge-path,
+ .explorer-canvas-wrap .react-flow__edge:hover .react-flow__edge-path {
+   stroke: var(--cta, #006b73);

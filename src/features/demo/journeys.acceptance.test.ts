@@ -77,7 +77,7 @@ afterEach(() => {
 describe('AT01 — preflight and bindings', () => {
   const EXPECTED = {
     GRA: ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Needs setup', 'Needs setup', 'Ready'],
-    BOG: ['Ready', 'Ready', 'Ready', 'Unavailable', 'Unavailable', 'Unavailable', 'Needs setup', 'Ready'],
+    BOG: ['Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Ready', 'Needs setup', 'Ready'],
     FIDELITY: ['Ready', 'Ready', 'Ready', 'Unavailable', 'Unavailable', 'Unavailable', 'Needs setup', 'Ready'],
     GENERIC: ['Ready', 'Ready', 'Ready', 'Unavailable', 'Unavailable', 'Unavailable', 'Needs setup', 'Ready'],
   } as const
@@ -108,7 +108,7 @@ describe('AT01 — preflight and bindings', () => {
         const binding = getJourneyBinding(code, j)!
         for (const ref of Object.values(binding.refs)) expect(ref.id, `${code} ${j}`).not.toMatch(/-gra-/)
       }
-      expect(preflightJourney(loadTenantPack(code), code, 'J4').status).toBe('Unavailable')
+      if (code !== 'BOG') expect(preflightJourney(loadTenantPack(code), code, 'J4').status).toBe('Unavailable')
       expect(store().prepareDemoFixture).toBeTypeOf('function')
     }
   })
@@ -159,10 +159,18 @@ describe('AT01 — preflight and bindings', () => {
   })
 
   it('a fixture is refused where the journey has no validated data', () => {
-    store().switchTenant('BOG')
+    store().switchTenant('FIDELITY')
     const before = snapshot()
     expect(store().prepareDemoFixture('J6').ok).toBe(false)
     expect(snapshot()).toBe(before)
+  })
+
+  it('prepares the BoG J7 practice case without pre-approving a decision', () => {
+    store().switchTenant('BOG')
+    expect(store().prepareDemoFixture('J7').ok).toBe(true)
+    expect(preflightJourney(pack(), 'BOG', 'J7').status).toBe('Ready')
+    expect(pack().findings.find((f) => f.id === 'demo-bog-payment-finding')?.decisionIds).toEqual([])
+    expect(store().prepareDemoFixture('J7').created).toEqual([])
   })
 
   it('does not change the seed pack when fixtures are prepared', () => {

@@ -4039,6 +4039,13 @@ button.metric {
   fill: none;
 }
 
+/* React Flow uses overflowing SVG layers to draw across the viewport. */
+.explorer-canvas-wrap .react-flow__edges svg,
+.explorer-mobile-graph .react-flow__edges svg {
+  max-width: none;
+  overflow: visible;
+}
+
 .explorer-canvas-wrap .react-flow__edge.selected .react-flow__edge-path,
 .explorer-canvas-wrap .react-flow__edge:hover .react-flow__edge-path {
   stroke: var(--cta);

@@ -1056,25 +1056,25 @@ export default function RelationshipExplorer({ onNavigate }) {
         (impactMap.has(e.target) || e.target === root?.id)
       const highlight = onPath || (impactMode && inImpact)
       const showLabel = onPath || (selectedSideId && (e.source === selectedSideId || e.target === selectedSideId))
-      const stroke = critical ? '#C0392B' : highlight ? '#0D6B7A' : '#8aa0a8'
+      const stroke = critical ? 'var(--risk)' : highlight ? 'var(--cta-hover)' : 'var(--text-muted)'
       return {
         ...e,
         label: showLabel ? e.data?.label : undefined,
         labelStyle: showLabel
-          ? { fontSize: 11, fill: '#053642', fontWeight: 600 }
+          ? { fontSize: 11, fill: 'var(--kulana-ink)', fontWeight: 600 }
           : undefined,
-        labelBgStyle: showLabel ? { fill: '#fff', fillOpacity: 0.92 } : undefined,
+        labelBgStyle: showLabel ? { fill: 'var(--surface)', fillOpacity: 0.92 } : undefined,
         labelBgPadding: showLabel ? [4, 6] : undefined,
         style: {
           ...e.style,
           stroke,
-          strokeWidth: highlight ? 2.75 : critical ? 2 : 1.5,
-          opacity: impactMode && impact && !inImpact && !onPath ? 0.28 : 1,
+          strokeWidth: highlight ? 3.5 : critical ? 3 : 2.5,
+          opacity: impactMode && impact && !inImpact && !onPath ? 0.65 : 1,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          width: 14,
-          height: 14,
+          width: 18,
+          height: 18,
           color: stroke,
         },
         animated: false,
