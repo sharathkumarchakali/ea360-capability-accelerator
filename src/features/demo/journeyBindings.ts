@@ -490,7 +490,9 @@ const BOG_BINDINGS = seededBindings(
     },
     j3: {
       scenarioId: 'scenario-bog-payments',
-      integrationId: 'int-bog-10',
+      // RTGS → Retail Oversight (P2P) — the interface named in find-bog-04 / dec-bog-02.
+      // Do not substitute int-bog-10 (RTGS → SWIFT); that is a different resilience story.
+      integrationId: 'int-bog-12',
       applicationId: 'app-bog-06',
       findingId: 'find-bog-04',
       evidenceId: 'ev-bog-06',

@@ -246,7 +246,7 @@ function ExplorerCanvas({
       elementsSelectable
       defaultEdgeOptions={{
         type: 'smoothstep',
-        markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: '#8aa0a8' },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18, color: 'var(--cta)' },
       }}
     >
       <Background id="explorer-dots" gap={18} size={1.1} color="#c5d4d9" />

@@ -3902,24 +3902,47 @@ button.metric {
 }
 
 .explorer-canvas-wrap .react-flow__edge-path {
-  stroke: var(--kulana-teal, #006b73);
-  stroke-width: 2.25px;
+  stroke: var(--cta);
+  stroke-width: 2.75px;
+  stroke-opacity: 0.92;
   fill: none;
 }
 
 .explorer-canvas-wrap .react-flow__edge.selected .react-flow__edge-path,
 .explorer-canvas-wrap .react-flow__edge:hover .react-flow__edge-path {
-  stroke: var(--cta, #006b73);
-  stroke-width: 3px;
+  stroke: var(--cta);
+  stroke-width: 3.5px;
+  stroke-opacity: 1;
 }
 
 .explorer-canvas-wrap .react-flow__arrowhead {
-  fill: var(--kulana-teal, #006b73);
+  fill: var(--cta);
 }
 
 .explorer-canvas-wrap .react-flow__edge-text {
-  font-size: 11px;
-  fill: var(--body, #29434f);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--body);
+}
+
+/* Screen-share / presentation: thicker edges and larger node labels */
+.presentation-mode .explorer-canvas-wrap .react-flow__edge-path {
+  stroke-width: 3.5px;
+}
+.presentation-mode .explorer-canvas-wrap .react-flow__edge.selected .react-flow__edge-path,
+.presentation-mode .explorer-canvas-wrap .react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 4px;
+}
+.presentation-mode .explorer-canvas-wrap .react-flow__edge-text {
+  font-size: 14px;
+}
+.presentation-mode .rf-node-name {
+  font-size: 0.9375rem;
+}
+.presentation-mode .rf-node-type,
+.presentation-mode .rf-node-meta,
+.presentation-mode .rf-node-conn {
+  font-size: 0.8125rem;
 }
 
 .explorer-canvas-wrap .react-flow {
@@ -7185,7 +7208,8 @@ canvas {
   border-bottom: 1px solid var(--ea-border);
   position: sticky;
   top: 0;
-  z-index: 25;
+  /* Above entity drawers (90) so Next / Back / Retry stay reachable during guided steps. */
+  z-index: 110;
 }
 .demo-tour-bar__progress {
   display: flex;

@@ -144,7 +144,12 @@ export default function GuidedDemoBar({ onNavigate }) {
           step: resolved,
           getState: () => {
             const s = usePrototypeStore.getState()
-            return { view: s.view, selectedEntity: s.selectedEntity, workingPack: s.workingPack }
+            return {
+              view: s.view,
+              selectedEntity: s.selectedEntity,
+              graphRoot: s.graphRoot,
+              workingPack: s.workingPack,
+            }
           },
           signal: controller.signal,
         })
@@ -234,7 +239,9 @@ export default function GuidedDemoBar({ onNavigate }) {
   const isLast = stepIndex >= total - 1
   const notesAllowed = !presentationMode
   const progressPct = total ? Math.round(((stepIndex + 1) / total) * 100) : 0
-  const stepBlocked = Boolean(problem && ['target', 'selection', 'slot', 'route', 'missing-record'].includes(problem.kind))
+  const stepBlocked = Boolean(
+    problem && ['target', 'selection', 'slot', 'route', 'missing-record', 'graph-root'].includes(problem.kind),
+  )
   const gateBlocked = Boolean(step.humanAction && !gateOpen)
   const runIncomplete = skipped.length > 0
 
@@ -246,6 +253,13 @@ export default function GuidedDemoBar({ onNavigate }) {
     return false
   }
 
+  function endsOnDecisionBrief(resolved) {
+    const action = resolved?.action || step?.action || {}
+    return Boolean(
+      askOffer?.kind === 'briefing' || action.openBriefing || action.ask?.mode === 'briefing',
+    )
+  }
+
   function finish() {
     if (tourIncompleteNow()) {
       const n = usePrototypeStore.getState().guidedTour?.skipped?.length ?? 0
@@ -254,9 +268,18 @@ export default function GuidedDemoBar({ onNavigate }) {
           ? `Journey finished — Incomplete (${n} required step${n === 1 ? '' : 's'} skipped).`
           : 'Journey finished — Incomplete (required actions or readiness checks remain).',
       )
-    } else {
-      showToast('Journey complete.')
+      exitGuidedTour()
+      return
     }
+    const resolved = resolveStepForRun(step, usePrototypeStore.getState().workingPack, binding).step
+    if (endsOnDecisionBrief(resolved)) {
+      closeEntityDetail()
+      runGuidedAskOffer(resolved, usePrototypeStore.getState())
+      // Leave the decision brief open; do not replace it with a generic completion toast.
+      exitGuidedTour({ keepAsk: true })
+      return
+    }
+    showToast('Journey complete.')
     exitGuidedTour()
   }
 
@@ -407,11 +430,16 @@ export default function GuidedDemoBar({ onNavigate }) {
                   {askOffer.kind === 'briefing' ? 'Generate briefing (Ask)' : askOffer.label || 'Run suggested Ask'}
                 </button>
               )}
-              {problem && (
-                <button type="button" role="menuitem" onClick={() => retryGuidedStep()}>
-                  Retry step
-                </button>
-              )}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  retryGuidedStep()
+                  setMoreOpen(false)
+                }}
+              >
+                Retry step
+              </button>
               {!step.optional && (
                 <button type="button" role="menuitem" onClick={() => skipCurrentStep(true)}>
                   Skip step (marks incomplete)

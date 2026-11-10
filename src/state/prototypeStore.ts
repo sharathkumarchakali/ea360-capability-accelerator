@@ -280,7 +280,7 @@ type PrototypeState = {
   startGuidedTour: (journeyId: string) => void
   setGuidedStep: (stepIndex: number) => void
   retryGuidedStep: () => void
-  exitGuidedTour: () => void
+  exitGuidedTour: (opts?: { keepAsk?: boolean }) => void
   restartGuidedTour: () => void
   bumpGuidedApplyNonce: () => number
   skipGuidedStep: (options: {
@@ -908,7 +908,11 @@ export const usePrototypeStore = create<PrototypeState>()(
           if (!tour?.active) return
           set({ guidedTour: { ...tour, retryNonce: (tour.retryNonce ?? 0) + 1 } })
         },
-        exitGuidedTour: () => set({ guidedTour: null, askOpen: false }),
+        exitGuidedTour: (opts) =>
+          set({
+            guidedTour: null,
+            askOpen: opts?.keepAsk ? get().askOpen : false,
+          }),
         restartGuidedTour: () => {
           const tour = get().guidedTour
           if (!tour?.journeyId) return

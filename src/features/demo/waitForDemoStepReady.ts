@@ -6,6 +6,7 @@ import { findPackEntity } from './scenarioPreflight'
 type DemoReadinessState = {
   view: string
   selectedEntity: { id: string; type: string } | null
+  graphRoot?: { id: string; type: string } | null
   workingPack: import('../../data/repositories/tenantRepository').TenantPack | null
 }
 
@@ -13,8 +14,9 @@ export type StepReadiness = {
   routeReady: boolean
   selectionReady: boolean
   targetReady: boolean
+  graphRootReady: boolean
   target?: HTMLElement
-  blockingReason?: 'route' | 'selection' | 'missing-record'
+  blockingReason?: 'route' | 'selection' | 'missing-record' | 'graph-root'
   highlightWarning?: 'missing-target' | 'hidden-target'
 }
 
@@ -52,10 +54,18 @@ function evaluateReadiness(step: DemoStep, state: DemoReadinessState): StepReadi
           routeReady,
           selectionReady: false,
           targetReady: false,
+          graphRootReady: false,
           blockingReason: 'missing-record',
         }
       }
     }
+  }
+
+  const wantedRoot = step.action?.graphRoot
+  let graphRootReady = true
+  if (wantedRoot) {
+    graphRootReady =
+      state.graphRoot?.id === wantedRoot.id && state.graphRoot?.type === wantedRoot.type
   }
 
   const targetName = step.target?.name || step.highlightTarget || 'view-root'
@@ -79,15 +89,58 @@ function evaluateReadiness(step: DemoStep, state: DemoReadinessState): StepReadi
     targetReady = routeReady
   }
 
+  // Graph steps: require the root node (or explorer shell) before Next; highlight is still optional.
+  if (wantedRoot && graphRootReady && normalizeView(state.view) === 'explorer') {
+    const graphNode =
+      queryVisibleDemoTarget('graph-node', {
+        activeView: state.view,
+      }) ?? undefined
+    const explorer =
+      queryVisibleDemoTarget('relationship-explorer', {
+        activeView: state.view,
+      }) ?? undefined
+    if (graphNode) {
+      target = graphNode
+      targetReady = true
+    } else if (explorer && targetReady) {
+      // Inspector/detail may be ready before React Flow paints; keep waiting for the root node.
+      targetReady = false
+      target = explorer
+    } else if (!targetReady) {
+      target = explorer
+    }
+  }
+
   if (!routeReady) {
-    return { routeReady: false, selectionReady, targetReady: false, blockingReason: 'route' }
+    return {
+      routeReady: false,
+      selectionReady,
+      targetReady: false,
+      graphRootReady: false,
+      blockingReason: 'route',
+    }
   }
   if (wanted && !selectionReady) {
-    return { routeReady: true, selectionReady: false, targetReady: false, blockingReason: 'selection' }
+    return {
+      routeReady: true,
+      selectionReady: false,
+      targetReady: false,
+      graphRootReady,
+      blockingReason: 'selection',
+    }
+  }
+  if (wantedRoot && !graphRootReady) {
+    return {
+      routeReady: true,
+      selectionReady,
+      targetReady: false,
+      graphRootReady: false,
+      blockingReason: 'graph-root',
+    }
   }
 
   if (!targetReady && requiredForReadiness) {
-    return { routeReady: true, selectionReady, targetReady: false }
+    return { routeReady: true, selectionReady, targetReady: false, graphRootReady }
   }
 
   if (!targetReady && !requiredForReadiness) {
@@ -95,11 +148,12 @@ function evaluateReadiness(step: DemoStep, state: DemoReadinessState): StepReadi
       routeReady: true,
       selectionReady,
       targetReady: true,
+      graphRootReady,
       highlightWarning: 'missing-target',
     }
   }
 
-  return { routeReady: true, selectionReady, targetReady: true, target }
+  return { routeReady: true, selectionReady, targetReady: true, graphRootReady, target }
 }
 
 export async function waitForDemoStepReady(opts: WaitForDemoStepReadyOptions): Promise<StepReadiness> {
@@ -111,8 +165,20 @@ export async function waitForDemoStepReady(opts: WaitForDemoStepReadyOptions): P
 
   const immediate = evaluateReadiness(step, getState())
   if (immediate.blockingReason) return immediate
-  if (immediate.routeReady && immediate.selectionReady && immediate.targetReady) return immediate
-  if (immediate.routeReady && immediate.selectionReady && immediate.highlightWarning === 'missing-target') {
+  if (
+    immediate.routeReady &&
+    immediate.selectionReady &&
+    immediate.graphRootReady &&
+    immediate.targetReady
+  ) {
+    return immediate
+  }
+  if (
+    immediate.routeReady &&
+    immediate.selectionReady &&
+    immediate.graphRootReady &&
+    immediate.highlightWarning === 'missing-target'
+  ) {
     return immediate
   }
 
@@ -143,11 +209,16 @@ export async function waitForDemoStepReady(opts: WaitForDemoStepReadyOptions): P
         finish(result)
         return
       }
-      if (result.routeReady && result.selectionReady && result.targetReady) {
+      if (result.routeReady && result.selectionReady && result.graphRootReady && result.targetReady) {
         finish(result)
         return
       }
-      if (result.routeReady && result.selectionReady && result.highlightWarning === 'missing-target') {
+      if (
+        result.routeReady &&
+        result.selectionReady &&
+        result.graphRootReady &&
+        result.highlightWarning === 'missing-target'
+      ) {
         finish(result)
         return
       }
@@ -170,6 +241,7 @@ export function readinessBlocksNext(readiness: StepReadiness, step: DemoStep): b
   if (!readiness.routeReady) return true
   const wanted = step.action?.selectEntity
   if (wanted && !readiness.selectionReady) return true
+  if (step.action?.graphRoot && !readiness.graphRootReady) return true
   if (step.target?.requiredForReadiness !== false && !readiness.targetReady) return true
   return false
 }
@@ -183,6 +255,12 @@ export function problemMessageForReadiness(readiness: StepReadiness, step: DemoS
   }
   if (readiness.blockingReason === 'selection') {
     return 'The bound record did not open. Retry after the record is visible.'
+  }
+  if (readiness.blockingReason === 'graph-root') {
+    const root = step.action?.graphRoot
+    return root
+      ? `Expected graph root (${root.type}) did not resolve. Retry or use Step details.`
+      : 'Expected graph root did not resolve. Retry or use Step details.'
   }
   if (
     step.target?.name === 'entity-detail' &&

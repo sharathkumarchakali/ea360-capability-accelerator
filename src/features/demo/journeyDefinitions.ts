@@ -1365,11 +1365,15 @@ export function getDemoJourneys(tenantCode: string): DemoJourney[] {
 /* ------------------------------------------------------------------ */
 export type PlaylistItem = { journeyId: JourneyId; stepIds?: string[] }
 export type DemoPlaylist = {
-  id: 'full-product' | 'prospect-15'
+  id: 'full-product' | 'prospect-15' | 'bog-resilience-7'
   title: string
   durationLabel: string
   description: string
   items: PlaylistItem[]
+  /** When set, every step reuses this journey's scenario and binding segment (one coherent story). */
+  anchorJourneyId?: JourneyId
+  /** When set, the playlist is only advertised as bound for these workspace codes. */
+  tenantCodes?: string[]
 }
 
 export const DEMO_PLAYLISTS: DemoPlaylist[] = [
@@ -1401,6 +1405,20 @@ export const DEMO_PLAYLISTS: DemoPlaylist[] = [
       { journeyId: 'J7', stepIds: ['J7.1', 'J7.4', 'J7.10a'] },
     ],
   },
+  {
+    id: 'bog-resilience-7',
+    title: 'BoG payment resilience (7 min)',
+    durationLabel: '~7 min',
+    description:
+      'Synthetic Bank of Ghana payments path only: cockpit → RTGS–oversight interface (int-bog-12) → evidence → recorded conditional decision → delivery owner and decision brief. Illustrative data — not official BoG findings.',
+    anchorJourneyId: 'J3',
+    tenantCodes: ['BOG'],
+    items: [
+      { journeyId: 'J1', stepIds: ['J1.2'] },
+      { journeyId: 'J3', stepIds: ['J3.2', 'J3.3', 'J3.5b', 'J3.7', 'J3.8a'] },
+      { journeyId: 'J1', stepIds: ['J1.7'] },
+    ],
+  },
 ]
 
 /** Build a flattened runnable journey from a playlist, skipping journeys that are not bound for the tenant. */
@@ -1408,7 +1426,31 @@ export function buildPlaylistJourney(tenantCode: string, playlistId: string): De
   const playlist = DEMO_PLAYLISTS.find((p) => p.id === playlistId)
   if (!playlist) return null
   const code = tenantCode.trim().toUpperCase()
+  if (playlist.tenantCodes && !playlist.tenantCodes.includes(code)) {
+    return {
+      id: `${code.toLowerCase()}-playlist-${playlist.id}`,
+      journeyId: 'playlist',
+      tenantCode: code,
+      kind: 'playlist',
+      title: playlist.title,
+      audience: 'Presenter',
+      durationLabel: playlist.durationLabel,
+      durationMinutes: 7,
+      description: playlist.description,
+      businessOutcome: 'See each journey outcome in sequence.',
+      businessQuestion: playlist.description,
+      legacyIds: [],
+      steps: [],
+      bound: false,
+      boundReason: `This playlist is prepared for ${playlist.tenantCodes.join(', ')} only.`,
+      playlistId: playlist.id,
+    }
+  }
   const all = getDemoJourneys(code)
+  const anchorBinding = playlist.anchorJourneyId ? getJourneyBinding(code, playlist.anchorJourneyId) : null
+  const anchorScenarioId = anchorBinding?.scenarioId
+  const segmentFor = (journeyId: JourneyId): JourneyId =>
+    (playlist.anchorJourneyId || journeyId) as JourneyId
   const steps: DemoStep[] = []
   const skipped: string[] = []
   for (const item of playlist.items) {
@@ -1420,6 +1462,7 @@ export function buildPlaylistJourney(tenantCode: string, playlistId: string): De
     const chosen = item.stepIds ? j.steps.filter((s) => item.stepIds!.includes(s.id)) : j.steps
     chosen.forEach((s, i) => {
       const subset = Boolean(item.stepIds)
+      const segmentJourneyId = segmentFor(j.journeyId as JourneyId)
       steps.push({
         ...s,
         // Selected-step playlists are presentation subsets: human gates cannot be satisfied by skipped prerequisites.
@@ -1427,12 +1470,21 @@ export function buildPlaylistJourney(tenantCode: string, playlistId: string): De
         completesWhen: subset ? undefined : s.completesWhen,
         humanAction: subset ? undefined : s.humanAction,
         id: `${j.journeyId}:${s.id}`,
-        segmentJourneyId: j.journeyId as JourneyId,
+        segmentJourneyId,
         segmentStart: i === 0,
+        action: {
+          ...s.action,
+          ...(anchorScenarioId && s.action?.view !== 'demo-studio'
+            ? { scenarioId: anchorScenarioId }
+            : {}),
+        },
       })
     })
   }
-  const minutes = playlist.id === 'full-product' ? 65 : 15
+  const minutes = playlist.id === 'full-product' ? 65 : playlist.id === 'bog-resilience-7' ? 7 : 15
+  const bound =
+    steps.length > 0 &&
+    (!playlist.anchorJourneyId || Boolean(anchorBinding?.available && all.find((j) => j.journeyId === playlist.anchorJourneyId)?.bound))
   return {
     id: `${code.toLowerCase()}-playlist-${playlist.id}`,
     journeyId: 'playlist',
@@ -1448,8 +1500,12 @@ export function buildPlaylistJourney(tenantCode: string, playlistId: string): De
     businessQuestion: playlist.description,
     legacyIds: [],
     steps,
-    bound: steps.length > 0,
-    boundReason: steps.length ? undefined : 'None of the playlist journeys are bound for this workspace.',
+    bound,
+    boundReason: bound
+      ? undefined
+      : steps.length
+        ? 'Anchor journey is not ready for this workspace.'
+        : 'None of the playlist journeys are bound for this workspace.',
     playlistId: playlist.id,
   }
 }

@@ -10,6 +10,7 @@ export const DRAWER_ENTITY_DETAIL_ROUTES = new Set<string>([
   'ai-automation',
   'capabilities',
   'initiatives',
+  'roadmap',
   'recommendations',
   'evidence',
 ])
@@ -47,25 +48,34 @@ export function queryVisibleDemoTarget(
   opts: { entityId?: string; entityType?: string; activeView?: string } = {},
 ): HTMLElement | null {
   if (typeof document === 'undefined') return null
-  const roots = Array.from(document.querySelectorAll('#main-content .view.active, #main-content .view'))
+  // Route views plus global drawers/portals (EntityDrawer mounts outside #main-content).
+  const roots = Array.from(
+    document.querySelectorAll(
+      '#main-content .view.active, #main-content .view, .drawer-root, [data-demo-target="entity-detail"]',
+    ),
+  )
   const scopedRoots = roots.length ? roots : [document.body]
 
   const matches: HTMLElement[] = []
+  const seen = new Set<HTMLElement>()
   for (const root of scopedRoots) {
-    const nodes = root.querySelectorAll(`[data-demo-target="${targetName}"]`)
+    const nodes =
+      root instanceof HTMLElement && root.getAttribute('data-demo-target') === targetName
+        ? [root]
+        : Array.from(root.querySelectorAll(`[data-demo-target="${targetName}"]`))
     nodes.forEach((n) => {
-      if (n instanceof HTMLElement && isElementVisible(n)) matches.push(n)
+      if (!(n instanceof HTMLElement) || seen.has(n) || !isElementVisible(n)) return
+      seen.add(n)
+      matches.push(n)
     })
   }
 
   let candidates = matches
   if (opts.entityId) {
-    const withId = candidates.filter((el) => el.getAttribute('data-demo-entity-id') === opts.entityId)
-    if (withId.length) candidates = withId
+    candidates = candidates.filter((el) => el.getAttribute('data-demo-entity-id') === opts.entityId)
   }
   if (opts.entityType) {
-    const withType = candidates.filter((el) => el.getAttribute('data-demo-entity-type') === opts.entityType)
-    if (withType.length) candidates = withType
+    candidates = candidates.filter((el) => el.getAttribute('data-demo-entity-type') === opts.entityType)
   }
 
   return candidates[0] ?? null
