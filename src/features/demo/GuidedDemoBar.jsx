@@ -324,8 +324,16 @@ export default function GuidedDemoBar({ onNavigate }) {
     setMoreOpen(false)
   }
 
+  const bogWalkthrough =
+    tenantCode === 'BOG' || journey?.playlistId === 'bog-resilience-7' || /bog/i.test(journey?.id || '')
+
   return (
     <div className="demo-tour-bar" role="region" aria-label="Guided demonstration">
+      {bogWalkthrough && (
+        <p className="demo-tour-bar__disclaimer" role="note">
+          Synthetic scenario — not a Bank of Ghana assessment
+        </p>
+      )}
       <div className="demo-tour-bar__progress">
         <span className="demo-tour-bar__journey">{journey.title}</span>
         <span className="demo-tour-bar__count">

@@ -534,7 +534,7 @@ export default function FindingsView() {
 
           {detail && (
             <aside
-              className="findings-detail itemcard"
+              className="findings-detail itemcard detail-surface"
               data-demo-target="entity-detail"
               data-demo-entity-id={detail.f.id}
               data-demo-entity-type="finding"
