@@ -486,11 +486,49 @@ function pushAudit(pack: TenantPack, event: Omit<AuditFields, 'id' | 'timestamp'
   pack.auditHistory = [...(pack.auditHistory ?? []), entry]
 }
 
+/** Upgrade persisted synthetic BoG packs without replacing user edits or other tenants. */
+export function mergeBogJourneySeeds(pack: TenantPack | null | undefined): TenantPack | null | undefined {
+  if (!pack || pack.tenant.code !== 'BOG' || pack.tenant.id !== 'tenant-bog') return pack
+  const seed = loadTenantPack('BOG')
+  function addMissing<T extends { id: string }>(rows: T[], seeds: T[], id: string): T[] {
+    if (rows.some((row) => row.id === id)) return rows
+    const match = seeds.find((row) => row.id === id)
+    return match ? [...rows, structuredClone(match)] : rows
+  }
+  const aiModels = addMissing(pack.aiModels ?? [], seed.aiModels ?? [], 'aim-bog-demo-01')
+  const aiSolutions = addMissing(pack.aiSolutions ?? [], seed.aiSolutions ?? [], 'ai-bog-demo-01')
+  const evidence = addMissing(pack.evidence, seed.evidence, 'ev-bog-demo-ai-01')
+  let findings = addMissing(pack.findings, seed.findings, 'find-bog-demo-ai-01')
+  const lineage = findings.find((f) => f.id === 'find-bog-01')
+  if (
+    lineage &&
+    pack.dataObjects.some((d) => d.id === 'data-bog-02') &&
+    !lineage.linkedObjectIds.includes('data-bog-02')
+  ) {
+    findings = findings.map((f) =>
+      f === lineage ? { ...f, linkedObjectIds: [...f.linkedObjectIds, 'data-bog-02'] } : f,
+    )
+  }
+  if (
+    aiModels === pack.aiModels &&
+    aiSolutions === pack.aiSolutions &&
+    evidence === pack.evidence &&
+    findings === pack.findings
+  ) {
+    return pack
+  }
+  return { ...pack, aiModels, aiSolutions, evidence, findings }
+}
+
+function hydrateWorkingPack(pack: TenantPack): TenantPack {
+  return mergeBogJourneySeeds(mergeGraAiSeedIfMissing(pack)) as TenantPack
+}
+
 export const usePrototypeStore = create<PrototypeState>()(
   persist(
     (set, get) => {
       const finalizePack = (pack: TenantPack, code: TenantCode): TenantPack => {
-        const hydrated = mergeGraAiSeedIfMissing(pack)
+        const hydrated = hydrateWorkingPack(pack)
         if (hydrated !== pack) {
           set({
             workingPack: hydrated,
@@ -1700,7 +1738,15 @@ export const usePrototypeStore = create<PrototypeState>()(
         if (p.tenantCode && !isKnownTenant(p.tenantCode)) {
           return { ...current, ...p, tenantCode: 'GRA', workingPack: null, selectedEntity: null, view: 'executive' } as PrototypeState
         }
-        return { ...current, ...p } as PrototypeState
+        const bog = mergeBogJourneySeeds(p.workingPacks?.BOG)
+        return {
+          ...current,
+          ...p,
+          ...(p.workingPack ? { workingPack: mergeBogJourneySeeds(p.workingPack) } : {}),
+          ...(bog && bog !== p.workingPacks?.BOG
+            ? { workingPacks: { ...p.workingPacks, BOG: bog } }
+            : {}),
+        } as PrototypeState
       },
       partialize: (s) => ({
         tenantCode: s.tenantCode,

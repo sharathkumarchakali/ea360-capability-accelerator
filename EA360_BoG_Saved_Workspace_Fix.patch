@@ -1,0 +1,53 @@
+diff --git a/src/state/prototypeStore.ts b/src/state/prototypeStore.ts
+index 77c64a3..215af8a 100644
+--- a/src/state/prototypeStore.ts
++++ b/src/state/prototypeStore.ts
+@@ -486,6 +486,31 @@ function pushAudit(pack: TenantPack, event: Omit<AuditFields, 'id' | 'timestamp'
+   pack.auditHistory = [...(pack.auditHistory ?? []), entry]
+ }
+ 
++/** Upgrade saved BoG demo data without replacing user edits or other tenants. */
++function mergeBogJourneySeeds(pack: TenantPack | null | undefined) {
++  if (!pack || pack.tenant.code !== 'BOG' || pack.tenant.id !== 'tenant-bog') return pack
++  const seed = loadTenantPack('BOG')
++  function addMissing<T extends { id: string }>(rows: T[], seeds: T[], id: string): T[] {
++    if (rows.some((row) => row.id === id)) return rows
++    const match = seeds.find((row) => row.id === id)
++    return match ? [...rows, structuredClone(match)] : rows
++  }
++  const aiModels = addMissing(pack.aiModels ?? [], seed.aiModels, 'aim-bog-demo-01')
++  const aiSolutions = addMissing(pack.aiSolutions ?? [], seed.aiSolutions, 'ai-bog-demo-01')
++  const evidence = addMissing(pack.evidence, seed.evidence, 'ev-bog-demo-ai-01')
++  let findings = addMissing(pack.findings, seed.findings, 'find-bog-demo-ai-01')
++  const lineage = findings.find((f) => f.id === 'find-bog-01')
++  if (lineage && pack.dataObjects.some((d) => d.id === 'data-bog-02') &&
++      !lineage.linkedObjectIds.includes('data-bog-02')) {
++    findings = findings.map((f) => f === lineage
++      ? { ...f, linkedObjectIds: [...f.linkedObjectIds, 'data-bog-02'] }
++      : f)
++  }
++  if (aiModels === pack.aiModels && aiSolutions === pack.aiSolutions &&
++      evidence === pack.evidence && findings === pack.findings) return pack
++  return { ...pack, aiModels, aiSolutions, evidence, findings }
++}
++
+ export const usePrototypeStore = create<PrototypeState>()(
+   persist(
+     (set, get) => {
+@@ -1696,7 +1721,15 @@ export const usePrototypeStore = create<PrototypeState>()(
+         if (p.tenantCode && !isKnownTenant(p.tenantCode)) {
+           return { ...current, ...p, tenantCode: 'GRA', workingPack: null, selectedEntity: null, view: 'executive' } as PrototypeState
+         }
+-        return { ...current, ...p } as PrototypeState
++        const bog = mergeBogJourneySeeds(p.workingPacks?.BOG)
++        return {
++          ...current,
++          ...p,
++          ...(p.workingPack ? { workingPack: mergeBogJourneySeeds(p.workingPack) } : {}),
++          ...(bog && bog !== p.workingPacks?.BOG
++            ? { workingPacks: { ...p.workingPacks, BOG: bog } }
++            : {}),
++        } as PrototypeState
+       },
+       partialize: (s) => ({
+         tenantCode: s.tenantCode,
