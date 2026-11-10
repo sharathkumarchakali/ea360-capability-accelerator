@@ -1,7 +1,11 @@
 import type { RouteId } from '../../config/routes'
 import type { DemoStep } from './journeyDefinitions'
 
-/** Routes that surface selected records in a global drawer rather than an inline panel. */
+/**
+ * Routes that open the global EntityDrawer during guided steps.
+ * Views with a first-class inline detail panel (findings, recommendations,
+ * governance/decisions) are intentionally omitted so only one detail surface shows.
+ */
 export const DRAWER_ENTITY_DETAIL_ROUTES = new Set<string>([
   'data-information',
   'applications',
@@ -11,7 +15,6 @@ export const DRAWER_ENTITY_DETAIL_ROUTES = new Set<string>([
   'capabilities',
   'initiatives',
   'roadmap',
-  'recommendations',
   'evidence',
 ])
 

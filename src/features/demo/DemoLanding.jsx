@@ -6,7 +6,11 @@ import {
 } from '../../state/prototypeStore'
 import { loadTenantPack } from '../../data/repositories/tenantRepository'
 import { DEMO_ENTRY_OPTIONS, getDemoJourneys } from './demoJourneys'
+import { buildPlaylistJourney } from './journeyDefinitions'
 import { preflightJourney } from './scenarioPreflight'
+
+const BOG_RESILIENCE_PLAYLIST_ID = 'bog-resilience-7'
+const BOG_DISCLAIMER = 'Synthetic scenario — not a Bank of Ghana assessment'
 
 export default function DemoLanding({ onStart }) {
   const tenants = listAvailableTenants()
@@ -45,6 +49,27 @@ export default function DemoLanding({ onStart }) {
     onStart?.(entryId)
   }
 
+  /** One-click BoG start: synthetic case + presentation mode, no tenant/role pick. */
+  function startBogResilienceDemo() {
+    switchTenant('BOG')
+    setPresentationMode(true)
+    setPresentation(true)
+    const journey = buildPlaylistJourney('BOG', BOG_RESILIENCE_PLAYLIST_ID)
+    if (!journey?.bound) {
+      showToast(journey?.boundReason || 'BoG resilience demo is not available.')
+      return
+    }
+    const pack = usePrototypeStore.getState().workingPack || loadTenantPack('BOG')
+    const pre = preflightJourney(pack, 'BOG', journey.anchorJourneyId || 'J3')
+    if (pre.status === 'Unavailable' || pre.status === 'Needs setup') {
+      showToast(pre.summary || 'Prepare the BoG workspace in Demo Studio before starting.')
+      return
+    }
+    dismissLanding()
+    startGuidedTour(journey.id)
+    onStart?.(BOG_RESILIENCE_PLAYLIST_ID)
+  }
+
   return (
     <div className="demo-landing" role="dialog" aria-modal="true" aria-labelledby="demo-landing-title">
       <div className="demo-landing-panel">
@@ -54,6 +79,18 @@ export default function DemoLanding({ onStart }) {
         <p className="demo-landing-lead">
           Controlled synthetic demonstration for {config.displayName}. Choose how you want to begin.
         </p>
+
+        <div className="demo-landing-bog-start">
+          <button
+            type="button"
+            className="btn primary primary-button demo-bog-start-btn"
+            onClick={startBogResilienceDemo}
+            data-demo-target="start-bog-resilience"
+          >
+            Start BoG resilience demo
+          </button>
+          <p className="demo-landing-bog-note">{BOG_DISCLAIMER}</p>
+        </div>
 
         <div className="demo-landing-controls">
           <label className="demo-field">

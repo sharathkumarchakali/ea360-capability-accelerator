@@ -58,7 +58,7 @@ export const bogConfig: TenantConfig = {
     'evidence',
   ],
   syntheticDisclaimer:
-    'Synthetic demonstration data for Bank of Ghana themes. Not an official BoG architecture, inventory, or risk register.',
+    'Synthetic scenario — not a Bank of Ghana assessment. Illustrative demonstration data only; not an official BoG architecture, inventory, or risk register.',
   accentColor: '#1a4a66',
   storyline:
     'Strengthen regulatory oversight, operational resilience, data governance and EA operationalisation. Multiple reporting channels lack consistent definitions and lineage; payment-system dependencies concentrate resilience risk; technology end-of-support and late architecture reviews slow remediation; overlapping analytical platforms weaken data ownership; some transformation initiatives lack clear capability linkage.',

@@ -43,6 +43,20 @@ describe('Demo step readiness (FIX-J01-J08)', () => {
     expect(store().selectedEntity?.type).toBe('finding')
   })
 
+  it('recommendation entity-detail stays inline (no overlapping drawer)', () => {
+    store().switchTenant('BOG')
+    store().startGuidedTour('J1')
+    const step = getDemoJourneys('BOG').find((j) => j.journeyId === 'J1')!.steps.find((s) => s.id === 'J1.5a')!
+    expect(step.target.name).toBe('entity-detail')
+    expect(shouldOpenDrawerDetailForStep(step)).toBe(false)
+    const binding = getJourneyBinding('BOG', 'J1')!
+    const resolved = resolveStepForRun(step, store().workingPack, binding).step
+    applyDemoStepWithStore(resolved, { applyNonce: store().bumpGuidedApplyNonce(), stepIndex: 0 }, store())
+    expect(store().entityDetailOpen).toBe(false)
+    expect(store().selectedEntity?.type).toBe('recommendation')
+    expect(store().selectedEntity?.id).toBe('rec-bog-02')
+  })
+
   it('missing mandatory record blocks Next', () => {
     const step = getDemoJourneys('GRA')[0].steps[0]
     const fake = {

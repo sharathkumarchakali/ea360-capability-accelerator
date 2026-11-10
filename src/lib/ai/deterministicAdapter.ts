@@ -1498,7 +1498,9 @@ function answerExecutiveBriefing(ctx: AIContext) {
       ...inits.slice(0, 4).map((i) => ({ id: i.id, type: 'initiative', name: i.name })),
     ],
     assumptions: [
-      'Synthetic GRA demonstration data — not official GRA architecture.',
+      ctx.pack.tenant.code === 'BOG'
+        ? 'Synthetic scenario — not a Bank of Ghana assessment.'
+        : `Synthetic ${ctx.pack.tenant.shortName} demonstration data — not an official architecture for the named institution.`,
       'Value figures are indicative bands subject to validation.',
       'Role filter changes narrative emphasis only; it does not change underlying facts.',
     ],

@@ -46,7 +46,7 @@ export default function RecommendationsView() {
   function openRec(id) {
     setDetailId(id)
     setGateMessage('')
-    selectEntity({ id, type: 'recommendation' })
+    selectEntity({ id, type: 'recommendation' }, { openDetail: false })
     const r = recs.find((x) => x.id === id)
     setPreferredOption(r?.preferredOption || r?.optionsConsidered?.[0] || '')
   }
@@ -142,9 +142,19 @@ export default function RecommendationsView() {
           </div>
 
           {detail && (
-            <aside className="recs-detail itemcard">
-              <div className="kicker">Recommendation detail</div>
-              <h3>{detail.name}</h3>
+            <aside
+              className="recs-detail itemcard detail-surface"
+              data-demo-target="entity-detail"
+              data-demo-entity-id={detail.id}
+              data-demo-entity-type="recommendation"
+              aria-busy={false}
+            >
+              <div className="detail-surface-head">
+                <div>
+                  <div className="kicker">Recommendation detail</div>
+                  <h3>{detail.name}</h3>
+                </div>
+              </div>
               <div className="chip-row">
                 <span className={`tag ${statusClass(detail.status)}`}>{detail.status}</span>
                 <span className="wf-status">Effort {detail.effortBand}</span>

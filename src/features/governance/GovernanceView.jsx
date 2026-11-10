@@ -287,7 +287,7 @@ export default function GovernanceView() {
           </div>
 
           <aside
-            className="ea-detail-panel"
+            className="ea-detail-panel detail-surface"
             data-demo-target="entity-detail"
             data-demo-entity-id={detailDecisionId || undefined}
             data-demo-entity-type="decision"
