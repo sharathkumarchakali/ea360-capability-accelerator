@@ -129,10 +129,16 @@ describe('AT01 — preflight and bindings', () => {
   it('playlists reference only real journeys and produce runnable journeys', () => {
     expect(DEMO_PLAYLISTS.length).toBeGreaterThan(0)
     for (const playlist of DEMO_PLAYLISTS) {
-      const journey = buildPlaylistJourney('GRA', playlist.id)
+      const probeCode = playlist.tenantCodes?.[0] || 'GRA'
+      const journey = buildPlaylistJourney(probeCode, playlist.id)
       expect(journey, playlist.id).toBeTruthy()
-      expect(journey!.steps.length).toBeGreaterThan(0)
+      expect(journey!.steps.length, playlist.id).toBeGreaterThan(0)
       expect(validateJourneyContract(journey!), playlist.id).toEqual([])
+      if (playlist.tenantCodes) {
+        for (const other of ['GRA', 'BOG', 'FIDELITY', 'GENERIC'].filter((c) => !playlist.tenantCodes!.includes(c))) {
+          expect(buildPlaylistJourney(other, playlist.id)?.bound, `${playlist.id} on ${other}`).toBe(false)
+        }
+      }
     }
   })
 

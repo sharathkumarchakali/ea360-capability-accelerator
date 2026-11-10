@@ -25,8 +25,9 @@ Ask EA360 questions used by each journey are listed in [`ASK_EA360_DEMO_QUESTION
 |---|---|---|
 | Full product walkthrough | J8 + J1 + J2 + J3 + J4 + J5 + J6 + J7 | ~60–70 min |
 | 15-minute prospect walkthrough | J1 (J1.2, J1.3, J1.5b, J1.7) + J3 (J3.2, J3.4, J3.7, J3.8b) + J6 (J6.2, J6.3, J6.6, J6.7) + J7 (J7.1, J7.4, J7.10a) | ~15 min |
+| BoG payment resilience (7 min) | BoG only · payments scenario: J1.2 + J3.2/J3.3/J3.5b/J3.7/J3.8a + J1.7 (`int-bog-12`) | ~7 min |
 
-Playlists reuse the journey definitions; they never copy steps.
+Playlists reuse the journey definitions; they never copy steps. The BoG 7-minute playlist anchors every step to the J3 payments scenario so the cockpit, interface, evidence, decision, initiative and brief stay on one synthetic story.
 
 ## Workspace support
 

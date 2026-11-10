@@ -69,6 +69,23 @@ Switching tenants returns to Executive Cockpit and must not show prior-tenant re
 2. Emphasise payment-system resilience and supervisory risk.
 3. Briefing -> decision inbox under Governance.
 
+### BoG — seven-minute payment resilience (preferred prospect path)
+**Playlist:** Demo Studio → **BoG payment resilience (7 min)** (`bog-resilience-7`).  
+**Scenario:** `scenario-bog-payments` only (illustrative — not official BoG findings).  
+**Interface:** `int-bog-12` RTGS → Retail Oversight (P2P). Do **not** substitute the SWIFT link (`int-bog-10`).
+
+| Beat | Step | Expect |
+|---|---|---|
+| 1 | Cockpit (J1.2) | Enterprise health / priority risks for BoG payments scenario |
+| 2 | Open interface (J3.2) | RTGS → Retail Oversight selected |
+| 3 | Dependency graph (J3.3) | Graph rooted at `int-bog-12`; edges readable under screen-share / Presentation mode |
+| 4 | Evidence (J3.5b) | Linked incident / inventory evidence (`ev-bog-06`) |
+| 5 | Conditional decision (J3.7) | `dec-bog-02` Approved with Conditions |
+| 6 | Delivery owner (J3.8a) | Initiative `init-bog-03` owner / period |
+| 7 | Decision brief (J1.7) | **Generate briefing** / Finish leaves the brief open — not a generic “Journey complete” toast |
+
+**Controls:** Next waits for route + bound record / graph root. Cosmetic highlight failure does not block. Back, Retry and Restart remain available; Ask EA360 does not open on navigation. J4–J6 stay Unavailable for BoG.
+
 ### Fidelity
 1. Select Fidelity -> Executive Demo (Customer 360).
 2. Link onboarding friction to applications and API concentration.

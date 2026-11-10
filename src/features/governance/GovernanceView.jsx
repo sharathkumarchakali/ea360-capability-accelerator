@@ -3,6 +3,7 @@ import { usePrototypeStore } from '../../state/prototypeStore'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import CreateInitiativeModal from '../initiatives/CreateInitiativeModal'
 import { callStoreAction } from '../workflow/callStoreAction'
+import DecisionReviewPanel from './DecisionReviewPanel'
 
 function queueAgeDays(iso, asOf = '2026-09-07') {
   if (!iso) return 0
@@ -63,6 +64,8 @@ export default function GovernanceView() {
   const storeSlice = usePrototypeStore()
   const repo = usePrototypeStore((s) => s.getRepo)()
   const selectEntity = usePrototypeStore((s) => s.selectEntity)
+  const selectedEntity = usePrototypeStore((s) => s.selectedEntity)
+  const navContext = usePrototypeStore((s) => s.navContext)
   const mutations = usePrototypeStore((s) => s.mutations)
 
   const [search, setSearch] = useState('')
@@ -97,14 +100,37 @@ export default function GovernanceView() {
     })
   }, [queue, search, statusFilter])
 
-  const selected = filteredQueue.find((i) => i.id === selectedId) || filteredQueue[0] || null
+  const focusDecisionId =
+    (selectedEntity?.type === 'decision' && selectedEntity.id) ||
+    navContext?.filters?.decisionId ||
+    navContext?.entityId ||
+    null
+
+  const focusedRecord = useMemo(() => {
+    if (!focusDecisionId) return null
+    return (Array.isArray(decisions) ? decisions : []).find((d) => d.id === focusDecisionId) || null
+  }, [decisions, focusDecisionId])
+
+  useEffect(() => {
+    if (!focusDecisionId) return
+    const inQueue = filteredQueue.find(
+      (i) => i.id === focusDecisionId || i.decisionId === focusDecisionId,
+    )
+    if (inQueue) setSelectedId(inQueue.id)
+  }, [focusDecisionId, filteredQueue])
+
+  const selected = filteredQueue.find((i) => i.id === selectedId) || (!focusedRecord ? filteredQueue[0] : null) || null
   const linkedRec = selected?.recommendationId
     ? repo.getRecommendation(selected.recommendationId)
-    : null
+    : focusedRecord?.recommendationId
+      ? repo.getRecommendation(focusedRecord.recommendationId)
+      : null
+
+  const detailDecisionId = focusedRecord?.id || selected?.decisionId || selected?.id || null
 
   useEffect(() => {
     setReviewMode(false)
-  }, [selected?.id])
+  }, [selected?.id, focusedRecord?.id])
 
   function runDecision(action) {
     if (!selected) return
@@ -263,11 +289,23 @@ export default function GovernanceView() {
           <aside
             className="ea-detail-panel"
             data-demo-target="entity-detail"
-            data-demo-entity-id={selected.decisionId || selected.id}
+            data-demo-entity-id={detailDecisionId || undefined}
             data-demo-entity-type="decision"
             aria-busy={false}
           >
-            {selected ? (
+            {focusedRecord ? (
+              <>
+                <h3>{focusedRecord.name}</h3>
+                <p className="sub">
+                  Recorded decision · {focusedRecord.decisionStatus || focusedRecord.status}
+                </p>
+                <DecisionReviewPanel
+                  decision={focusedRecord}
+                  repo={repo}
+                  linkedRecommendation={linkedRec}
+                />
+              </>
+            ) : selected ? (
               <>
                 <h3>{selected.name}</h3>
                 <p>{selected.summary || linkedRec?.outcome}</p>
@@ -369,7 +407,7 @@ export default function GovernanceView() {
                 )}
               </>
             ) : (
-              <p className="sub">Select a queue item to review.</p>
+              <p className="sub">Select a queue item or recorded decision to review.</p>
             )}
           </aside>
         </div>
@@ -386,9 +424,19 @@ export default function GovernanceView() {
             <ul className="drawer-list">
               {(Array.isArray(decisions) ? decisions : []).map((d) => (
                 <li key={d.id}>
-                  <strong>{d.name || d.id}</strong> · {d.status}
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => selectEntity({ id: d.id, type: 'decision' })}
+                  >
+                    <strong>{d.name || d.id}</strong>
+                  </button>{' '}
+                  · {d.decisionStatus || d.status}
                   {d.rationale ? ` — ${d.rationale}` : ''}
-                  {(d.status === 'approved' || d.status === 'approved_with_conditions') && (
+                  {(d.status === 'approved' ||
+                    d.status === 'approved_with_conditions' ||
+                    d.decisionStatus === 'Approved' ||
+                    d.decisionStatus === 'Approved with Conditions') && (
                     <>
                       {' '}
                       <button
