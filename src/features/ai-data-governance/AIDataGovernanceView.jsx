@@ -297,7 +297,7 @@ export default function AIDataGovernanceView() {
   }
 
   return (
-    <section className="view active app-portfolio-view ai-gov-view data-portfolio-view">
+    <section className="view active app-portfolio-view ai-gov-view data-portfolio-view" data-demo-target="ai-governance-workspace">
       <div className="module">
         <div className="module-header app-portfolio-header">
           <div>

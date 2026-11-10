@@ -596,7 +596,7 @@ export const bogPack: TenantPack = {
   technologies: [
     { ...base('tech-bog-01', 'Oracle Database 19c', 'Primary RDBMS for returns and RTGS operational stores.', 'person-bog-cto'), category: 'Database', lifecycle: 'approved' },
     { ...base('tech-bog-02', 'PostgreSQL 15', 'Analytics and lakehouse metastore services.', 'person-bog-cdo'), category: 'Database', lifecycle: 'strategic' },
-    { ...base('tech-bog-03', 'Legacy Java EE 6 runtime', 'End-of-support runtime for Legacy Returns Intake.', 'person-bog-cto', 'active', ['legacy', 'eos']), category: 'Application runtime', lifecycle: 'retire' },
+    { ...base('tech-bog-03', 'Legacy Java EE 6 runtime', 'End-of-support runtime for Legacy Returns Intake in this synthetic scenario.', 'person-bog-cto', 'active', ['legacy', 'eos']), category: 'Application runtime', lifecycle: 'retire', supportEndDate: '2026-03-31', supportEndDateSynthetic: true },
     { ...base('tech-bog-04', 'WSO2 API Manager', 'API management for Integration Hub.', 'person-bog-chief-architect'), category: 'Integration', lifecycle: 'strategic' },
     { ...base('tech-bog-05', 'Kubernetes', 'Container platform for new services.', 'person-bog-cto'), category: 'Platform', lifecycle: 'strategic' },
     { ...base('tech-bog-06', 'Red Hat OpenShift', 'Enterprise Kubernetes distribution.', 'person-bog-cto'), category: 'Platform', lifecycle: 'approved' },
@@ -621,7 +621,37 @@ export const bogPack: TenantPack = {
     { ...base('tech-bog-25', 'Prometheus / Grafana', 'Platform monitoring stack.', 'person-bog-cto'), category: 'Observability', lifecycle: 'strategic' },
   ],
 
+  aiModels: [{
+    ...base('aim-bog-demo-01', 'Synthetic supervisory text model', 'Fictional model for a controlled demonstration.', 'person-bog-cdo'),
+    provider: 'Synthetic demo provider', modelType: 'Text summarisation', hosting: 'Demo sandbox',
+    status: 'Pilot', riskLevel: 'High', isExternalProvider: false, isSynthetic: true,
+  }],
+  aiSolutions: [{
+    ...base('ai-bog-demo-01', 'Supervisory Evidence Review Agent', 'Drafts summaries for a human reviewer using synthetic supervisory evidence.', 'person-bog-cdo', 'active', ['synthetic']),
+    solutionType: 'Agent', businessCapabilityIds: ['cap-bog-32'],
+    businessPurpose: 'Draft source-linked summaries without issuing a supervisory decision.',
+    lifecycle: 'EXPERIMENT', businessCriticality: 'high', businessOwner: 'Data governance lead',
+    technicalOwner: 'Architecture lead', aiOwner: 'Model review lead',
+    autonomyLevel: 1, humanOversightType: 'Every Action', humanOversightRole: 'Supervisory reviewer',
+    overrideAvailable: true, modelIds: ['aim-bog-demo-01'], dataDomainIds: ['data-bog-02'],
+    toolPermissions: [{ integrationId: 'int-bog-02', permission: 'READ' }],
+    applicationIds: ['app-bog-11'], technologyIds: [], riskLevel: 'High', governanceStatus: 'Partial',
+    guardrails: { approvedUseCase: 'Defined', allowedActions: 'Defined', prohibitedActions: 'Partial',
+      approvedData: 'Partial', humanApproval: 'Defined', escalation: 'Partial',
+      outputReview: 'Defined', monitoring: 'Missing' },
+    findingIds: ['find-bog-demo-ai-01'], decisionIds: [], initiativeIds: [],
+    portfolioAction: 'GOVERN', isSynthetic: true,
+  }],
+
   evidence: [
+    {
+      ...base('ev-bog-demo-ai-01', 'Synthetic agent permission review', 'Read-only access recorded; monitoring evidence is missing.', 'person-bog-cdo'),
+      evidenceType: 'architecture-document', confidence: 'high',
+      linkedObjectIds: ['ai-bog-demo-01', 'aim-bog-demo-01', 'data-bog-02', 'int-bog-02'],
+      sourceName: 'EA360 synthetic fixture', sourceReference: 'BOG-DEMO-AI-01',
+      sourceDate: '2026-09-01', capturedDate: '2026-09-01', freshness: 'fresh',
+      reliability: 'high', verificationStatus: 'verified', relatedFindingIds: ['find-bog-demo-ai-01'], notes: [],
+    },
     {
       ...base('ev-bog-01', 'Returns definition conflict analysis', 'Sample showing conflicting field definitions across legacy intake and returns engine.', 'person-bog-cdo'),
       evidenceType: 'system-extract', confidence: 'high', linkedObjectIds: ['data-bog-01', 'app-bog-22', 'app-bog-04', 'cap-bog-32'],
@@ -738,13 +768,27 @@ export const bogPack: TenantPack = {
 
   findings: [
     {
+      ...base('find-bog-demo-ai-01', 'Agent monitoring evidence missing', 'Fictional production-readiness review.', 'person-bog-cdo', 'open', ['synthetic']),
+      category: 'AI Governance', severity: 'high',
+      problemStatement: 'The pilot agent has no recorded monitoring evidence.',
+      rootCause: 'The monitoring plan has not been demonstrated.',
+      businessImpact: 'Reviewers cannot establish that unsafe outputs would be detected.',
+      urgency: 'high', evidenceIds: ['ev-bog-demo-ai-01'],
+      linkedObjectIds: ['ai-bog-demo-01', 'aim-bog-demo-01', 'data-bog-02'],
+      targetDate: '2026-12-31', recommendedAction: 'Keep the pilot restricted and obtain monitoring evidence before production review.',
+      workflowStatus: 'Accepted', likelihood: 3, impactScore: 4, riskScore: 12,
+      businessOwnerId: 'person-bog-cdo', architectureOwnerId: 'person-bog-chief-architect',
+      dateIdentified: '2026-09-01', lastReviewedDate: '2026-09-01', domain: 'Regulatory Data',
+      recommendationIds: [], decisionIds: [], initiativeIds: [], confidenceScore: 90,
+    },
+    {
       ...base('find-bog-01', 'Incomplete regulatory data lineage', 'Critical supervisory products lack end-to-end lineage from intake.', 'person-bog-cdo', 'open', ['lineage']),
       category: 'Data / Capability', severity: 'critical',
       problemStatement: 'Certified and shadow supervisory datasets cannot be traced reliably to source returns and validation rules.',
       rootCause: 'Dual intake paths and an untracked lake bypass without a governed data product catalogue.',
       businessImpact: 'Conflicting supervisory metrics and delayed interventions.',
       urgency: 'critical', evidenceIds: ['ev-bog-01', 'ev-bog-02'],
-      linkedObjectIds: ['cap-bog-30', 'cap-bog-32', 'app-bog-11', 'app-bog-22', 'int-bog-03'],
+      linkedObjectIds: ['cap-bog-30', 'cap-bog-32', 'app-bog-11', 'app-bog-22', 'int-bog-03', 'data-bog-02'],
       targetDate: '2026-12-31', recommendedAction: 'Mandate lineage for critical products and retire lake bypass.',
       workflowStatus: 'Accepted', likelihood: 5, impactScore: 5, riskScore: 25,
       businessOwnerId: 'person-bog-cdo', architectureOwnerId: 'person-bog-chief-architect',

@@ -463,6 +463,27 @@ function seededBindings(p: SeedParts, reasons: Record<'J4' | 'J5' | 'J6', string
   ]
 }
 
+const BOG_SPECIALIST_BINDINGS: JourneyScenarioBinding[] = [
+  { tenantCode: 'BOG', journeyId: 'J4', available: true, scenarioId: 'scenario-bog-lineage',
+    refs: { data: r('dataObject', 'data-bog-02'), finding: r('finding', 'find-bog-01'), recommendation: r('recommendation', 'rec-bog-01'), decision: r('decision', 'dec-bog-01'), initiative: r('initiative', 'init-bog-01') },
+    links: [["finding","data"],["finding","recommendation"],["recommendation","decision"],["recommendation","initiative"]],
+    routes: ["data-information","explorer","ai-data-governance","findings","initiatives"], questionIds: ["Q16","Q17","Q18","Q19"],
+    note: SYNTH,
+  },
+  { tenantCode: 'BOG', journeyId: 'J5', available: true, scenarioId: 'scenario-bog-lineage',
+    refs: { technology: r('technology', 'tech-bog-03'), application: r('application', 'app-bog-22'), finding: r('finding', 'find-bog-06'), initiative: r('initiative', 'init-bog-06') },
+    links: [["finding","technology"],["technology","application"],["finding","initiative"]],
+    routes: ["technology-infrastructure","explorer","standards","findings","roadmap"], questionIds: ["Q20","Q21","Q22","Q23"],
+    note: SYNTH,
+  },
+  { tenantCode: 'BOG', journeyId: 'J6', available: true, requiresFixture: 'j6-permission-evidence',
+    refs: { agent: r('aiSolution', 'ai-bog-demo-01'), model: r('aiModel', 'aim-bog-demo-01'), data: r('dataObject', 'data-bog-02'), finding: r('finding', 'find-bog-demo-ai-01'), evidence: r('evidence', 'ev-bog-demo-ai-01') },
+    links: [["agent","model"],["agent","data"],["finding","agent"],["finding","evidence"]],
+    routes: ["ai-automation","explorer","ai-data-governance","findings","kpis"], questionIds: ["Q24","Q25","Q26","Q27","Q28","Q29","Q30"],
+    note: SYNTH,
+  },
+]
+
 const BOG_BINDINGS = seededBindings(
   {
     code: 'BOG',
@@ -509,6 +530,10 @@ const BOG_BINDINGS = seededBindings(
     J6: NOT_VALIDATED('governed-AI (J6)') + ' This pack has no AI solutions or models.',
   },
 )
+
+for (const binding of BOG_SPECIALIST_BINDINGS) {
+  BOG_BINDINGS[BOG_BINDINGS.findIndex((entry) => entry.journeyId === binding.journeyId)] = binding
+}
 
 const FIDELITY_BINDINGS = seededBindings(
   {

@@ -45,6 +45,7 @@ export type DemoAskCommand = {
 export type DemoPredicate =
   | 'evidence-verified'
   | 'finding-accepted'
+  | 'finding-validated'
   | 'draft-saved'
   | 'recommendation-submitted'
   | 'decision-conditional'
@@ -100,6 +101,8 @@ export const SUPPORTED_FILTER_KEYS = new Set<string>([
 
 /** Central registry of `data-demo-target` names → selectors (spec §4.3). */
 export const DEMO_TARGET_SELECTORS: Record<string, string> = {
+  'graph-node': '[data-demo-target="graph-node"]',
+  'ai-governance-workspace': '[data-demo-target="ai-governance-workspace"]',
   'executive-health': '[data-demo-target="executive-health"]',
   'findings-register': '[data-demo-target="findings-register"]',
   'capability-heatmap': '[data-demo-target="capability-heatmap"]',
@@ -1326,7 +1329,36 @@ function buildJourney(tenantCode: string, journeyId: JourneyId): DemoJourney {
       routes: [],
     } as JourneyScenarioBinding)
   const ctx = makeCtx(b)
-  const steps = TEMPLATES[journeyId](ctx).map((s) => buildStep(s, b))
+  const steps = TEMPLATES[journeyId](ctx)
+    .filter((s) => code !== 'BOG' || !['J4.5b', 'J5.4', 'J6.5b', 'J6.9', 'J6.10'].includes(s.id))
+    .map((s) => {
+      if (code === 'BOG' && ['J4.3', 'J5.3', 'J6.4'].includes(s.id)) {
+        return buildStep({ ...s, target: 'graph-node' }, b)
+      }
+      if (code === 'BOG' && s.route === 'ai-data-governance' && ['J4', 'J6'].includes(journeyId)) {
+        return buildStep({
+          ...s, target: 'ai-governance-workspace',
+          ...(s.id === 'J6.5c' ? { expectedResult: 'No production approval is recorded for this fictional pilot.' } : {}),
+        }, b)
+      }
+      if (code === 'BOG' && s.id === 'J6.3') {
+        return buildStep({ ...s, presenterNote: 'Show the recorded READ-only permission and missing monitoring. The prototype never invokes the interface.' }, b)
+      }
+      if (code === 'BOG' && s.id === 'J7.3') return buildStep({
+        ...s, title: 'Validate the finding', humanAction: 'Click Validate on the practice finding.',
+        presenterNote: 'Validate the finding before drafting the recommendation. Validation is not approval.',
+        expectedResult: 'The practice finding is Validated, with the transition in the audit trail.',
+        completesWhen: ['finding-validated'],
+      }, b)
+      if (code === 'BOG' && ['J7.6', 'J7.7'].includes(s.id)) return buildStep({ ...s, target: 'review-board' }, b)
+      if (code === 'BOG' && s.id === 'J7.8') return buildStep({
+        ...s, route: 'decisions', selection: undefined, target: 'governance-decisions',
+        presenterNote: 'Find the approved practice decision in the Decision Register and click Create initiative.',
+      }, b)
+      if (code === 'BOG' && s.id === 'J7.9') return buildStep({ ...s, target: 'roadmap-board' }, b)
+      if (code === 'BOG' && s.id === 'J7.10a') return buildStep({ ...s, target: 'kpi-register' }, b)
+      return buildStep(s, b)
+    })
   const legacy = [`${prefix}-${journeyId.toLowerCase()}`]
   if (journeyId === 'J1') legacy.push(`${prefix}-executive`)
   if (journeyId === 'J2') legacy.push(`${prefix}-architecture`)
@@ -1594,6 +1626,10 @@ export function evaluatePredicate(name: DemoPredicate, ctx: PredicateContext): b
     case 'finding-accepted': {
       const wf = pack.findings?.find((f) => f.id === findingId)?.workflowStatus
       return Boolean(wf && ['Accepted', 'Remediation Planned', 'Resolved'].includes(wf))
+    }
+    case 'finding-validated': {
+      const wf = pack.findings?.find((f) => f.id === findingId)?.workflowStatus
+      return Boolean(wf && ['Validated', 'Accepted', 'Remediation Planned', 'Resolved'].includes(wf))
     }
     case 'draft-saved':
       return Boolean(findingId && (ctx.recommendationDrafts ?? []).some((d) => d.findingId === findingId))
